@@ -1,67 +1,66 @@
-# Arquitectura de Vitreo 0.1.0
+# Arquitectura de Vitreo 0.2.x
 
 ## Flujo de datos
 
-`PackageManager -> AppCatalog (IO) -> LauncherViewModel -> StateFlow -> Compose`.
-Las operaciones de escritorio se realizan mediante funciones Kotlin puras de
-`core/LayoutOps.kt`; `LauncherState.sanitized()` limita tamaños, elimina duplicados,
-conserva identidades explícitas de componentes y sanea valores gráficos.
+`PackageManager → AppCatalog (IO) → LauncherViewModel → StateFlow → Compose`.
+El núcleo `LayoutOps` mantiene una lista ordenada de entradas, carpetas y cuatro
+plazas de dock. `LauncherState.sanitized()` limita tamaños, elimina duplicados y
+sanea la apariencia. Una app ausente conserva su acceso hasta que se quite.
+Antes de lanzar se comprueba su componente contra el catálogo actual; una copia
+no puede introducir intent URIs ejecutables.
 
-Las referencias se limitan a actividades lanzables del usuario Android actual.
-Una actividad no disponible conserva su hueco; el lanzador comprueba que siga
-en el catálogo antes de lanzar el `ComponentName`. No ejecuta intent URIs de un
-backup. Una app borrada del escritorio manualmente no reaparece por cada refresco.
+`StateStore` lee y escribe con `AtomicFile` fuera del hilo de UI. Un canal de
+estados y un escritor serial conservan el último cambio pendiente; al liberar el
+ViewModel se cierra el canal y se drenan los guardados. Un cierre abrupto aún
+puede perder un cambio pendiente. Un JSON ilegible se conserva para recuperación
+cuando es posible. Las copias usan esquema 1 y un límite de 1 MiB.
 
-La carga y los guardados se realizan fuera del hilo de UI. Un canal que conserva el estado pendiente más reciente
-serializa escrituras mediante `AtomicFile`. El escritor usa un scope separado:
-al liberar el ViewModel, se cierra el canal y se intenta terminar lo pendiente
-en vez de cancelarlo inmediatamente. Un cierre abrupto podría perder el
-último cambio aún no persistido, pero no se presenta un archivo a medio escribir
-como estado válido. Un JSON ilegible provoca una copia local de recuperación
-cuando es posible y un aviso. Los backups se limitan a 1 MiB y esquema 1.
+## Pantallas e interacción
+
+El pager contiene Hoy, una o más páginas de Inicio y la Biblioteca. Sus claves
+conservan la identidad de las páginas cuando cambia el número de entradas.
+La cuadrícula excluye barras del sistema y recortes de pantalla; el teclado de
+Spotlight no cambia sus filas. La barra de edición ajusta el espacio entre filas
+sin alterar su capacidad. Salir de Inicio termina la edición.
+
+Un gesto vertical abre Spotlight o el Centro de control. El arrastre de edición
+se mantiene en el padre durante el cambio de página y puede reordenar, agrupar
+o intercambiar con el dock. Mientras haya un panel abierto se deshabilitan estos
+gestos, se interceptan sus huecos y se oculta la semántica del inicio de fondo.
+Los paneles respetan Reducir movimiento y la salida de búsqueda cierra el teclado.
+
+## Widgets y datos locales
+
+`WidgetController` usa un `AppWidgetHost` y preferencias privadas para los IDs
+vinculados de Hoy. Solo ofrece proveedores visibles para la pantalla de inicio.
+Una solicitud de alta conserva un ID pendiente; no admite otra hasta completarla
+o cancelarla. Cada resultado de configuración se contrasta con ese ID, por lo
+que un resultado tardío no completa una solicitud posterior. Cerrar la galería
+cancela y libera el pendiente. Los IDs no se exportan en las copias portables.
+
+El reloj y calendario integrados usan la hora y fecha locales. El ticker funciona
+solo mientras la actividad está visible, cada segundo o cada minuto en modo
+reducido/ahorro. Las sugerencias conservan localmente los últimos lanzamientos
+desde Vitreo y no consultan el historial global de otras apps.
 
 ## Material de cristal
 
-`WallpaperStore` genera un fondo propio o copia una imagen elegida por el usuario,
-reducida a un lado largo máximo de 1600 px. Precalcula una versión esmerilada de
-menor resolución. La imagen es solo de Vitreo: no cambia el fondo de bloqueo. Carga e importación
-están sincronizadas porque AtomicFile no sustituye un bloqueo entre escritores.
+`WallpaperStore` genera fondos propios o copia una foto con lado largo máximo de
+1600 px y precalcula una textura esmerilada. Carga e importación están serializadas.
+`GlassPanel` coloca un `GlassView` pasivo detrás de Compose. Android 13+ usa AGSL
+para refracción, tinte y reflejo. API 31/32, ahorro, modo reducido, canvas sin
+hardware o error de shader usan la textura precalculada. El modo opaco evita la
+textura. El shader no captura otras apps ni desenfoca sus contenidos.
 
-`GlassPanel` coloca `GlassView` detrás del contenido Compose. En Android 13+,
-`RuntimeShader` ejecuta `assets/glass.agsl`: distancia a rectángulo redondeado,
-normal aproximada del borde, desplazamiento de muestreo, ligera dispersión,
-mezcla esmerilada, tinte y reflejo. Las coordenadas se alinean con el fondo,
-incluso al cambiar la posición de un panel.
+## Publicación y límites
 
-No hay captura de pantalla, desenfoque de otras apps ni refracción del contenido
-que esté debajo del panel. No se ejecuta una animación continua en reposo. El coste
-real debe medirse en el Pixel; el uso de GPU por sí solo no garantiza eficiencia.
+Se publican APK de release con firma privada, versión creciente y assets
+inmutables. Un borrador solo se publica tras verificar todos sus uploads. Las
+versiones numéricas son releases normales; Preview queda en artifacts de CI.
+La publicación requiere las pruebas de API 31/35 en el mismo commit, JVM, lint y
+comprobaciones de identidad, firma, permisos y hashes.
 
-API 31/32, ahorro de batería, modo reducido, renderizado sin hardware o error de
-shader usan textura esmerilada. El modo opaco evita la textura. El último error de
-shader se incluye en diagnóstico, y la prueba de instrumentación API 33+ compila
-el shader directamente para no ocultar un error tras el fallback.
-
-## Límites del sistema
-
-Una Activity HOME no sustituye SystemUI, Recientes ni el bloqueo seguro. No se
-intenta integrar con Quickstep mediante privilegios, root o accesibilidad. No se
-implementa el host de AppWidgets en esta versión ni soporte de otros perfiles.
-
-## Próximas prioridades técnicas
-
-1. Obtener un build Android real verde y corregir incompatibilidades de API/build.
-2. Probar iniciar apps, volver a Home, importar/exportar y reiniciar en un Pixel.
-3. Medir frames y memoria con el material activo/reducido antes de más efectos.
-4. Mejorar arrastre entre páginas/dock, accesibilidad y gestos.
-5. Añadir icon packs o AppWidgets solo después de estabilizar persistencia y UI.
-
-No se presenta ninguna de estas tareas como ya terminada o validada.
-
-## Invariantes añadidas en la revisión
-
-No se crea una carpeta con ID inválido ni demasiado largo. Al llegar a 2.000 apps
-colocadas, añadir otra se rechaza antes de modificar el estado; mover una ya
-colocada sigue permitido. No se ofrece una carpeta llena como destino en la UI.
-Los iconos sin texto tienen un nombre accesible y los switches enlazan su etiqueta
-a la acción. Estas mejoras de UI siguen pendientes de verificación en dispositivo.
+Vitreo es una Activity HOME. Android conserva SystemUI, Recientes, teclado y
+bloqueo seguro. No hay root, servicio de accesibilidad ni soporte completo de
+perfiles de trabajo/espacio privado. Las pruebas de emulador no sustituyen pruebas
+físicas en un Pixel con GrapheneOS.

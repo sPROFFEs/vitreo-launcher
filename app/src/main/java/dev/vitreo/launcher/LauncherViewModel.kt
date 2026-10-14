@@ -119,7 +119,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun appearance(value: Appearance) = commit(_ui.value.layout.copy(appearance = value))
     fun addHome(appId: String) = commit(LayoutOps.addToHome(_ui.value.layout, appId))
-    fun resetLayout() = commit(LayoutOps.reconcile(LauncherState(appearance = _ui.value.layout.appearance), _ui.value.apps.map { it.id }))
+    fun resetLayout() = commit(LayoutOps.reconcile(LauncherState(appearance = _ui.value.layout.appearance),
+        (catalog.preferredDock(_ui.value.apps) + _ui.value.apps.map { it.id }).distinct()))
     fun removeApp(appId: String) = commit(LayoutOps.removeApp(_ui.value.layout, appId))
     fun pinDock(appId: String) {
         if (_ui.value.layout.dock.size >= DOCK_SLOTS && appId !in _ui.value.layout.dock) {

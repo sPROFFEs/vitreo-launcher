@@ -11,7 +11,7 @@ Comprueba SHA-256 y la huella de firma de la release. Instálalo mediante el flu
 normal del sistema, habilitando instalar apps para ese origen solo si lo pide.
 No necesitas Play Services, root, Shizuku, accesibilidad ni permiso de red.
 
-Abre Vitreo y usa **Usar Vitreo como app de inicio**, o el selector de aplicación
+Abre Vitreo y entra en **Hoy → Ajustes → App de inicio**, o usa el selector de aplicación
 de inicio en Ajustes de Android. **No deshabilites ni desinstales el launcher de
 serie.** Para volver, cambia la app de inicio predeterminada en Ajustes; Vitreo
 no exige modificar componentes del sistema.
@@ -20,10 +20,12 @@ no exige modificar componentes del sistema.
 
 - Abre varias apps, vuelve con Home y con Atrás, bloquea/desbloquea y gira el teléfono.
 - Busca una app por nombre, por paquete y con/sin tildes; comprueba el teclado.
-- Usa Editar y arrastra dentro de una página. En acciones usa Anterior/Siguiente
-  para cruzar una página. Mueve apps entre escritorio/dock y verifica el límite de cuatro.
+- Usa Editar y arrastra dentro de una página; mantén el icono junto al borde
+  para cambiar de página. Mueve apps entre escritorio/dock y verifica el límite de cuatro.
 - Crea, renombra y deshaz carpetas. Quita un acceso directo y refresca: no debe reaparecer solo.
-- Cambia fondo, refracción y modo opaco/reducido. Comprueba contraste y ahorro de batería.
+- Cambia fondo, transparencia y modo opaco/reducido. Comprueba contraste y ahorro de batería.
+- Abre Ajustes desde el modo edición: arrastrar sobre el panel no debe mover iconos detrás.
+- Añade un widget en Hoy, cancela su autorización/configuración y vuelve a intentarlo.
 - Exporta un backup, cambia la distribución e impórtalo. El fondo de foto no viaja en la copia.
 - Cierra el proceso y reinicia el teléfono: revisa que los cambios guardados permanezcan.
 - Instala una app nueva y elimina otra: la nueva se añade, la no disponible conserva
@@ -35,7 +37,7 @@ no interpretes su ausencia como una implementación terminada.
 
 ## Diagnóstico
 
-En Ajustes de Vitreo, usa **Guardar informe de diagnóstico**. Incluye versión,
+En Ajustes de Vitreo, usa **Acerca de Vitreo → Guardar diagnóstico**. Incluye versión,
 modelo, API, modo de build y el último error local registrado. No incluye el
 inventario de apps ni la imagen de fondo. Revisa el informe antes de adjuntarlo:
 un stacktrace puede contener información técnica o contextual.

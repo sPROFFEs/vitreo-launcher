@@ -10,12 +10,15 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelProvider
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import dev.vitreo.launcher.graphics.GlassDiagnostics
 import dev.vitreo.launcher.ui.LauncherReadyKey
+import dev.vitreo.launcher.ui.HomeRowsKey
+import dev.vitreo.launcher.data.AppCatalog
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -49,6 +52,69 @@ class LauncherSmokeTest {
         compose.onNodeWithTag("home_workspace").performTouchInput { swipeRight() }
         compose.onNodeWithTag("today_page").assertExists()
         compose.onNodeWithTag("settings_button").performClick()
+    }
+    private fun homeIconTags(): List<String> = compose.onAllNodes(SemanticsMatcher("home icon") {
+        it.config.getOrNull(SemanticsProperties.TestTag)?.startsWith("home_entry:") == true
+    }).fetchSemanticsNodes().sortedWith(compareBy({ it.boundsInRoot.top }, { it.boundsInRoot.left }))
+        .map { it.config[SemanticsProperties.TestTag] }
+
+    @Test fun modalBlocksHomeDraggingAndHidesUnderlyingAccessibilityNodes() {
+        awaitReady()
+        val icons = homeIconTags()
+        assertTrue(icons.size >= 2)
+        val first = icons[0]; val second = icons[1]
+        val rows = compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[HomeRowsKey]
+        compose.onNodeWithTag(first).performTouchInput { longClick() }
+        compose.onNodeWithText("Editar pantalla de inicio").performClick()
+        assertEquals("Edit mode must preserve the grid", rows,
+            compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[HomeRowsKey])
+        val source = compose.onNodeWithTag(first).fetchSemanticsNode().boundsInRoot.center
+        val target = compose.onNodeWithTag(second).fetchSemanticsNode().boundsInRoot.center
+        val root = compose.onNodeWithTag("launcher_root").fetchSemanticsNode().boundsInRoot.topLeft
+        compose.onNodeWithTag("settings_button").performClick()
+        compose.onNodeWithTag("settings_title").assertIsDisplayed()
+        compose.onNodeWithTag(first).assertDoesNotExist()
+        compose.onNodeWithTag("launcher_root").performTouchInput {
+            down(source - root); advanceEventTime(700); moveTo(target - root, delayMillis = 200); up()
+        }
+        compose.onNodeWithText("OK").performClick()
+        compose.onNodeWithTag("edit_done").performClick()
+        assertTrue("A modal must not reorder icons behind it",
+            compose.onNodeWithTag(first).fetchSemanticsNode().boundsInRoot.left <
+                compose.onNodeWithTag(second).fetchSemanticsNode().boundsInRoot.left)
+        assertEquals(rows, compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[HomeRowsKey])
+    }
+
+    @Test fun leavingHomeEndsEditMode() {
+        awaitReady()
+        compose.onNodeWithTag(homeIconTags().first()).performTouchInput { longClick() }
+        compose.onNodeWithText("Editar pantalla de inicio").performClick()
+        compose.onNodeWithTag("home_workspace").performTouchInput { swipeRight() }
+        compose.onNodeWithTag("today_page").assertIsDisplayed()
+        compose.onNodeWithTag("edit_done").assertDoesNotExist()
+    }
+
+    @Test fun searchKeyboardDoesNotReflowHome() {
+        awaitReady()
+        val rows = compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[HomeRowsKey]
+        compose.onNodeWithTag("library_button").performClick()
+        compose.onNodeWithTag("search_field").performTextInput("camera")
+        compose.onNodeWithTag("library_title").assertIsDisplayed()
+        assertEquals("Showing the IME must not resize the home grid", rows,
+            compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[HomeRowsKey])
+        compose.onNodeWithText("Cancelar").performClick()
+        compose.onNodeWithTag("dock").assertIsDisplayed()
+        assertEquals(rows, compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[HomeRowsKey])
+    }
+
+    @Test fun resetRestoresPreferredDockWithoutLosingApps() {
+        awaitReady()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val expected = AppCatalog(compose.activity).preferredDock(model.ui.value.apps)
+        compose.runOnUiThread { model.resetLayout() }
+        compose.waitForIdle()
+        assertEquals(expected, model.ui.value.layout.dock)
+        assertEquals(model.ui.value.apps.map { it.id }.toSet(), model.ui.value.layout.placedApps().toSet())
     }
     @Test fun homeAndSettingsOpen() {
         awaitReady()

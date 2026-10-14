@@ -32,7 +32,10 @@ la clave se materializa y verifica después en el job `build`.
 El build realiza comprobaciones estructurales, pruebas de scripts, pruebas JVM,
 lint de Android y build optimizado. Después ejecuta `apksigner verify`, comprueba
 identificador/versión/permisos con `aapt` y calcula SHA-256. Una release nueva se
-crea como borrador, se suben todos sus assets y solo entonces se publica.
+crea como borrador, se suben todos sus assets y solo entonces se publica como
+release normal (`prerelease: false`). `Latest` se selecciona con la política de
+versiones de GitHub. Una prerelease existente del mismo commit puede promoverse
+sin reemplazar sus assets; los tags y APK publicados siguen siendo inmutables.
 
 `ci.yml` comprueba pull requests sin exponer secretos y genera un artifact Preview.
 `device-smoke.yml` es reutilizable y también manual: sus emuladores API 31/35 son
@@ -109,7 +112,7 @@ No comprueba tipos Android, Compose, recursos ni ejecución AGSL.
 | Borrador `v0.1.0` ya existente | Revisa el build interrumpido; elimina expresamente el borrador incompleto y reejecuta el mismo commit. No borres una release pública |
 | Tag de versión en otro commit | Incrementa con `bump_version.py`; no muevas el tag ni sobrescribas una release |
 | `homeIntentClosesOpenSheet`: espera `DESTROYED`, último estado `PAUSED`, o actividad destruida | La regla inicia el launcher con `MAIN/HOME` desde el principio. Android distingue las tareas HOME de las de apps: cambiar desde LAUNCHER puede abrir otra instancia, y `ActivityScenario` solo sigue intents equivalentes. El test comprueba que HOME reutilice la actividad y quede en `RESUMED`; la regla gestiona el cierre |
-| Error real de Kotlin/lint/AGSL | Conserva el log completo de la tarea y el SHA. Esta entrega no ha pasado una compilación Android local |
+| Error real de Kotlin/lint/AGSL | Conserva el log completo de la tarea y el SHA; consulta también los reports de Actions |
 | `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | No coincide la firma; consulta SIGNING.md antes de desinstalar |
 | `VERSION_DOWNGRADE` | No se instala encima una versionCode menor; incrementa la versión manteniendo firma y app ID |
 
@@ -117,13 +120,13 @@ No hay un SBOM resuelto, verificación criptográfica completa de todas las
 dependencias transitivas ni una promesa de builds reproducibles bit a bit. Esas
 son tareas posteriores al primer build funcional, no verificaciones ya hechas.
 
-## Estado de esta entrega revisada
+## Evidencia de verificación
 
-La validación local no ha podido descargar Gradle por resolución DNS fallida.
-Los workflows se han revisado y validado estructuralmente, pero no ejecutado en
-GitHub desde este entorno. Consulta los logs en `verification/`; no confundas
-`kotlin-syntax.log` con una compilación Android ni tests Python simulados con
-una publicación real.
+Los builds Android, las pruebas JVM, lint y los emuladores se ejecutan en Actions.
+Cada release incluye `build-info.json` con el commit, la firma y los resultados
+reales de API 31/35. Las capturas y los JUnit completos quedan en los artifacts
+de esa ejecución. Un análisis de sintaxis o un test Python simulado no sustituye
+a una compilación Android ni a las pruebas de dispositivo.
 
 Los artifacts intermedios de pruebas/candidato se identifican por `run_id` y
 commit, no por intento. Se pueden volver a generar dentro de esa ejecución:
@@ -131,7 +134,7 @@ así, **Re-run failed jobs** puede recuperar el resultado de un job previo que
 ya pasó. Esta sustitución afecta a artifacts temporales de Actions, nunca a
 los assets de una release publicada.
 
-## Interfaz 0.2.0
+## Interfaz 0.2.x
 
 El inicio usa páginas Home entre Hoy y Biblioteca. Spotlight se abre desde Buscar
 o al deslizar hacia abajo. Las capturas de Preview optimizada en la matriz API

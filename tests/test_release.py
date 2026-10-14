@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from release_common import SIGNING_SECRETS, read_version, signing_mode, validate_ref, validate_repository
-from github_release import GitHub, ApiError, SafeRedirect, publish
+from github_release import GitHub, ApiError, SafeRedirect, publish, release_body
 import prepare_signing
 import gradle_bootstrap
 
@@ -105,6 +105,17 @@ class PublishTests(unittest.TestCase):
         api=FakeGitHub(existing={"draft":True})
         with self.assertRaises((RuntimeError, ValueError)): self.run_publish(api)
         self.assertEqual(api.calls,[])
+    def test_existing_prerelease_promoted_without_touching_assets(self):
+        api = FakeGitHub(existing={"id": 11, "draft": False, "prerelease": True},
+            tag={"object": {"type": "commit", "sha": self.commit}})
+        self.assertEqual(self.run_publish(api), "promoted")
+        self.assertEqual(api.calls, [("PATCH", "/repos/alice/vitreo/releases/11",
+            {"prerelease": False, "make_latest": "legacy"})])
+    def test_prerelease_at_wrong_commit_cannot_be_promoted(self):
+        api = FakeGitHub(existing={"id": 11, "draft": False, "prerelease": True},
+            tag={"object": {"type": "commit", "sha": "f" * 40}})
+        with self.assertRaises(RuntimeError): self.run_publish(api)
+        self.assertEqual(api.calls, [])
     def test_wrong_tag_commit_rejected(self):
         api=FakeGitHub(tag={"object":{"type":"commit","sha":"f"*40}})
         with self.assertRaises((RuntimeError, ValueError)): self.run_publish(api)
@@ -115,8 +126,14 @@ class PublishTests(unittest.TestCase):
     def test_happy_path_publishes_only_after_assets(self):
         api=FakeGitHub(); self.assertEqual(self.run_publish(api),"published")
         self.assertTrue(api.calls[0][2]["draft"])
+        self.assertFalse(api.calls[0][2]["prerelease"])
         self.assertEqual(len([c for c in api.calls if "uploads.github.com" in c[1]]), 4)
         self.assertEqual(api.calls[-1][0],"PATCH"); self.assertFalse(api.calls[-1][2]["draft"])
+        self.assertFalse(api.calls[-1][2]["prerelease"])
+        self.assertEqual(api.calls[-1][2]["make_latest"], "legacy")
+    def test_release_notes_do_not_label_numeric_versions_experimental(self):
+        self.assertIn("# Vitreo 0.1.0\n", release_body(self.info))
+        self.assertNotIn("experimental", release_body(self.info))
     def test_upload_failure_does_not_publish(self):
         api=FakeGitHub(fail_upload=True)
         with self.assertRaises(ApiError): self.run_publish(api)

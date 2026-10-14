@@ -58,7 +58,7 @@ def release_body(info: dict) -> str:
     signing = ("**PREVIEW: signed with an ephemeral CI test key, not a production signing identity. "
         "A later Preview build can require export, uninstall and reinstall. Use private signing secrets for stable updates.**"
         if preview else "Signed with your repository's private release key. Keep that key backed up for future updates.")
-    return f"""# Vitreo {info['versionName']} - experimental
+    return f"""# Vitreo {info['versionName']}
 
 {signing}
 
@@ -110,11 +110,16 @@ def publish(api: GitHub, repo: str, version: str, commit: str, dist: Path) -> st
     if existing:
         if ref is None:
             raise RuntimeError("An existing release has no verifiable tag; refusing to report success.")
+        if existing.get("prerelease") is True:
+            api.request("PATCH", f"{prefix}/releases/{existing['id']}",
+                {"prerelease": False, "make_latest": "legacy"})
+            print(f"Promoted {tag} to a full release; no assets were replaced.")
+            return "promoted"
         print(f"Release {tag} already exists at this exact commit; no assets were replaced.")
         return "unchanged"
     release = api.request("POST", f"{prefix}/releases", {"tag_name": tag, "target_commitish": commit,
         "name": f"Vitreo {version} ({info['buildType']})", "body": release_body(info),
-        "draft": True, "prerelease": True, "make_latest": "false"})
+        "draft": True, "prerelease": False, "make_latest": "false"})
     upload = release["upload_url"].split("{", 1)[0]
     # Publish only after every asset has uploaded successfully. Failure leaves a private draft for inspection.
     for file in sorted(dist.iterdir()):
@@ -126,7 +131,7 @@ def publish(api: GitHub, repo: str, version: str, commit: str, dist: Path) -> st
         digest = asset.get("digest")
         if digest != "sha256:" + hashlib.sha256(file.read_bytes()).hexdigest():
             raise RuntimeError(f"Server digest mismatch/missing for {file.name}. The release remains a draft.")
-    result = api.request("PATCH", f"{prefix}/releases/{release['id']}", {"draft": False, "prerelease": True, "make_latest": "false"})
+    result = api.request("PATCH", f"{prefix}/releases/{release['id']}", {"draft": False, "prerelease": False, "make_latest": "legacy"})
     print(f"Published {tag}: {result.get('html_url', '')}")
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:

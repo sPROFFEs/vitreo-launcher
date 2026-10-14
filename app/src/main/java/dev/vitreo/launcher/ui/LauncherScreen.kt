@@ -58,6 +58,7 @@ import kotlin.math.roundToInt
 import kotlin.math.abs
 
 val LauncherReadyKey = SemanticsPropertyKey<Boolean>("LauncherReady")
+val HomeRowsKey = SemanticsPropertyKey<Int>("HomeRows")
 private sealed interface Sheet {
     data object Search : Sheet
     data object Settings : Sheet
@@ -88,6 +89,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
     var viewport by remember { mutableStateOf(Viewport()) }
     var rootPosition by remember { mutableStateOf(Offset.Zero) }
     var workspaceSize by remember { mutableStateOf(IntSize(1080, 1800)) }
+    var workspaceWasEditing by remember { mutableStateOf(false) }
     var workspaceBounds by remember { mutableStateOf(Rect.Zero) }
     var dockBounds by remember { mutableStateOf(Rect.Zero) }
     var drag by remember { mutableStateOf<DragSession?>(null) }
@@ -112,10 +114,15 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
         if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) widgets.host.startListening()
         onDispose { lifecycle.removeObserver(observer); widgets.host.stopListening() }
     }
-    val geometry = remember(workspaceSize, appearance.iconSize, density.density, density.fontScale) {
-        workspaceGeometry(workspaceSize.width / density.density, workspaceSize.height / density.density,
+    val geometry = remember(workspaceSize, workspaceWasEditing, appearance.iconSize, density.density, density.fontScale) {
+        // The edit toolbar uses 33dp more space. Keep the same rows/pages when
+        // entering edit mode, and only tighten their spacing in that space.
+        workspaceGeometry(workspaceSize.width / density.density,
+            workspaceSize.height / density.density + if (workspaceWasEditing) 33f else 0f,
             LayoutPreset(iconSize = appearance.iconSize), density.fontScale)
     }
+    val rowHeight = if (workspaceWasEditing) (geometry.cells.rowHeight - 33f / geometry.rows)
+        .coerceAtLeast(geometry.iconSize + 20f * density.fontScale + 8f) else geometry.cells.rowHeight
     val withWidgets = appearance.showWidgets && geometry.rows >= 4
     val firstCapacity = if (withWidgets) (geometry.rows - 2) * GRID_COLUMNS else geometry.pageSize
     val homePages = if (ui.layout.home.size <= firstCapacity) 1
@@ -157,8 +164,17 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
         } }
     }
     LaunchedEffect(Unit) { model.messages.collect { snackbar.showSnackbar(it) } }
+    LaunchedEffect(sheet) {
+        if (sheet != Sheet.Search) { focusManager.clearFocus(); keyboard?.hide() }
+    }
     LaunchedEffect(homeSerial) { sheet = null; editing = false; drag = null; focusManager.clearFocus(); keyboard?.hide(); pager.scrollToPage(1) }
-    LaunchedEffect(homePages) { if (pager.currentPage > homePages + 1) pager.scrollToPage(homePages) }
+    var previousHomePages by remember { mutableIntStateOf(homePages) }
+    LaunchedEffect(pager.currentPage, homePages, editing) {
+        val shrank = homePages < previousHomePages
+        previousHomePages = homePages
+        if (editing && shrank && pager.currentPage > homePages) pager.scrollToPage(homePages)
+        else if (pager.currentPage !in 1..homePages) { editing = false; drag = null; folderTarget = null }
+    }
     BackHandler {
         when {
             sheet != null -> sheet = null
@@ -226,7 +242,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
     val currentPage by rememberUpdatedState(pager.currentPage)
     val currentHomePages by rememberUpdatedState(homePages)
     val currentSheet by rememberUpdatedState(sheet)
-    val gestureModifier = if (editing) Modifier.pointerInput(editing) {
+    val gestureModifier = if (sheet != null || !onHomePage) Modifier else if (editing) Modifier.pointerInput(editing) {
         detectDragGesturesAfterLongPress(onDragStart = { startDrag(it) },
             onDrag = { change, amount -> if (drag != null) { change.consume(); drag = drag?.let { it.copy(position = it.position + amount) } } },
             onDragEnd = { drop() }, onDragCancel = { drag = null; folderTarget = null })
@@ -250,7 +266,10 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
         }
     }
     CompositionLocalProvider(LocalGlass provides GlassEnvironment(frame, viewport, appearance), LocalHomeClock provides now) {
-        Box(Modifier.fillMaxSize().testTag("launcher_root").semantics { this[LauncherReadyKey] = ui.ready && frame != null }
+        Box(Modifier.fillMaxSize().testTag("launcher_root").semantics {
+            this[LauncherReadyKey] = ui.ready && frame != null
+            this[HomeRowsKey] = geometry.rows
+        }
             .background(Color(0xff142f68)).then(gestureModifier).onGloballyPositioned { coordinates ->
                 val screen = IntArray(2); val window = IntArray(2)
                 localView.getLocationOnScreen(screen); localView.getLocationInWindow(window)
@@ -261,7 +280,9 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
             }) {
             frame?.let { Image(it.sharp.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = .08f), Color.Transparent, Color.Black.copy(alpha = .13f)))))
-            Column(Modifier.fillMaxSize().safeDrawingPadding().padding(top = if (editing) 42.dp else 9.dp)
+            Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.displayCutout))
+                .padding(top = if (editing) 42.dp else 9.dp)
+                .then(if (sheet != null) Modifier.clearAndSetSemantics {} else Modifier)
                 .blur(if (sheet != null && !opaqueScreen && !appearance.reducedEffects) 18.dp else 0.dp)) {
                 Box(Modifier.weight(1f).fillMaxWidth().testTag("home_workspace")
                     .pointerInput(onHomePage, sheet) {
@@ -271,9 +292,11 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                     }
                     // Today/Library use the space left by the hidden dock;
                     // their height must not change the home page count.
-                    .onSizeChanged { if (onHomePage) workspaceSize = it }.onGloballyPositioned { workspaceBounds = it.boundsInRoot() }) {
+                    .onSizeChanged { if (onHomePage) { workspaceSize = it; workspaceWasEditing = editing } }
+                    .onGloballyPositioned { workspaceBounds = it.boundsInRoot() }) {
                     if (!ui.ready) CircularProgressIndicator(Modifier.align(Alignment.Center), color = Color.White)
                     else HorizontalPager(pager, Modifier.fillMaxSize(), userScrollEnabled = drag == null,
+                        key = { page -> when (page) { 0 -> "today"; homePages + 1 -> "library"; else -> "home:$page" } },
                         beyondViewportPageCount = 0) { page ->
                         when (page) {
                             0 -> TodayPage(now, widgets, suggestions, apps, onSearch = ::openSearch,
@@ -288,10 +311,10 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                                 val begin = if (index == 0) 0 else firstCapacity + (index - 1) * geometry.pageSize
                                 val entries = ui.layout.home.drop(begin).take(capacity)
                                 Column(Modifier.fillMaxSize().padding(horizontal = 18.dp).verticalScroll(rememberScrollState())) {
-                                    if (index == 0 && withWidgets) HomeWidgets(now, Modifier.height((geometry.cells.rowHeight * 2).dp),
+                                    if (index == 0 && withWidgets) HomeWidgets(now, Modifier.height((rowHeight * 2).dp),
                                         onClock = { system(AlarmClock.ACTION_SHOW_ALARMS) }, onCalendar = ::openCalendar)
                                     repeat(capacity / GRID_COLUMNS) { row ->
-                                        Row(Modifier.fillMaxWidth().height(geometry.cells.rowHeight.dp)) {
+                                        Row(Modifier.fillMaxWidth().height(rowHeight.dp)) {
                                             repeat(GRID_COLUMNS) { column ->
                                                 val entry = entries.getOrNull(row * GRID_COLUMNS + column)
                                                 if (entry == null) Spacer(Modifier.weight(1f).fillMaxHeight())
@@ -365,10 +388,15 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                     IntOffset((session.position.x - rootPosition.x - px / 2).roundToInt(), (session.position.y - rootPosition.y - px / 2).roundToInt()) })
             }
             AnimatedContent(sheet, transitionSpec = {
-                (fadeIn(tween(if (appearance.reducedEffects) 0 else 180)) + scaleIn(initialScale = .96f)).togetherWith(fadeOut(tween(120)))
+                val enter = if (appearance.reducedEffects) 0 else 180
+                val exit = if (appearance.reducedEffects) 0 else 120
+                (fadeIn(tween(enter)) + scaleIn(tween(enter), initialScale = .96f)).togetherWith(fadeOut(tween(exit)))
             }, modifier = Modifier.fillMaxSize(), label = "surface") { current ->
                 if (current != null) {
-                    if (!opaqueScreen) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .22f)))
+                    // Consume taps in modal gaps as well as on its controls.
+                    // A transparent/blurred background must never launch an app.
+                    Box(Modifier.fillMaxSize().pointerInput(current) { detectTapGestures(onTap = {}) }
+                        .background(if (opaqueScreen) Color.Transparent else Color.Black.copy(alpha = .22f)))
                     when (current) {
                         Sheet.Search -> Spotlight(ui.apps, apps, suggestions, { focusManager.clearFocus(); keyboard?.hide(); sheet = null }, ::launch, { sheet = Sheet.Actions(HomeEntry.App(it)) })
                         Sheet.Settings -> SettingsSheet(ui, defaultHome, { sheet = null }, model::appearance, onSetHome,
@@ -389,10 +417,12 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                         is Sheet.Actions -> ActionsSheet(current.entry, ui.layout, apps, { sheet = null },
                             { model.addHome(it); sheet = null }, { model.pinDock(it); sheet = null }, { model.removeApp(it); sheet = null }, model::move,
                             { sheet = null; onAppInfo(it) }, { sheet = Sheet.PairWith(it) }, { sheet = Sheet.AddToFolder(it) },
-                            { id, title -> model.renameFolder(id, title); sheet = null }, { model.dissolve(it); sheet = null }, { sheet = null; editing = true })
+                            { id, title -> model.renameFolder(id, title); sheet = null }, { model.dissolve(it); sheet = null }, {
+                                scope.launch { pager.scrollToPage(pager.currentPage.coerceIn(1, homePages)); editing = true; sheet = null }
+                            })
                         is Sheet.PairWith -> ChoiceSheet("Crear carpeta", ui.layout.home.filterIsInstance<HomeEntry.App>().filter { it.id != current.app }
                             .map { it.id to entryLabel(it, apps) }, { sheet = null }) { model.folder(current.app, it); sheet = null }
-                        is Sheet.AddToFolder -> ChoiceSheet("Mover a una carpeta", ui.layout.home.filterIsInstance<HomeEntry.Folder>().filter { current.app !in it.apps }
+                        is Sheet.AddToFolder -> ChoiceSheet("Mover a una carpeta", ui.layout.home.filterIsInstance<HomeEntry.Folder>().filter { current.app !in it.apps && it.apps.size < MAX_FOLDER_APPS }
                             .map { it.id to it.title }, { sheet = null }) { model.addToFolder(current.app, it); sheet = null }
                     }
                 }

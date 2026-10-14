@@ -1,4 +1,4 @@
-# Vitreo Launcher 0.2.0
+# Vitreo Launcher 0.2.1
 
 Un inicio Android inspirado en la pantalla de inicio actual de iOS y en
 [Folio](https://github.com/McCal-Codes/folio), con una interfaz más pequeña y directa.
@@ -32,8 +32,8 @@ a esta instalación y no se incluyen en copias portables.
 ## Instalar y actualizar
 
 Descarga la APK firmada en [Releases](https://github.com/sPROFFEs/vitreo-launcher/releases).
-La identidad de release es `dev.vitreo.launcher`. La versión 0.2.0 conserva la firma
-anterior y sube el versionCode a 200: se puede actualizar sin desinstalar ni perder
+La identidad de release es `dev.vitreo.launcher`. La versión 0.2.1 conserva la firma
+anterior y sube el versionCode a 201: se puede actualizar sin desinstalar ni perder
 la distribución. Las copias de 0.1.0 siguen siendo compatibles.
 
 Preview (`dev.vitreo.launcher.preview`) y Debug (`dev.vitreo.launcher.debug`) son
@@ -52,13 +52,15 @@ python3 -m unittest discover -s tests -v
 `Release APK` se ejecuta al subir a `main`. Comprueba fuente y firma configurada,
 prueba emuladores API 31 y 35, compila la release optimizada y verifica identidad,
 permisos, certificado y hashes antes de publicarla. Solo publica una APK con los
-cuatro secrets privados de firma. Consulta [BUILDING.md](BUILDING.md) y
+cuatro secrets privados de firma. Las versiones numéricas se publican como releases
+normales; GitHub elige `Latest` por versión. Preview se distribuye como artifact
+de CI. Consulta [BUILDING.md](BUILDING.md) y
 [SIGNING.md](docs/SIGNING.md).
 
 Para la siguiente versión:
 
 ```bash
-python3 scripts/bump_version.py 0.2.1
+python3 scripts/bump_version.py 0.2.2
 git add app scripts version.properties README.md CHANGELOG.md
 git commit -m "Update Vitreo"
 git push origin main

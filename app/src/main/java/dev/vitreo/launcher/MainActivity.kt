@@ -17,12 +17,13 @@ import androidx.compose.runtime.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vitreo.launcher.ui.LauncherScreen
 import dev.vitreo.launcher.ui.VitreoTheme
+import dev.vitreo.launcher.core.WidgetConfigurationRequests
 
 class MainActivity : ComponentActivity() {
     private val model by viewModels<LauncherViewModel>()
     private var homeSerial by mutableIntStateOf(0)
     private var defaultHome by mutableStateOf(false)
-    private var widgetConfigurationResult: ((Boolean) -> Unit)? = null
+    private val widgetConfigurations = WidgetConfigurationRequests()
     private val roleRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         defaultHome = isDefaultHome()
     }
@@ -74,16 +75,14 @@ class MainActivity : ComponentActivity() {
         catch (e: Exception) { model.message("No se pudo abrir la informaci\u00f3n de la app.") }
     }
     private fun configureWidget(host: AppWidgetHost, id: Int, result: (Boolean) -> Unit) {
-        widgetConfigurationResult = result
-        try { host.startAppWidgetConfigureActivityForResult(this, id, 0, 19384, null) }
-        catch (_: Exception) { widgetConfigurationResult = null; result(false) }
+        val request = try { widgetConfigurations.register(result) }
+        catch (_: Exception) { result(false); return }
+        try { host.startAppWidgetConfigureActivityForResult(this, id, 0, request, null) }
+        catch (_: Exception) { widgetConfigurations.complete(request, false) }
     }
     @Deprecated("Android widget configuration uses the host's activity result API")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode == 19384) {
-            val callback = widgetConfigurationResult
-            widgetConfigurationResult = null
-            callback?.invoke(resultCode == RESULT_OK)
-        } else super.onActivityResult(requestCode, resultCode, data)
+        if (!widgetConfigurations.complete(requestCode, resultCode == RESULT_OK))
+            super.onActivityResult(requestCode, resultCode, data)
     }
 }

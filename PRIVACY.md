@@ -1,4 +1,4 @@
-# Privacidad — Vitreo 0.2.0
+# Privacidad — Vitreo 0.2.1
 
 Vitreo no tiene conexión propia a Internet, cuentas, anuncios ni telemetría.
 La búsqueda y la clasificación de aplicaciones son locales y se limitan al usuario Android actual.

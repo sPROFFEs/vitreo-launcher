@@ -88,7 +88,7 @@ fun ActionsSheet(entry: HomeEntry, state: LauncherState, apps: Map<String, AppRe
                         if (state.home.none { it is HomeEntry.App && it.id == entry.id }) IosRow("Añadir a Inicio") { onHome(entry.id) }
                         if (entry.id !in state.dock) IosRow("Añadir al dock", enabled = state.dock.size < DOCK_SLOTS) { onDock(entry.id) }
                         if (state.home.any { it is HomeEntry.App && it.id != entry.id }) IosRow("Crear carpeta…") { onPair(entry.id) }
-                        if (state.home.any { it is HomeEntry.Folder && entry.id !in it.apps }) IosRow("Mover a una carpeta…") { onChooseFolder(entry.id) }
+                        if (state.home.any { it is HomeEntry.Folder && entry.id !in it.apps && it.apps.size < MAX_FOLDER_APPS }) IosRow("Mover a una carpeta…") { onChooseFolder(entry.id) }
                         IosRow("Información de la app", enabled = entry.id in apps) { onInfo(entry.id) }
                         if (entry.id in state.placedApps()) {
                             IosDivider(); IosRow("Quitar de Inicio", destructive = true) { onRemove(entry.id) }

@@ -19,7 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -121,24 +120,23 @@ fun WidgetGallery(controller: WidgetController, showHomeWidgets: Boolean, onTogg
     onConfigure: (AppWidgetHost, Int, (Boolean) -> Unit) -> Unit, onClose: () -> Unit, onError: (String) -> Unit) {
     val context = LocalContext.current
     val providers = remember { controller.providers() }
-    var pending by rememberSaveable { mutableIntStateOf(-1) }
-    fun finish(accepted: Boolean) {
-        val id = pending; pending = -1
-        if (id < 0) return
-        if (accepted) { controller.add(id); onClose() } else controller.remove(id)
+    fun finish(id: Int, accepted: Boolean) {
+        if (controller.finishAdd(id, accepted)) onClose()
     }
-    fun configure() {
-        val info = controller.manager.getAppWidgetInfo(pending)
-        if (info == null) { finish(false); return }
+    fun configure(id: Int) {
+        if (id != controller.pendingId || id < 0) return
+        val info = controller.manager.getAppWidgetInfo(id)
+        if (info == null) { finish(id, false); return }
         val optional = info.widgetFeatures and AppWidgetProviderInfo.WIDGET_FEATURE_CONFIGURATION_OPTIONAL != 0 &&
             info.widgetFeatures and AppWidgetProviderInfo.WIDGET_FEATURE_RECONFIGURABLE != 0
-        if (info.configure != null && !optional) onConfigure(controller.host, pending) { finish(it) }
-        else finish(true)
+        if (info.configure != null && !optional) onConfigure(controller.host, id) { finish(id, it) }
+        else finish(id, true)
     }
     val bind = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK) configure() else finish(false)
+        val id = controller.pendingId
+        if (result.resultCode == Activity.RESULT_OK) configure(id) else finish(id, false)
     }
-    DisposableEffect(Unit) { onDispose { if (pending >= 0) controller.remove(pending) } }
+    DisposableEffect(controller) { onDispose { controller.cancelAdd() } }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).safeDrawingPadding()) {
         SheetHeader("Widgets", onClose, "widgets_title")
         LazyColumn(Modifier.weight(1f).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -151,15 +149,15 @@ fun WidgetGallery(controller: WidgetController, showHomeWidgets: Boolean, onTogg
             }
             items(providers, key = { it.provider.flattenToString() }) { info ->
                 IosGroup {
-                    IosRow(info.loadLabel(context.packageManager), "Añadir", enabled = controller.ids.size < 8) {
+                    IosRow(info.loadLabel(context.packageManager), "Añadir", enabled = controller.ids.size < 8 && controller.pendingId < 0) {
                         try {
-                            pending = controller.host.allocateAppWidgetId()
-                            if (controller.manager.bindAppWidgetIdIfAllowed(pending, info.provider)) configure()
+                            val id = controller.beginAdd() ?: return@IosRow
+                            if (controller.manager.bindAppWidgetIdIfAllowed(id, info.provider)) configure(id)
                             else bind.launch(Intent(AppWidgetManager.ACTION_APPWIDGET_BIND)
-                                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, pending)
+                                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
                                 .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, info.provider)
                                 .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER_PROFILE, info.profile))
-                        } catch (_: Exception) { finish(false); onError("No se pudo añadir el widget.") }
+                        } catch (_: Exception) { controller.cancelAdd(); onError("No se pudo añadir el widget.") }
                     }
                 }
             }
