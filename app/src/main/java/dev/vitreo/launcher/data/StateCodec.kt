@@ -32,6 +32,10 @@ object StateCodec {
                 put("opaquePanels", s.appearance.opaquePanels)
                 put("palette", s.appearance.palette)
                 put("usePhoto", s.appearance.usePhoto)
+                put("iconStyle", s.appearance.iconStyle)
+                put("tintColor", s.appearance.tintColor)
+                put("interfaceStyle", s.appearance.interfaceStyle)
+                put("showWidgets", s.appearance.showWidgets)
             })
         }.toString(2)
     }
@@ -66,6 +70,10 @@ object StateCodec {
                 opaquePanels = a.optBoolean("opaquePanels", false),
                 palette = a.optInt("palette", 0),
                 usePhoto = a.optBoolean("usePhoto", false),
+                iconStyle = a.optInt("iconStyle", 0),
+                tintColor = a.optInt("tintColor", 0xff8fbfff.toInt()),
+                interfaceStyle = a.optInt("interfaceStyle", 0),
+                showWidgets = a.optBoolean("showWidgets", true),
             ),
         ).sanitized()
     }

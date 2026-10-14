@@ -1,0 +1,113 @@
+package dev.vitreo.launcher.ui
+
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.*
+import kotlin.math.*
+
+/** Continuous corners, independent of the Android device's adaptive icon mask. */
+object IconShape : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val path = Path()
+        repeat(97) { index ->
+            val angle = index * 2.0 * PI / 96
+            val x = cos(angle); val y = sin(angle)
+            val px = (size.width * .5 * (1 + sign(x) * abs(x).pow(.42))).toFloat()
+            val py = (size.height * .5 * (1 + sign(y) * abs(y).pow(.42))).toFloat()
+            if (index == 0) path.moveTo(px, py) else path.lineTo(px, py)
+        }
+        path.close()
+        return Outline.Generic(path)
+    }
+}
+
+@Composable
+fun IosSwitch(checked: Boolean, enabled: Boolean = true) {
+    val x by animateDpAsState(if (checked) 22.dp else 2.dp, tween(180), label = "switch")
+    Box(Modifier.size(51.dp, 31.dp).clip(CircleShape).background(
+        if (checked) Color(0xff34c759).copy(alpha = if (enabled) 1f else .45f)
+        else MaterialTheme.colorScheme.onSurface.copy(alpha = .15f))) {
+        Box(Modifier.offset(x = x, y = 2.dp).size(27.dp).shadow(2.dp, CircleShape)
+            .background(Color.White, CircleShape))
+    }
+}
+
+@Composable
+fun IosGroup(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))
+        .background(MaterialTheme.colorScheme.surface), content = content)
+}
+
+@Composable
+fun IosRow(title: String, detail: String? = null, enabled: Boolean = true,
+           destructive: Boolean = false, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick)
+        .heightIn(min = 52.dp).padding(horizontal = 17.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Text(title, Modifier.weight(1f), fontSize = 16.sp,
+            color = if (destructive) Color(0xffff453a) else MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else .45f))
+        detail?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp, modifier = Modifier.padding(start = 8.dp)) }
+        Icon(Icons.Outlined.ChevronRight, null, Modifier.size(19.dp).padding(start = 3.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .5f))
+    }
+}
+
+@Composable
+fun IosToggleRow(title: String, checked: Boolean, enabled: Boolean = true, modifier: Modifier = Modifier,
+                 onChange: (Boolean) -> Unit) {
+    Row(modifier.fillMaxWidth().toggleable(checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)
+        .heightIn(min = 54.dp).padding(horizontal = 17.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, Modifier.weight(1f).padding(end = 12.dp), fontSize = 16.sp)
+        IosSwitch(checked, enabled)
+    }
+}
+
+@Composable
+fun IosDivider() {
+    HorizontalDivider(Modifier.padding(start = 17.dp), thickness = .5.dp,
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = .1f))
+}
+
+@Composable
+fun IosSectionLabel(text: String) {
+    Text(text.uppercase(), Modifier.padding(start = 17.dp, top = 24.dp, bottom = 8.dp),
+        color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, letterSpacing = .4.sp)
+}
+
+@Composable
+fun IosSegmented(options: List<String>, selected: Int, modifier: Modifier = Modifier, onSelect: (Int) -> Unit) {
+    Row(modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp))
+        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = .07f)).padding(3.dp)) {
+        options.forEachIndexed { index, title ->
+            Box(Modifier.weight(1f).clip(RoundedCornerShape(8.dp))
+                .background(if (selected == index) MaterialTheme.colorScheme.surface else Color.Transparent)
+                .selectable(selected = selected == index, role = Role.Tab, onClick = { onSelect(index) })
+                .padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
+                Text(title, fontSize = 12.sp, fontWeight = if (selected == index) FontWeight.SemiBold else FontWeight.Normal)
+            }
+        }
+    }
+}

@@ -1,31 +1,34 @@
-# Datos y permisos
+# Privacidad — Vitreo 0.2.0
 
-Vitreo 0.1.0 es local: el manifiesto propio no solicita permisos. No incluye
-INTERNET, QUERY_ALL_PACKAGES, accesibilidad, listener de notificaciones, overlay,
-root, Shizuku, telemetría ni SDK de analítica. Esto describe el código entregado,
-no equivale a una auditoría de seguridad del binario o de sus dependencias.
+Vitreo no tiene conexión propia a Internet, cuentas, anuncios ni telemetría.
+La búsqueda y la clasificación de aplicaciones son locales y se limitan al usuario Android actual.
+La consulta de apps se restringe a actividades de inicio y proveedores de widgets.
 
-El manifiesto consulta actividades MAIN/LAUNCHER para mostrar apps del usuario
-actual. AndroidX puede añadir el permiso de firma interno
-`${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`; no es un permiso
-sensible que el usuario tenga que conceder. El workflow revisa los permisos
-solicitados de la APK final y rechaza otros inesperados.
+La distribución, las preferencias, una copia reducida del fondo elegido y las últimas
+16 apps abiertas desde Vitreo se guardan en el almacenamiento privado de la app.
+Las sugerencias utilizan ese historial local; no se solicita acceso al historial de uso de Android.
 
-Almacenamiento privado de la app: distribución JSON, copia de la imagen elegida y
-registro acotado del último cierre inesperado. Los backups automáticos de Android
-se deshabilitan en el manifiesto. No se envían datos desde Vitreo.
+## Widgets
 
-El selector del sistema concede acceso solo al documento elegido para
-importar/exportar o a la imagen elegida. Vitreo no pide leer toda la galería ni
-captura la pantalla. Los documentos exportados salen del almacenamiento privado
-porque el usuario elige su destino y dejan de estar protegidos por el sandbox
-de Vitreo. Un backup revela identificadores y orden de apps: trátalo como dato personal.
+Se declara `android.permission.BIND_APPWIDGET` siguiendo el contrato de un host Android.
+En una app normal no se concede como permiso de sistema: si no hay autorización previa,
+Vitreo abre `ACTION_APPWIDGET_BIND` y Android pide autorizar el widget. Si lo rechazas,
+se libera el ID pendiente. Los widgets añadidos se configuran con su propio proveedor.
+Sus actualizaciones se escuchan solo mientras el launcher está visible.
 
-El informe de diagnóstico exportado no incluye inventario ni fondo. Sí incluye
-modelo/fabricante, API, app ID y errores locales; revisa su contenido antes de
-compartirlo. Reinstalar/borrar datos elimina datos locales; los documentos que
-exportaste a otra ubicación no se eliminan automáticamente.
+Cada widget pertenece a su app proveedora, que conserva sus propias políticas de datos,
+red y permisos. Los IDs de widgets se guardan aparte de las copias exportables; los widgets
+se añaden de nuevo en otro dispositivo.
 
-La construcción y publicación son otra cosa: GitHub Actions, Gradle y los
-repositorios de dependencias necesitan red. Los secretos de firma se usan solo
-en el proceso de build autorizado, no se incrustan como secretos en la APK.
+## Imágenes, copias y diagnóstico
+
+Las fotos se eligen mediante el selector del sistema y se copian reducidas al almacenamiento
+privado de Vitreo. No se lee toda la galería. La copia JSON conserva la distribución y la
+apariencia, pero no la foto, los IDs de widgets ni el historial de sugerencias.
+
+El diagnóstico se exporta únicamente cuando lo solicitas. Incluye versión, dispositivo,
+estado gráfico y el último stack de cierre inesperado; revísalo antes de compartirlo.
+No contiene un inventario de tus apps, fotografías o contraseñas.
+
+El cristal procesa exclusivamente el fondo propio del launcher. No captura otras apps ni
+sustituye las funciones de seguridad, notificaciones, bloqueo o Recientes de Android.

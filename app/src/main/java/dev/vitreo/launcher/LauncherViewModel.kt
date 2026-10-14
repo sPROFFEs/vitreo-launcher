@@ -28,12 +28,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val apps: List<AppRecord> = emptyList(),
         val ready: Boolean = false,
         val powerSaver: Boolean = false,
+        val recentApps: List<String> = emptyList(),
     )
     private val app = application
+    private val recentPreferences = app.getSharedPreferences("recent-launches", Context.MODE_PRIVATE)
     private val store = StateStore(app)
     private val catalog = AppCatalog(app)
     private val wallpaperStore = WallpaperStore(app)
-    private val _ui = MutableStateFlow(UiState())
+    private val _ui = MutableStateFlow(UiState(recentApps = recentPreferences.getString("apps", "")
+        .orEmpty().split('|').filter(::isAppId).distinct().take(16)))
     val ui: StateFlow<UiState> = _ui.asStateFlow()
     private val _wallpaper = MutableStateFlow<WallpaperFrame?>(null)
     val wallpaper: StateFlow<WallpaperFrame?> = _wallpaper.asStateFlow()
@@ -91,7 +94,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             try {
                 val apps = withContext(Dispatchers.IO) { catalog.load() }
                 ensureActive()
-                val merged = LayoutOps.reconcile(_ui.value.layout, apps.map { it.id })
+                val installed = if (_ui.value.layout.initialized) apps.map { it.id }
+                    else catalog.preferredDock(apps) + apps.map { it.id }
+                val merged = LayoutOps.reconcile(_ui.value.layout, installed.distinct())
                 val saving = app.getSystemService(PowerManager::class.java)?.isPowerSaveMode == true
                 _ui.value = _ui.value.copy(layout = merged, apps = apps, ready = true, powerSaver = saving)
                 saves.trySend(merged)
@@ -124,7 +129,17 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
     fun move(id: String, delta: Int) = commit(LayoutOps.move(_ui.value.layout, id, delta))
     fun moveToSlot(id: String, target: String) = commit(LayoutOps.moveToSlot(_ui.value.layout, id, target))
-    fun folder(first: String, second: String) = commit(LayoutOps.folder(_ui.value.layout, first, second, "folder:${UUID.randomUUID()}"))
+    fun dockDrop(id: String, slot: Int) = commit(LayoutOps.placeInDock(_ui.value.layout, id, slot))
+    fun folder(first: String, second: String) {
+        val s = if (first in _ui.value.layout.dock) LayoutOps.addToHome(_ui.value.layout, first) else _ui.value.layout
+        commit(LayoutOps.folder(s, first, second, "folder:${UUID.randomUUID()}"))
+    }
+    fun recordLaunch(id: String) {
+        if (_ui.value.apps.none { it.id == id }) return
+        val recent = (listOf(id) + _ui.value.recentApps).distinct().take(16)
+        _ui.value = _ui.value.copy(recentApps = recent)
+        recentPreferences.edit().putString("apps", recent.joinToString("|")).apply()
+    }
     fun addToFolder(appId: String, folder: String) = commit(LayoutOps.addToFolder(_ui.value.layout, appId, folder))
     fun dissolve(id: String) = commit(LayoutOps.dissolve(_ui.value.layout, id))
     fun renameFolder(id: String, name: String) = commit(LayoutOps.renameFolder(_ui.value.layout, id, name))

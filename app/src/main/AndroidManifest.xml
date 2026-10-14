@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+  <!-- Ordinary widget hosts use ACTION_APPWIDGET_BIND for explicit system authorization. -->
+  <uses-permission android:name="android.permission.BIND_APPWIDGET" tools:ignore="ProtectedPermissions" />
   <!-- Deliberately no INTERNET, QUERY_ALL_PACKAGES, storage, contacts,
        accessibility, notification listener, or overlay permission. -->
   <queries>
+    <intent><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent>
     <intent>
       <action android:name="android.intent.action.MAIN" />
       <category android:name="android.intent.category.LAUNCHER" />

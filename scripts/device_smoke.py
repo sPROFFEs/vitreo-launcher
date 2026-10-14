@@ -36,6 +36,29 @@ def passed_tests(directory: Path) -> int:
         raise RuntimeError("Instrumentation ran no passing tests.")
     return total
 
+def capture_screen(output: Path, name: str, expected: str) -> ET.Element:
+    adb("shell", "uiautomator", "dump", "/sdcard/vitreo-smoke.xml")
+    path = output / f"{name}.xml"
+    adb("pull", "/sdcard/vitreo-smoke.xml", str(path))
+    root = ET.parse(path).getroot()
+    if not any(node.get("package") == PACKAGE and node.get("text") == expected for node in root.iter("node")):
+        raise RuntimeError(f"Expected {expected!r} on optimized {name} screen.")
+    image = subprocess.check_output(["adb", "exec-out", "screencap", "-p"], timeout=60)
+    if not image.startswith(bytes([137, 80, 78, 71, 13, 10, 26, 10])):
+        raise RuntimeError("Invalid emulator screenshot.")
+    (output / f"optimized-{name}.png").write_bytes(image)
+    return root
+
+def tap_node(root: ET.Element, attribute: str, value: str) -> None:
+    node = next((node for node in root.iter("node") if node.get(attribute) == value), None)
+    if node is None:
+        raise RuntimeError(f"Missing UI control: {value}.")
+    bounds = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.get("bounds", ""))
+    if not bounds:
+        raise RuntimeError("Invalid UI control bounds.")
+    left, top, right, bottom = map(int, bounds.groups())
+    adb("shell", "input", "tap", str((left + right) // 2), str((top + bottom) // 2))
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("api", type=int, choices=[31, 35])
@@ -81,6 +104,41 @@ def main() -> None:
         if not screenshot.startswith(bytes([137, 80, 78, 71, 13, 10, 26, 10])):
             raise RuntimeError("Invalid emulator screenshot.")
         (output / "optimized-home.png").write_bytes(screenshot)
+        size = re.search(r"(\d+)x(\d+)", adb("shell", "wm", "size"))
+        if not size:
+            raise RuntimeError("Cannot determine emulator screen size.")
+        width, height = map(int, size.groups())
+        def swipe(start: float, end: float) -> None:
+            adb("shell", "input", "swipe", str(int(width * start)), str(int(height * .48)),
+                str(int(width * end)), str(int(height * .48)), "350")
+            time.sleep(.7)
+        swipe(.2, .8)
+        today = capture_screen(output, "today", "Hoy")
+        tap_node(today, "content-desc", "Ajustes")
+        time.sleep(.7)
+        capture_screen(output, "settings", "Ajustes")
+        adb("shell", "input", "keyevent", "KEYCODE_HOME")
+        time.sleep(.7)
+        home = capture_screen(output, "home", "Buscar")
+        tap_node(home, "text", "Buscar")
+        time.sleep(.7)
+        capture_screen(output, "spotlight", "Cancelar")
+        adb("shell", "input", "keyevent", "KEYCODE_HOME")
+        time.sleep(.7)
+        for _ in range(10):
+            swipe(.8, .2)
+            adb("shell", "uiautomator", "dump", "/sdcard/vitreo-smoke.xml")
+            xml = adb("shell", "cat", "/sdcard/vitreo-smoke.xml")
+            if "Biblioteca de apps" in xml:
+                break
+        capture_screen(output, "library", "Biblioteca de apps")
+        adb("shell", "input", "keyevent", "KEYCODE_HOME")
+        time.sleep(.7)
+        adb("shell", "input", "swipe", str(int(width * .85)), str(int(height * .09)),
+            str(int(width * .85)), str(int(height * .45)), "350")
+        time.sleep(.7)
+        capture_screen(output, "controls", "Centro de control")
+        adb("shell", "input", "keyevent", "KEYCODE_HOME")
         if adb("shell", "pidof", PACKAGE).strip() != original_pid:
             raise RuntimeError("The optimized launcher process restarted unexpectedly.")
         crash_log = adb("logcat", "-b", "crash", "-d")
@@ -89,6 +147,7 @@ def main() -> None:
             raise RuntimeError("A fatal crash occurred during optimized APK smoke testing.")
         result_path.write_text(json.dumps({"schema": 1, "commit": commit, "api": args.api,
             "status": "passed", "debugTestsPassed": count, "optimizedPreviewStarted": True,
+            "uiScreens": ["home", "today", "settings", "spotlight", "library", "controls"],
             "physicalGrapheneOsTested": False}, indent=2) + "\n")
     finally:
         try:

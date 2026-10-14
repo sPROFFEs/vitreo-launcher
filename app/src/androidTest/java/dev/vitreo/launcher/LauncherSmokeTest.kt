@@ -42,10 +42,15 @@ class LauncherSmokeTest {
         }
         compose.waitForIdle()
     }
+    private fun openSettings() {
+        compose.onNodeWithTag("home_workspace").performTouchInput { swipeRight() }
+        compose.onNodeWithTag("today_page").assertExists()
+        compose.onNodeWithTag("settings_button").performClick()
+    }
     @Test fun homeAndSettingsOpen() {
         awaitReady()
         compose.onNodeWithTag("launcher_root").assertExists()
-        compose.onNodeWithTag("settings_button").performClick()
+        openSettings()
         compose.onNodeWithTag("settings_title").assertExists()
     }
     @Test fun librarySearchOpens() {
@@ -72,7 +77,7 @@ class LauncherSmokeTest {
     }
     @Test fun homeIntentClosesOpenSheet() {
         awaitReady()
-        compose.onNodeWithTag("settings_button").performClick()
+        openSettings()
         compose.onNodeWithTag("settings_title").assertExists()
         val activity = compose.activity
         compose.runOnUiThread {
@@ -90,6 +95,7 @@ class LauncherSmokeTest {
             assertTrue(activity.intent.hasCategory(Intent.CATEGORY_HOME))
         }
         compose.onNodeWithTag("launcher_root").assertIsDisplayed()
+        compose.onNodeWithTag("dock").assertIsDisplayed()
     }
     @Test fun activityRecreationKeepsLauncherUsable() {
         awaitReady()
@@ -97,6 +103,29 @@ class LauncherSmokeTest {
         awaitReady()
         compose.onNodeWithTag("library_button").performClick()
         compose.onNodeWithTag("library_title").assertExists()
+    }
+    @Test fun appLibraryOpensAfterLastHomePage() {
+        awaitReady()
+        repeat(10) {
+            if (compose.onAllNodesWithTag("app_library").fetchSemanticsNodes().isEmpty())
+                compose.onNodeWithTag("home_workspace").performTouchInput { swipeLeft() }
+        }
+        compose.onNodeWithTag("app_library").assertIsDisplayed()
+        compose.onNodeWithText("Biblioteca de apps").assertExists()
+    }
+    @Test fun widgetGalleryOpensFromToday() {
+        awaitReady()
+        compose.onNodeWithTag("home_workspace").performTouchInput { swipeRight() }
+        compose.onNodeWithContentDescription("Añadir widgets").performClick()
+        compose.onNodeWithTag("widgets_title").assertExists()
+        compose.onNodeWithText("Reloj y calendario en Inicio").assertExists()
+    }
+    @Test fun pullDownOpensSpotlight() {
+        awaitReady()
+        compose.onNodeWithTag("home_workspace").performTouchInput { swipeDown() }
+        compose.onNodeWithTag("search_field").assertExists()
+        compose.onNodeWithText("Cancelar").performClick()
+        compose.onNodeWithTag("dock").assertIsDisplayed()
     }
 
 }

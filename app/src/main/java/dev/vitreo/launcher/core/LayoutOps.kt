@@ -50,10 +50,30 @@ object LayoutOps {
     }
 
     fun moveToSlot(state: LauncherState, id: String, target: String): LauncherState {
-        val sourceIndex = state.home.indexOfFirst { it.id == id }
-        val targetIndex = state.home.indexOfFirst { it.id == target }
+        val s = if (id in state.dock) addToHome(state, id) else state
+        val sourceIndex = s.home.indexOfFirst { it.id == id }
+        val targetIndex = s.home.indexOfFirst { it.id == target }
         if (sourceIndex < 0 || targetIndex < 0) return state
-        return move(state, id, targetIndex - sourceIndex)
+        return move(s, id, targetIndex - sourceIndex)
+    }
+
+    /** Reorder dock entries, or exchange a home icon with an occupied dock slot. */
+    fun placeInDock(state: LauncherState, app: String, slot: Int): LauncherState {
+        if (!isAppId(app) || !canPlace(state, app) || slot !in 0 until DOCK_SLOTS) return state
+        val from = state.dock.indexOf(app)
+        if (from >= 0) {
+            val dock = state.dock.toMutableList()
+            dock.add(slot.coerceAtMost(dock.lastIndex), dock.removeAt(from))
+            return state.copy(dock = dock).sanitized()
+        }
+        val displaced = state.dock.getOrNull(slot)
+        val index = state.home.indexOfFirst { it.id == app || it is HomeEntry.Folder && app in it.apps }
+        val stripped = withoutApp(state, app).sanitized()
+        val dock = stripped.dock.toMutableList()
+        if (slot < dock.size) dock[slot] = app else dock.add(app)
+        val home = stripped.home.toMutableList()
+        if (displaced != null) home.add(if (index < 0) home.size else index.coerceAtMost(home.size), HomeEntry.App(displaced))
+        return stripped.copy(home = home, dock = dock).sanitized()
     }
 
     fun moveBefore(state: LauncherState, id: String, target: String): LauncherState {

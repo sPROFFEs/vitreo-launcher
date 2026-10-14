@@ -30,12 +30,19 @@ data class Appearance(
     val opaquePanels: Boolean = false,
     val palette: Int = 0,
     val usePhoto: Boolean = false,
+    val iconStyle: Int = 0,
+    val tintColor: Int = 0xff8fbfff.toInt(),
+    val interfaceStyle: Int = 0,
+    val showWidgets: Boolean = true,
 ) {
     fun sanitized() = copy(
         iconSize = if (iconSize.isFinite()) iconSize.coerceIn(40f, 68f) else 60f,
         refraction = if (refraction.isFinite()) refraction.coerceIn(0f, 1f) else .65f,
         frost = if (frost.isFinite()) frost.coerceIn(0f, 1f) else .38f,
         palette = palette.coerceIn(0, 3),
+        iconStyle = iconStyle.coerceIn(0, 3),
+        interfaceStyle = interfaceStyle.coerceIn(0, 2),
+        tintColor = tintColor or 0xff000000.toInt(),
     )
 }
 

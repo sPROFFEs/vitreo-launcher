@@ -1,40 +1,28 @@
 @file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 package dev.vitreo.launcher.ui
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Android
+import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.*
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.*
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.*
 import dev.vitreo.launcher.core.HomeEntry
 import dev.vitreo.launcher.data.AppRecord
 
@@ -45,75 +33,73 @@ fun entryLabel(entry: HomeEntry, apps: Map<String, AppRecord>): String = when (e
 
 @Composable
 fun EntryIcon(entry: HomeEntry, apps: Map<String, AppRecord>, size: Dp, modifier: Modifier = Modifier) {
-    val shape = RoundedCornerShape(26)
-    if (entry is HomeEntry.Folder) {
-        Column(modifier.size(size).clip(shape).background(Color.White.copy(alpha = .17f))
-            .border(1.dp, Color.White.copy(alpha = .28f), shape).padding(5.dp), verticalArrangement = Arrangement.SpaceEvenly) {
-            repeat(3) { row ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    repeat(3) { column ->
-                        val icon = entry.apps.getOrNull(row * 3 + column)?.let { apps[it]?.icon }
-                        val cell = (size - 16.dp) / 3
-                        if (icon != null) Image(icon.asImageBitmap(), null, Modifier.size(cell).clip(RoundedCornerShape(3.dp)))
-                        else Spacer(Modifier.size(cell))
+    val appearance = LocalGlass.current.appearance
+    Box(modifier.size(size).shadow(3.dp, IconShape, ambientColor = Color.Black.copy(alpha = .2f),
+        spotColor = Color.Black.copy(alpha = .22f)).clip(IconShape)) {
+        if (entry is HomeEntry.Folder) {
+            GlassPanel(Modifier.fillMaxSize(), radius = size.value * .25f, tint = .12f) {}
+            Column(Modifier.fillMaxSize().padding(size * .10f), verticalArrangement = Arrangement.SpaceEvenly) {
+                repeat(3) { row ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        repeat(3) { column ->
+                            val image = entry.apps.getOrNull(row * 3 + column)?.let { apps[it]?.icon }
+                            val cell = size * .22f
+                            if (image == null) Spacer(Modifier.size(cell))
+                            else Image(image.asImageBitmap(), null, Modifier.size(cell).clip(IconShape))
+                        }
                     }
                 }
             }
-        }
-    } else {
-        val icon = apps[entry.id]?.icon
-        if (icon != null) Image(icon.asImageBitmap(), null, modifier.size(size).clip(shape))
-        else Box(modifier.size(size).clip(shape).background(Color(0xff445267)), contentAlignment = Alignment.Center) {
-            Icon(Icons.Outlined.Android, null, Modifier.size(size * .58f), tint = Color(0xffc9d6de))
+        } else {
+            val app = apps[entry.id]
+            val style = appearance.iconStyle
+            if (style == 3) GlassPanel(Modifier.fillMaxSize(), radius = size.value * .25f, tint = .08f) {}
+            else Box(Modifier.fillMaxSize().background(if (style == 1 || style == 2) Color(0xff1e2229) else Color.White))
+            val image = if (style != 0) app?.glyph ?: app?.icon else app?.icon
+            if (image != null) Image(image.asImageBitmap(), null, Modifier.fillMaxSize(),
+                colorFilter = when {
+                    style == 2 && app?.glyph != null -> ColorFilter.tint(Color(appearance.tintColor))
+                    style == 3 && app?.glyph != null -> ColorFilter.tint(Color.White)
+                    style > 1 -> ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
+                    else -> null
+                })
+            else Icon(Icons.Outlined.Android, null, Modifier.size(size * .58f).align(Alignment.Center),
+                tint = if (style == 0) Color(0xff7c8999) else Color(appearance.tintColor))
+            if (style > 0) Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
+                listOf(Color.White.copy(alpha = .12f), Color.Transparent, Color.Black.copy(alpha = .07f)))))
         }
     }
 }
 
 @Composable
-fun LauncherTile(
-    entry: HomeEntry,
-    apps: Map<String, AppRecord>,
-    iconSize: Dp,
-    labels: Boolean,
-    modifier: Modifier = Modifier,
-    editing: Boolean = false,
-    dragging: Boolean = false,
-    onClick: () -> Unit,
-    onActions: () -> Unit,
-    onBounds: (Rect) -> Unit = {},
-    onDragStart: (Offset) -> Unit = {},
-    onDrag: (Offset) -> Unit = {},
-    onDragEnd: () -> Unit = {},
-    onDragCancel: () -> Unit = {},
-) {
-    var bounds by remember { mutableStateOf(Rect.Zero) }
-    val start by rememberUpdatedState(onDragStart)
-    val drag by rememberUpdatedState(onDrag)
-    val end by rememberUpdatedState(onDragEnd)
-    val cancel by rememberUpdatedState(onDragCancel)
+fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, labels: Boolean,
+    modifier: Modifier = Modifier, editing: Boolean = false, dragging: Boolean = false,
+    onClick: () -> Unit, onActions: () -> Unit, onBounds: (Rect) -> Unit = {}, onRemove: (() -> Unit)? = null) {
+    val appearance = LocalGlass.current.appearance
+    val angle = if (editing && !appearance.reducedEffects) {
+        val transition = rememberInfiniteTransition(label = "jiggle")
+        val value by transition.animateFloat(-1.1f, 1.1f,
+            infiniteRepeatable(tween(150 + (entry.id.hashCode().ushr(1) % 60)), RepeatMode.Reverse), label = "icon")
+        value
+    } else 0f
     val label = entryLabel(entry, apps)
-    Column(modifier.semantics {
-        if (!labels) contentDescription = label
-        if (entry is HomeEntry.App && apps[entry.id] == null) stateDescription = "No disponible en este perfil"
-    }.onGloballyPositioned { bounds = it.boundsInRoot(); onBounds(bounds) }
-        .pointerInput(entry.id, editing) {
-            if (editing) detectDragGesturesAfterLongPress(
-                onDragStart = { start(bounds.topLeft + it) },
-                onDrag = { change, amount -> change.consume(); drag(amount) },
-                onDragEnd = { end() }, onDragCancel = { cancel() },
-            )
-        }
-        .combinedClickable(role = Role.Button, onClick = onClick,
+    Column(modifier.onGloballyPositioned { onBounds(it.boundsInRoot()) }
+        .semantics {
+            if (!labels) contentDescription = label
+            if (entry is HomeEntry.App && apps[entry.id] == null) stateDescription = "No disponible"
+        }.combinedClickable(role = Role.Button, onClick = onClick,
             onLongClickLabel = "Acciones de $label", onLongClick = if (editing) null else onActions)
-        .alpha(if (dragging) .35f else if (entry is HomeEntry.App && apps[entry.id] == null) .5f else 1f)
-        .padding(horizontal = 2.dp, vertical = 5.dp),
-        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Top) {
-        EntryIcon(entry, apps, iconSize)
-        if (labels) {
-            Spacer(Modifier.height(6.dp))
-            Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(), color = Color.White,
-                style = TextStyle(fontSize = 12.sp, shadow = Shadow(Color.Black.copy(alpha = .9f), Offset(0f, 1f), 5f)))
+        .alpha(if (dragging) .2f else if (entry is HomeEntry.App && apps[entry.id] == null) .5f else 1f)
+        .padding(top = 7.dp, bottom = 5.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.rotate(angle)) {
+            EntryIcon(entry, apps, iconSize)
+            if (editing && onRemove != null) Box(Modifier.offset((-5).dp, (-5).dp).size(23.dp)
+                .background(Color(0xffd5d7db), CircleShape).clickable(onClick = onRemove), contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.Remove, "Quitar $label", Modifier.size(17.dp), tint = Color(0xff303238))
+            }
         }
+        if (labels) Text(label, Modifier.fillMaxWidth().padding(top = 6.dp, start = 1.dp, end = 1.dp),
+            maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
+            style = TextStyle(fontSize = 12.sp, color = Color.White, shadow = Shadow(Color.Black.copy(alpha = .5f), blurRadius = 5f)))
     }
 }

@@ -28,4 +28,17 @@ class StateCodecTest {
         val s = LauncherState(initialized = true, home = listOf(HomeEntry.Folder("folder:test", "\u00d1 \"test\" \\ line", listOf(a,b)))).sanitized()
         assertEquals(s, StateCodec.decode(StateCodec.encode(s)))
     }
+    @Test fun newAppearanceOptionsRoundTrip() {
+        val s = LauncherState(initialized = true, appearance = Appearance(iconStyle = 3,
+            tintColor = 0xffe6b4f3.toInt(), interfaceStyle = 2, showWidgets = false))
+        assertEquals(s, StateCodec.decode(StateCodec.encode(s)))
+    }
+    @Test fun previousVersionBackupsKeepLayoutAndGetNewDefaults() {
+        val state = StateCodec.decode("""{"schema":1,"home":[{"type":"app","id":"com.example.one/.Main"}],"dock":[],"appearance":{"palette":2,"showLabels":false}}""")
+        assertEquals(listOf(a), state.placedApps())
+        assertEquals(2, state.appearance.palette)
+        assertFalse(state.appearance.showLabels)
+        assertEquals(0, state.appearance.iconStyle)
+        assertTrue(state.appearance.showWidgets)
+    }
 }

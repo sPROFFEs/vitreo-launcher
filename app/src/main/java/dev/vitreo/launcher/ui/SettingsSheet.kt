@@ -1,113 +1,168 @@
 package dev.vitreo.launcher.ui
 
-import android.os.Build
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.ui.semantics.Role
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.vitreo.launcher.BuildConfig
 import dev.vitreo.launcher.LauncherViewModel
 import dev.vitreo.launcher.core.Appearance
+import dev.vitreo.launcher.core.HomeEntry
 import kotlin.math.roundToInt
 
 @Composable
-private fun ToggleRow(title: String, checked: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange).padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, Modifier.weight(1f).padding(end = 12.dp), fontSize = 15.sp)
-        Switch(checked = checked, enabled = enabled, onCheckedChange = null)
-    }
-}
-
-@Composable
-private fun SectionTitle(text: String) {
-    Text(text, Modifier.padding(top = 22.dp, bottom = 9.dp), color = MaterialTheme.colorScheme.primary,
-        fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-}
-
-@Composable
-fun SettingsSheet(
-    ui: LauncherViewModel.UiState,
-    defaultHome: Boolean,
-    onClose: () -> Unit,
-    onAppearance: (Appearance) -> Unit,
-    onSetHome: () -> Unit,
-    onPhoto: () -> Unit,
-    onExport: () -> Unit,
-    onImport: () -> Unit,
-    onDiagnostics: () -> Unit,
-    onRefresh: () -> Unit,
-    onReset: () -> Unit,
-    onLicenses: () -> Unit,
-) {
-    val a = ui.layout.appearance
+fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: () -> Unit,
+    onAppearance: (Appearance) -> Unit, onSetHome: () -> Unit, onPhoto: () -> Unit,
+    onExport: () -> Unit, onImport: () -> Unit, onDiagnostics: () -> Unit, onRefresh: () -> Unit,
+    onReset: () -> Unit, onLicenses: () -> Unit, onWidgets: () -> Unit) {
+    var page by remember { mutableStateOf("Ajustes") }
     var confirmation by remember { mutableStateOf<String?>(null) }
-    Column(Modifier.fillMaxWidth().fillMaxHeight(.9f).verticalScroll(rememberScrollState()).padding(20.dp)) {
-        SheetHeader("Ajustes", onClose, "settings_title")
-        Text("Vitreo ${BuildConfig.VERSION_NAME}", fontSize = 18.sp, fontWeight = FontWeight.Medium)
-        Text("Launcher local \u00b7 versi\u00f3n experimental", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (BuildConfig.BUILD_TYPE == "preview") {
-            Text("PREVIEW: esta APK usa una firma temporal de pruebas. Una APK de otro build puede exigir desinstalar esta versi\u00f3n. Exporta tu escritorio antes.",
-                color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.padding(top = 12.dp), fontSize = 13.sp)
+    val a = ui.layout.appearance
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).safeDrawingPadding()) {
+        Row(Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = { if (page == "Ajustes") onClose() else page = "Ajustes" }) {
+                Icon(Icons.Outlined.ChevronLeft, null, Modifier.size(22.dp))
+                Text(if (page == "Ajustes") "Inicio" else "Ajustes")
+            }
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = onClose) { Text("OK", fontWeight = FontWeight.SemiBold) }
         }
-        SectionTitle("INICIO")
-        SheetAction(if (defaultHome) "Vitreo ya es tu app de inicio" else "Elegir Vitreo como app de inicio", !defaultHome, onSetHome)
-        SheetAction("Actualizar lista de aplicaciones", ui.ready, onRefresh)
-        SectionTitle("CRISTAL")
-        Text(if (Build.VERSION.SDK_INT >= 33) "Refracci\u00f3n AGSL sobre el fondo del launcher." else "Android 12: cristal esmerilado sin refracci\u00f3n AGSL.",
-            fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (ui.powerSaver) Text("El ahorro de bater\u00eda est\u00e1 activo: se usa el modo reducido.", fontSize = 13.sp)
-        ToggleRow("Reducir efectos", a.reducedEffects, ui.ready) { onAppearance(a.copy(reducedEffects = it)) }
-        ToggleRow("Paneles opacos (m\u00e1ximo contraste)", a.opaquePanels, ui.ready) { onAppearance(a.copy(opaquePanels = it)) }
-        Text("Refracci\u00f3n: ${(a.refraction * 100).roundToInt()}%", fontSize = 14.sp)
-        Slider(a.refraction, { onAppearance(a.copy(refraction = it)) },
-            enabled = ui.ready && !a.reducedEffects && !a.opaquePanels && !ui.powerSaver && Build.VERSION.SDK_INT >= 33)
-        Text("Esmerilado: ${(a.frost * 100).roundToInt()}%", fontSize = 14.sp)
-        Slider(a.frost, { onAppearance(a.copy(frost = it)) }, enabled = ui.ready && !a.opaquePanels && !a.reducedEffects && !ui.powerSaver && Build.VERSION.SDK_INT >= 33)
-        SectionTitle("ICONOS")
-        ToggleRow("Mostrar nombres", a.showLabels, ui.ready) { onAppearance(a.copy(showLabels = it)) }
-        Text("Tama\u00f1o solicitado: ${a.iconSize.roundToInt()} dp", fontSize = 14.sp)
-        Slider(a.iconSize, { onAppearance(a.copy(iconSize = it)) }, valueRange = 40f..68f, steps = 13, enabled = ui.ready)
-        Text("Cuatro columnas. El tama\u00f1o real se ajusta al ancho y al texto del sistema.", fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        SectionTitle("FONDO")
-        listOf("Oc\u00e9ano", "Atardecer", "Bosque", "Grafito").chunked(2).forEachIndexed { row, names ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                names.forEachIndexed { column, name ->
-                    val index = row * 2 + column
-                    OutlinedButton(onClick = { onAppearance(a.copy(palette = index, usePhoto = false)) }, enabled = ui.ready, modifier = Modifier.weight(1f)) {
-                        Text((if (!a.usePhoto && a.palette == index) "\u2022 " else "") + name)
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
+            Text(page, fontSize = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-.8).sp,
+                modifier = Modifier.padding(top = 8.dp, bottom = 25.dp).testTag("settings_title"))
+            when (page) {
+                "Ajustes" -> {
+                    IosGroup {
+                        Row(Modifier.padding(17.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(58.dp).clip(IconShape).background(Brush.linearGradient(listOf(Color(0xff6cb9ff), Color(0xff2862df)))), contentAlignment = Alignment.Center) {
+                                Icon(Icons.Outlined.Layers, null, Modifier.size(34.dp), tint = Color.White)
+                            }
+                            Column(Modifier.padding(start = 15.dp)) {
+                                Text("Vitreo", fontSize = 24.sp, fontWeight = FontWeight.Medium)
+                                Text("Tu inicio, a tu manera", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                    IosSectionLabel("Personalización")
+                    IosGroup {
+                        IosRow("Pantalla de inicio", "Iconos y aspecto") { page = "Pantalla de inicio" }; IosDivider()
+                        IosRow("Fondo de pantalla") { page = "Fondo de pantalla" }; IosDivider()
+                        IosRow("Widgets", onClick = onWidgets)
+                    }
+                    IosSectionLabel("General")
+                    IosGroup {
+                        IosRow("App de inicio", if (defaultHome) "Vitreo" else "Elegir", enabled = !defaultHome, onClick = onSetHome); IosDivider()
+                        IosRow("Copias y distribución") { page = "Copias y distribución" }; IosDivider()
+                        IosRow("Actualizar aplicaciones", enabled = ui.ready, onClick = onRefresh)
+                    }
+                    IosSectionLabel("Información")
+                    IosGroup {
+                        IosRow("Acerca de Vitreo", BuildConfig.VERSION_NAME) { page = "Acerca de Vitreo" }; IosDivider()
+                        IosRow("Licencias", onClick = onLicenses)
+                    }
+                    Text("Hecho para que todo encuentre su sitio.", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp, modifier = Modifier.padding(start = 17.dp, top = 15.dp, bottom = 25.dp))
+                }
+                "Pantalla de inicio" -> {
+                    GlassPanel(Modifier.fillMaxWidth(), radius = 24f, tint = .16f) {
+                        Row(Modifier.fillMaxWidth().padding(20.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            val apps = ui.apps.associateBy { it.id }
+                            ui.apps.take(4).forEach { app -> EntryIcon(HomeEntry.App(app.id), apps, 55.dp) }
+                        }
+                    }
+                    IosSectionLabel("Iconos")
+                    IosGroup {
+                        IosSegmented(listOf("Original", "Oscuro", "Tintado", "Cristal"), a.iconStyle, Modifier.padding(12.dp)) { onAppearance(a.copy(iconStyle = it)) }
+                        if (a.iconStyle == 2) Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            listOf(0xff8fbfff, 0xffe6b4f3, 0xffe9c68e, 0xffa5dfbb, 0xfff4b4bb).forEach { color ->
+                                Box(Modifier.size(32.dp).background(Color(color), CircleShape).clickable { onAppearance(a.copy(tintColor = color.toInt())) }, contentAlignment = Alignment.Center) {
+                                    if (a.tintColor == color.toInt()) Icon(Icons.Outlined.Check, null, Modifier.size(19.dp), tint = Color(0xff2d3440))
+                                }
+                            }
+                        }
+                        IosDivider()
+                        IosToggleRow("Mostrar nombres", a.showLabels, modifier = Modifier.testTag("labels_switch")) { onAppearance(a.copy(showLabels = it)) }
+                        IosDivider()
+                        Column(Modifier.padding(horizontal = 17.dp, vertical = 12.dp)) {
+                            Row { Text("Tamaño", Modifier.weight(1f)); Text("${a.iconSize.roundToInt()}", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                            Slider(a.iconSize, { onAppearance(a.copy(iconSize = it)) }, valueRange = 40f..68f, steps = 13)
+                        }
+                    }
+                    IosSectionLabel("Apariencia")
+                    IosGroup {
+                        IosSegmented(listOf("Automático", "Claro", "Oscuro"), a.interfaceStyle, Modifier.padding(12.dp)) { onAppearance(a.copy(interfaceStyle = it)) }
+                        IosDivider()
+                        IosToggleRow("Reloj y calendario", a.showWidgets) { onAppearance(a.copy(showWidgets = it)) }
+                    }
+                    IosSectionLabel("Liquid Glass")
+                    IosGroup {
+                        Column(Modifier.padding(horizontal = 17.dp, vertical = 12.dp)) {
+                            Text("Transparencia")
+                            Slider(1f - a.frost, { onAppearance(a.copy(frost = 1f - it)) }, enabled = !a.opaquePanels)
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Esmerilado", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Transparente", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        IosDivider()
+                        IosToggleRow("Reducir movimiento", a.reducedEffects) { onAppearance(a.copy(reducedEffects = it)) }
+                        IosDivider()
+                        IosToggleRow("Reducir transparencia", a.opaquePanels) { onAppearance(a.copy(opaquePanels = it)) }
                     }
                 }
+                "Fondo de pantalla" -> {
+                    Text("Elige un nuevo fondo", fontSize = 17.sp, modifier = Modifier.padding(bottom = 20.dp))
+                    val palettes = listOf(listOf(0xff163890, 0xff6cbded), listOf(0xff524095, 0xffd69ebc),
+                        listOf(0xff9f455f, 0xfff8ba8f), listOf(0xff080e1c, 0xff4b6884))
+                    listOf("Azul", "Orquídea", "Aurora", "Medianoche").chunked(2).forEachIndexed { row, names ->
+                        Row(Modifier.fillMaxWidth().padding(bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                            names.forEachIndexed { column, title ->
+                                val index = row * 2 + column
+                                Box(Modifier.weight(1f).aspectRatio(.7f).clip(RoundedCornerShape(24.dp))
+                                    .background(Brush.linearGradient(palettes[index].map(::Color)))
+                                    .clickable { onAppearance(a.copy(palette = index, usePhoto = false)) }) {
+                                    Text(title, color = Color.White, modifier = Modifier.align(Alignment.BottomStart).padding(14.dp))
+                                    if (!a.usePhoto && a.palette == index) Icon(Icons.Outlined.CheckCircle, null, Modifier.align(Alignment.TopEnd).padding(12.dp), tint = Color.White)
+                                }
+                            }
+                        }
+                    }
+                    IosGroup { IosRow("Elegir una foto…", onClick = onPhoto) }
+                }
+                "Copias y distribución" -> {
+                    IosGroup {
+                        IosRow("Exportar escritorio", onClick = onExport); IosDivider()
+                        IosRow("Importar escritorio") { confirmation = "import" }; IosDivider()
+                        IosRow("Restablecer distribución", destructive = true) { confirmation = "reset" }
+                    }
+                    Text("La copia conserva los iconos, carpetas y apariencia. Las fotos y widgets de otras apps se añaden de nuevo en cada dispositivo.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, modifier = Modifier.padding(17.dp))
+                }
+                else -> {
+                    IosGroup { IosRow("Versión", BuildConfig.VERSION_NAME, onClick = {}); IosDivider(); IosRow("Guardar diagnóstico", onClick = onDiagnostics) }
+                    Text("Un inicio inspirado en iOS y Folio, con tus aplicaciones Android. Sin cuentas, anuncios ni telemetría.",
+                        fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(17.dp))
+                }
             }
+            Spacer(Modifier.height(28.dp))
         }
-        SheetAction("Elegir imagen local", ui.ready, onClick = onPhoto)
-        Text("Se copia una imagen reducida al almacenamiento privado de Vitreo. No cambia el fondo de bloqueo ni lee toda tu galer\u00eda.",
-            fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        SectionTitle("COPIAS Y DIAGN\u00d3STICO")
-        SheetAction("Exportar escritorio y ajustes", ui.ready, onExport)
-        SheetAction("Importar una copia", ui.ready) { confirmation = "import" }
-        SheetAction("Guardar informe de diagn\u00f3stico", onClick = onDiagnostics)
-        SheetAction("Restablecer distribuci\u00f3n", ui.ready) { confirmation = "reset" }
-        Text("La copia no contiene el fondo. El informe se guarda donde elijas y no se env\u00eda autom\u00e1ticamente. Rev\u00edsalo antes de compartirlo.",
-            fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        SectionTitle("ALCANCE 0.1.0")
-        Text("Perfil Android actual. Sin widgets nativos, paquetes de iconos, espacio privado, perfiles de trabajo ni sustituci\u00f3n de Recientes. No modifiques el sistema para probarlo.",
-            fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        SheetAction("Licencias y procedencia", onClick = onLicenses)
-        Spacer(Modifier.height(24.dp))
     }
     confirmation?.let { action ->
-        AlertDialog(onDismissRequest = { confirmation = null },
-            title = { Text(if (action == "reset") "\u00bfRestablecer escritorio?" else "\u00bfImportar una copia?") },
-            text = { Text("Se sustituir\u00e1 la distribuci\u00f3n actual. Exporta una copia primero para poder volver atr\u00e1s. Las aplicaciones no se desinstalan.") },
+        AlertDialog(onDismissRequest = { confirmation = null }, title = { Text(if (action == "reset") "¿Restablecer Inicio?" else "¿Importar escritorio?") },
+            text = { Text("Se sustituirá la distribución actual. Puedes exportarla primero para conservar una copia.") },
             confirmButton = { TextButton(onClick = { confirmation = null; if (action == "reset") onReset() else onImport() }) { Text("Continuar") } },
             dismissButton = { TextButton(onClick = { confirmation = null }) { Text("Cancelar") } })
     }

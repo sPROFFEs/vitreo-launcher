@@ -70,8 +70,8 @@ def release_body(info: dict) -> str:
 - Signer SHA-256: `{info['signingCertificateSha256']}`.
 
 ## Scope and verification
-Four-column home, four-slot dock, folders, local search, locally chosen wallpaper and layout backups.
-Glass samples this launcher's wallpaper only. No native widgets, icon packs, work/private profiles, replacement Recents or lock screen.
+iOS-inspired four-column home, glass dock, paged folders, Spotlight, categorized App Library, Today widgets, icon styles and layout backups.
+Glass samples this launcher's wallpaper only. Native Android widgets are hosted in Today with system authorization. Android retains its keyboard, notifications, Recents and lock screen.
 JVM tests, Android lint, build and APK signature/identity/permission checks ran in this workflow.
 Publication is gated on Android API 31 and 35 instrumentation plus optimized Preview launch tests at this commit.
 The signed release APK has been verified statically, not run on a device. No physical GrapheneOS testing is claimed.

@@ -47,23 +47,35 @@ class WallpaperStore(private val context: Context) {
     private fun procedural(palette: Int): Bitmap {
         val b = Bitmap.createBitmap(720, 1600, Bitmap.Config.ARGB_8888)
         val colors = when (palette.coerceIn(0, 3)) {
-            1 -> intArrayOf(0xff251838.toInt(), 0xff974f79.toInt(), 0xffe7b18b.toInt())
-            2 -> intArrayOf(0xff112b2b.toInt(), 0xff21766c.toInt(), 0xffabd5a7.toInt())
-            3 -> intArrayOf(0xff0b111d.toInt(), 0xff283344.toInt(), 0xff617487.toInt())
-            else -> intArrayOf(0xff0d1834.toInt(), 0xff276b88.toInt(), 0xff8bd9d0.toInt())
+            1 -> intArrayOf(0xff2c246f.toInt(), 0xff9476d7.toInt(), 0xffedacbb.toInt())
+            2 -> intArrayOf(0xff5c2447.toInt(), 0xffec8061.toInt(), 0xffffd3a0.toInt())
+            3 -> intArrayOf(0xff050914.toInt(), 0xff142c48.toInt(), 0xff45657e.toInt())
+            else -> intArrayOf(0xff102664.toInt(), 0xff326de0.toInt(), 0xff8fd2ed.toInt())
         }
         val canvas = Canvas(b)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-        paint.shader = LinearGradient(0f, 0f, 720f, 1600f, colors, null, Shader.TileMode.CLAMP)
+        paint.shader = LinearGradient(0f, 100f, 720f, 1450f, colors, null, Shader.TileMode.CLAMP)
         canvas.drawRect(0f, 0f, 720f, 1600f, paint)
-        paint.shader = RadialGradient(180f, 600f, 600f, intArrayOf(0x68e9fff5, 0x00e9fff5), null, Shader.TileMode.CLAMP)
-        canvas.drawRect(0f, 0f, 720f, 1600f, paint)
-        val path = Path().apply {
-            moveTo(-200f, 1200f); cubicTo(750f, 500f, 50f, 1000f, 1000f, 700f)
-            lineTo(1000f, 1800f); lineTo(-200f, 1800f); close()
+        // Original flowing ribbons: rendered once, not a bundled Apple wallpaper.
+        val ribbon = Path().apply {
+            moveTo(-180f, -100f); cubicTo(80f, 420f, 1180f, 100f, 800f, 780f)
+            cubicTo(430f, 1380f, -250f, 960f, 250f, 1850f)
         }
-        paint.shader = LinearGradient(0f, 780f, 650f, 1500f, intArrayOf(0x55030917, 0x08030917), null, Shader.TileMode.CLAMP)
-        canvas.drawPath(path, paint)
+        paint.style = Paint.Style.STROKE; paint.strokeCap = Paint.Cap.ROUND; paint.strokeWidth = 380f
+        paint.shader = LinearGradient(0f, 0f, 620f, 1650f,
+            intArrayOf(0x66ffffff, 0x20ffffff, 0x05ffffff), null, Shader.TileMode.CLAMP)
+        canvas.drawPath(ribbon, paint)
+        paint.strokeWidth = 285f
+        paint.shader = LinearGradient(0f, 0f, 720f, 1400f,
+            intArrayOf(0x02ffffff, 0x46d9f3ff, 0x00ffffff), null, Shader.TileMode.CLAMP)
+        canvas.drawPath(ribbon, paint)
+        paint.style = Paint.Style.FILL
+        paint.shader = RadialGradient(660f, 300f, 800f,
+            intArrayOf(0x55ffcee9, 0x00ffcee9), null, Shader.TileMode.CLAMP)
+        canvas.drawRect(0f, 0f, 720f, 1600f, paint)
+        paint.shader = LinearGradient(0f, 800f, 0f, 1600f,
+            intArrayOf(0x000a102b, 0x880a102b.toInt()), null, Shader.TileMode.CLAMP)
+        canvas.drawRect(0f, 0f, 720f, 1600f, paint)
         return b
     }
 

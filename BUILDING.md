@@ -130,3 +130,16 @@ commit, no por intento. Se pueden volver a generar dentro de esa ejecución:
 así, **Re-run failed jobs** puede recuperar el resultado de un job previo que
 ya pasó. Esta sustitución afecta a artifacts temporales de Actions, nunca a
 los assets de una release publicada.
+
+## Interfaz 0.2.0
+
+El inicio usa páginas Home entre Hoy y Biblioteca. Spotlight se abre desde Buscar
+o al deslizar hacia abajo. Las capturas de Preview optimizada en la matriz API
+31/35 incluyen home, today, spotlight, library, settings y controls. El manifiesto
+permite únicamente BIND_APPWIDGET, además del permiso interno de AndroidX
+generado al compilar. La supresión ProtectedPermissions se limita a esa
+declaración: un host normal solicita la vinculación mediante el diálogo del
+sistema, como requiere el contrato oficial de AppWidgetHost.
+
+Los IDs de widgets se conservan en preferencias privadas por instalación.
+No forman parte del esquema portable de distribución ni de sus importaciones.

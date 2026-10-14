@@ -1,3 +1,14 @@
+# 0.2.0 — Inicio inspirado en iOS
+
+- Inicio sin cabecera de reloj ni controles permanentes; dock inferior de cristal y máscaras continuas para iconos adaptativos.
+- Cuatro estilos de iconos y tres apariencias del sistema de ajustes; fondos originales renovados.
+- Hoy a la izquierda, Spotlight al deslizar hacia abajo y Biblioteca categorizada después de la última página.
+- Reloj y calendario integrados; host de widgets Android con autorización, configuración, persistencia local y eliminación.
+- Carpetas centradas 3×3 con páginas y renombrado; edición con movimiento, intercambio con el dock, agrupación por arrastre y cambio de página por el borde.
+- Ajustes con listas agrupadas, controles iOS y un Centro de control con accesos a paneles reales de Android.
+- Compatibilidad con las copias anteriores, mismo applicationId y continuidad de firma.
+- Nuevas regresiones de intercambio del dock, categorías, migración de apariencia, gestos y widgets.
+
 # Cambios
 
 ## 0.1.0 - 2026-10-14 - prototipo inicial, publicación pendiente
