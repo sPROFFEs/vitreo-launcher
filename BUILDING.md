@@ -24,6 +24,11 @@ https://developer.android.com/build/releases/agp-8-9-0-release-notes
 manual debe ejecutarse en `main` o en la etiqueta exacta. `main` debe ser la rama
 por defecto del repo. No se publican releases desde pull requests.
 
+`source-checks` comprueba que estén presentes los cuatro secrets de firma antes
+de ejecutar los emuladores. Si faltan, el error enumera sus nombres y el lugar
+de configuración. Esta comprobación no escribe la clave ni exporta contraseñas;
+la clave se materializa y verifica después en el job `build`.
+
 El build realiza comprobaciones estructurales, pruebas de scripts, pruebas JVM,
 lint de Android y build optimizado. Después ejecuta `apksigner verify`, comprueba
 identificador/versión/permisos con `aapt` y calcula SHA-256. Una release nueva se
@@ -103,6 +108,7 @@ No comprueba tipos Android, Compose, recursos ni ejecución AGSL.
 | 403 al publicar | Revisa políticas de Actions, permiso `contents: write` y reglas de etiquetas; no concedas un token personal amplio como arreglo automático |
 | Borrador `v0.1.0` ya existente | Revisa el build interrumpido; elimina expresamente el borrador incompleto y reejecuta el mismo commit. No borres una release pública |
 | Tag de versión en otro commit | Incrementa con `bump_version.py`; no muevas el tag ni sobrescribas una release |
+| `homeIntentClosesOpenSheet`: espera `DESTROYED`, último estado `PAUSED` | El test debe restaurar en `finally` el intent de lanzamiento tras comprobar HOME: `ActivityScenario` deja de reconocer los eventos si `setIntent()` cambia sus categorías. El test corregido comprueba también el cierre del escenario |
 | Error real de Kotlin/lint/AGSL | Conserva el log completo de la tarea y el SHA. Esta entrega no ha pasado una compilación Android local |
 | `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | No coincide la firma; consulta SIGNING.md antes de desinstalar |
 | `VERSION_DOWNGRADE` | No se instala encima una versionCode menor; incrementa la versión manteniendo firma y app ID |

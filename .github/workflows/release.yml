@@ -26,6 +26,13 @@ jobs:
           python3 scripts/check_project.py
           python3 -c 'import os,sys; sys.path.insert(0,"scripts"); from release_common import read_version,validate_ref; validate_ref(os.environ["GITHUB_REF"],read_version()[0])'
           python3 -m unittest discover -s tests -v
+      - name: Check required signing secrets before emulator tests
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: python3 scripts/prepare_signing.py --require-private --check-only
   device-tests:
     needs: source-checks
     uses: ./.github/workflows/device-smoke.yml

@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 import sys
 import tempfile
-from release_common import signing_mode
+from release_common import SIGNING_SECRETS, signing_mode
 
 def append_environment(path: str, values: dict[str, str]) -> None:
     with open(path, "a", encoding="utf-8") as out:
@@ -29,7 +29,12 @@ def main() -> None:
         clean(); return
     mode = signing_mode(dict(os.environ))
     if "--require-private" in sys.argv[1:] and mode != "release":
-        raise ValueError("A release requires all four signing secrets. Preview builds are CI artifacts, not versioned releases.")
+        raise ValueError("A release requires all four signing secrets: " + ", ".join(SIGNING_SECRETS) +
+            ". Configure them in Settings > Secrets and variables > Actions. "
+            "Preview builds are CI artifacts, not versioned releases.")
+    if "--check-only" in sys.argv[1:]:
+        print(f"Signing configuration present for {mode}; no key material written.")
+        return
     if mode == "release":
         try:
             contents = base64.b64decode("".join(os.environ["ANDROID_KEYSTORE_BASE64"].split()), validate=True)

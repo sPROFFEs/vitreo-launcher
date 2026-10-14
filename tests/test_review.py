@@ -158,5 +158,18 @@ class StrictSigningTests(unittest.TestCase):
         with patch.dict(os.environ,{},clear=True), patch.object(sys,"argv",["prepare_signing.py","--require-private"]):
             with self.assertRaises(ValueError): prepare_signing.main()
 
+    def test_signing_preflight_without_secrets_explains_configuration(self):
+        with patch.dict(os.environ,{},clear=True), patch.object(sys,"argv",["prepare_signing.py","--require-private","--check-only"]):
+            with self.assertRaisesRegex(ValueError, "Settings > Secrets and variables > Actions"):
+                prepare_signing.main()
+
+    def test_signing_preflight_needs_no_runner_paths_and_writes_no_key(self):
+        environment = dict(ANDROID_KEYSTORE_BASE64="YQ==", ANDROID_KEYSTORE_PASSWORD="private-store-password",
+            ANDROID_KEY_ALIAS="vitreo", ANDROID_KEY_PASSWORD="private-key-password")
+        with patch.dict(os.environ,environment,clear=True), patch.object(sys,"argv",["prepare_signing.py","--require-private","--check-only"]):
+            # RUNNER_TEMP/GITHUB_ENV/GITHUB_OUTPUT are deliberately absent. Presence
+            # checks must work without creating a keystore or exporting credentials.
+            prepare_signing.main()
+
 if __name__ == "__main__":
     unittest.main()
