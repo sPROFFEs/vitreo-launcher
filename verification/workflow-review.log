@@ -1,0 +1,3 @@
+Three workflows parsed with PyYAML. Release prerequisites, read/write isolation, reusable API matrix and retry artifact names verified.
+All local Markdown links resolve.
+NOT a GitHub Actions execution.

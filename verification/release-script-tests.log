@@ -1,0 +1,68 @@
+test_allowed_repository (test_release.ConfigurationTests.test_allowed_repository) ... ok
+test_checksum_rejects_untrusted_archive (test_release.ConfigurationTests.test_checksum_rejects_untrusted_archive) ... ok
+test_current_version (test_release.ConfigurationTests.test_current_version) ... ok
+test_empty_secrets_are_absent (test_release.ConfigurationTests.test_empty_secrets_are_absent) ... ok
+test_invalid_repository (test_release.ConfigurationTests.test_invalid_repository) ... ok
+test_invalid_version_code (test_release.ConfigurationTests.test_invalid_version_code) ... ok
+test_main_and_matching_tag (test_release.ConfigurationTests.test_main_and_matching_tag) ... ok
+test_partial_secrets_fail (test_release.ConfigurationTests.test_partial_secrets_fail) ... ok
+test_preview_without_secrets (test_release.ConfigurationTests.test_preview_without_secrets) ... ok
+test_private_with_complete_secrets (test_release.ConfigurationTests.test_private_with_complete_secrets) ... ok
+test_semver_prerelease_refused (test_release.ConfigurationTests.test_semver_prerelease_refused) ... ok
+test_wrong_ref_rejected (test_release.ConfigurationTests.test_wrong_ref_rejected) ... ok
+test_authenticated_redirect_rejected (test_release.HttpTests.test_authenticated_redirect_rejected) ... ok
+test_no_token_refused (test_release.HttpTests.test_no_token_refused) ... ok
+test_optional_403_not_treated_as_missing (test_release.HttpTests.test_optional_403_not_treated_as_missing) ... ok
+test_optional_404 (test_release.HttpTests.test_optional_404) ... ok
+test_token_not_sent_to_external_host (test_release.HttpTests.test_token_not_sent_to_external_host) ... ok
+test_existing_draft_never_overwritten (test_release.PublishTests.test_existing_draft_never_overwritten) ... ok
+test_existing_release_never_overwritten (test_release.PublishTests.test_existing_release_never_overwritten) ... ok
+test_happy_path_publishes_only_after_assets (test_release.PublishTests.test_happy_path_publishes_only_after_assets) ... ok
+test_matching_tag_accepted (test_release.PublishTests.test_matching_tag_accepted) ... ok
+test_mismatched_metadata_rejected (test_release.PublishTests.test_mismatched_metadata_rejected) ... ok
+test_private_asset_refused (test_release.PublishTests.test_private_asset_refused) ... ok
+test_upload_failure_does_not_publish (test_release.PublishTests.test_upload_failure_does_not_publish) ... ok
+test_wrong_tag_commit_rejected (test_release.PublishTests.test_wrong_tag_commit_rejected) ... ok
+test_cleanup_deletes_own_file (test_release.SigningTests.test_cleanup_deletes_own_file) ... ok
+test_cleanup_never_deletes_unrelated_file (test_release.SigningTests.test_cleanup_never_deletes_unrelated_file) ... ok
+test_invalid_base64_rejected (test_release.SigningTests.test_invalid_base64_rejected) ... ok
+test_newline_secret_rejected (test_release.SigningTests.test_newline_secret_rejected) ... ok
+test_preview_generates_no_key (test_release.SigningTests.test_preview_generates_no_key) ... ok
+test_private_materialized_only_in_runner_temp (test_release.SigningTests.test_private_materialized_only_in_runner_temp) ... ok
+test_duplicate_api_rejected (test_review.DeviceEvidenceTests.test_duplicate_api_rejected) ... ok
+test_empty_directory_is_not_passed (test_review.DeviceEvidenceTests.test_empty_directory_is_not_passed) ... ok
+test_failed_test_rejected (test_review.DeviceEvidenceTests.test_failed_test_rejected) ... ok
+test_junit_all_skipped_is_not_passed (test_review.DeviceEvidenceTests.test_junit_all_skipped_is_not_passed) ... ok
+test_junit_counts_exclude_skips (test_review.DeviceEvidenceTests.test_junit_counts_exclude_skips) ... ok
+test_junit_failures_block_success (test_review.DeviceEvidenceTests.test_junit_failures_block_success) ... ok
+test_junit_reports_required (test_review.DeviceEvidenceTests.test_junit_reports_required) ... ok
+test_matching_matrix (test_review.DeviceEvidenceTests.test_matching_matrix) ... ok
+test_missing_api_is_not_passed (test_review.DeviceEvidenceTests.test_missing_api_is_not_passed) ... ok
+test_no_preview_launch_rejected (test_review.DeviceEvidenceTests.test_no_preview_launch_rejected) ... ok
+test_wrong_source_rejected (test_review.DeviceEvidenceTests.test_wrong_source_rejected) ... ok
+test_zero_tests_rejected (test_review.DeviceEvidenceTests.test_zero_tests_rejected) ... ok
+test_bad_remote_digest_leaves_draft (test_review.ReleaseReviewTests.test_bad_remote_digest_leaves_draft) ... ok
+test_device_tests_for_old_commit_block_release (test_review.ReleaseReviewTests.test_device_tests_for_old_commit_block_release) ... ok
+test_duplicate_checksum_rejected (test_review.ReleaseReviewTests.test_duplicate_checksum_rejected) ... ok
+test_existing_release_at_another_commit_is_not_green (test_review.ReleaseReviewTests.test_existing_release_at_another_commit_is_not_green) ... ok
+test_existing_release_without_tag_is_rejected (test_review.ReleaseReviewTests.test_existing_release_without_tag_is_rejected) ... ok
+test_failed_device_tests_block_release (test_review.ReleaseReviewTests.test_failed_device_tests_block_release) ... ok
+test_missing_api_blocks_release (test_review.ReleaseReviewTests.test_missing_api_blocks_release) ... ok
+test_missing_checksum_rejected (test_review.ReleaseReviewTests.test_missing_checksum_rejected) ... ok
+test_preview_cannot_take_release_tag (test_review.ReleaseReviewTests.test_preview_cannot_take_release_tag) ... ok
+test_private_filename_cannot_be_whitelisted_via_metadata (test_review.ReleaseReviewTests.test_private_filename_cannot_be_whitelisted_via_metadata) ... ok
+test_subdirectory_rejected (test_review.ReleaseReviewTests.test_subdirectory_rejected) ... ok
+test_symlink_asset_rejected (test_review.ReleaseReviewTests.test_symlink_asset_rejected) ... ok
+test_tampered_apk_rejected_before_network (test_review.ReleaseReviewTests.test_tampered_apk_rejected_before_network) ... ok
+test_tampered_certificate_rejected (test_review.ReleaseReviewTests.test_tampered_certificate_rejected) ... ok
+test_unexecuted_optimized_smoke_blocks_release (test_review.ReleaseReviewTests.test_unexecuted_optimized_smoke_blocks_release) ... ok
+test_wrong_package_rejected (test_review.ReleaseReviewTests.test_wrong_package_rejected) ... ok
+test_release_never_silently_falls_back_to_preview (test_review.StrictSigningTests.test_release_never_silently_falls_back_to_preview) ... ok
+
+----------------------------------------------------------------------
+Ran 60 tests in 0.105s
+
+OK
+::warning::No private signing secrets. Building separate Vitreo Preview with an ephemeral CI key. Subsequent Preview builds may require reinstalling.
+Selected build type: preview; no key material will be uploaded.
+Selected build type: release; no key material will be uploaded.

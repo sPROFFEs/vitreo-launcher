@@ -1,0 +1,103 @@
+name: Release APK
+
+"on":
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vitreo-release-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  source-checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify source, scripts and release reference
+        run: |
+          python3 scripts/check_project.py
+          python3 -c 'import os,sys; sys.path.insert(0,"scripts"); from release_common import read_version,validate_ref; validate_ref(os.environ["GITHUB_REF"],read_version()[0])'
+          python3 -m unittest discover -s tests -v
+  device-tests:
+    needs: source-checks
+    uses: ./.github/workflows/device-smoke.yml
+  build:
+    needs: [source-checks, device-tests]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
+        with:
+          gradle-version: '8.11.1'
+          cache-read-only: true
+      - run: bash scripts/install_sdk.sh
+      - name: Restore executed device evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: device-evidence-api-*-${{ github.run_id }}
+          path: device-evidence
+      - name: Prepare private signing (required for a versioned release)
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: python3 scripts/prepare_signing.py --require-private
+      - name: JVM tests, release lint and signed optimized build
+        run: bash gradlew --no-daemon --console=plain :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleRelease
+      - name: Verify APK, signer, permissions, checksums and device evidence
+        run: python3 scripts/collect_apk.py release --device-reports device-evidence
+      - name: Remove temporary private keystore
+        if: always()
+        run: python3 scripts/prepare_signing.py --clean
+      - name: Upload verified release candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-candidate-${{ github.sha }}-${{ github.run_id }}
+          path: dist/
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 14
+      - name: Keep build reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: build-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            app/build/reports/
+            app/build/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+  publish:
+    needs: [source-checks, device-tests, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: release-candidate-${{ github.sha }}-${{ github.run_id }}
+          path: dist
+      - name: Recheck payload and publish without exposing the signing key
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/github_release.py

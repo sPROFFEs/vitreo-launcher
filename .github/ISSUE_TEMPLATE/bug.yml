@@ -1,0 +1,35 @@
+name: Error en Vitreo
+description: Informar un fallo de compilacion o del launcher
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: No adjuntes claves de firma, contrasenas ni tokens. Revisa cualquier diagnostico antes de publicarlo.
+  - type: input
+    id: version
+    attributes:
+      label: Version y tipo de APK
+      placeholder: 0.1.0 release / preview / debug
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Modelo, version de Android y build de GrapheneOS
+  - type: textarea
+    id: steps
+    attributes:
+      label: Pasos para reproducir
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Resultado esperado y resultado real
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log de Actions o diagnostico revisado
+      description: Adjunta el log completo de la tarea fallida, sin secretos.

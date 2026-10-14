@@ -1,0 +1,46 @@
+PASS overlong folder ID cannot delete apps
+PASS empty folder ID cannot delete apps
+PASS new dock app cannot evict an app at capacity
+PASS new folder app cannot evict an app at capacity
+PASS new home app is rejected at capacity
+PASS moving to dock at capacity preserves every app
+PASS moving to folder at capacity preserves every app
+PASS valid explicit component IDs
+PASS intent URI and malformed IDs rejected
+PASS geometry keeps four columns
+PASS geometry never yields empty pages
+PASS geometry limits oversized displays
+PASS geometry is finite for malformed inputs
+PASS font scaling reduces capacity
+PASS cell coordinates
+PASS page count boundaries
+PASS page count overflow
+PASS page count rejects invalid input
+PASS appearance clamps unsafe numbers
+PASS dock wins duplicate conflicts
+PASS invalid imported IDs removed
+PASS initial scan fills dock and home
+PASS initial scan deduplicates
+PASS newly installed app appended
+PASS temporarily unavailable placements retained
+PASS removed shortcut stays removed after refresh
+PASS adding to home moves existing shortcut
+PASS pinning removes former home slot
+PASS full dock is not silently replaced
+PASS unpin through home retains app
+PASS drag forward one slot really moves
+PASS drag backward one slot
+PASS move clamps both ends without overflow
+PASS unknown drag targets are harmless
+PASS folder created at earliest selected position
+PASS folder cannot contain same app twice
+PASS moving app into folder removes former slot
+PASS one app left in folder becomes ordinary shortcut
+PASS moving between folders preserves all other apps
+PASS dissolve preserves folder order
+PASS folder name normalized
+PASS global placement cap includes folders and dock
+PASS known app list is bounded
+PASS accent-insensitive case-insensitive search
+PASS 2000 randomized operations preserve invariants
+CORE: 45 scenarios passed; randomized operations: 2000

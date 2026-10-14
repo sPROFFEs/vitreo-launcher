@@ -1,0 +1,11 @@
+{
+  "verifiedViaGitHubRead": {
+    "actions/checkout": "11bd71901bbe5b1630ceea73d27597364c9af683",
+    "actions/setup-java": "c5195efecf7bdfc987ee8bae7a71cb8b11521c00",
+    "gradle/actions/setup-gradle": "ed408507eac070d1f99cc633dbcf757c94c7933a",
+    "ReactiveCircus/android-emulator-runner": "1dcd0090116d15e7c562f8db72807de5e036a4ed",
+    "actions/upload-artifact": "ea165f8d65b6e75b540449e92b4886f43607fa02",
+    "actions/download-artifact": "d3f86a106a0bac45b974a628896c90dbdf5c8093"
+  },
+  "scope": "References exist; this is not a code audit of the actions or an Actions execution."
+}

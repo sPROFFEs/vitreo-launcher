@@ -1,0 +1,42 @@
+// Vitreo original renderer, MIT. No Liquid Touch or Backdrop source is used.
+// Input textures are the launcher's own static wallpaper, not a screen capture.
+uniform shader wallpaper;
+uniform shader frosted;
+uniform float2 resolution;
+uniform float2 origin;
+uniform float radius;
+uniform float strength;
+uniform float frostAmount;
+uniform float tint;
+
+float roundedDistance(float2 p, float2 halfSize, float r) {
+    float2 q = abs(p) - halfSize + float2(r);
+    return length(max(q, float2(0.0))) + min(max(q.x, q.y), 0.0) - r;
+}
+
+half4 main(float2 position) {
+    float2 halfSize = max(resolution * 0.5, float2(1.0));
+    float r = min(radius, min(halfSize.x, halfSize.y));
+    float2 p = position - halfSize;
+    float distance = roundedDistance(p, halfSize, r);
+    float rimWidth = max(r * 0.7, 1.0);
+    float edge = 1.0 - smoothstep(0.0, rimWidth, max(-distance, 0.0));
+    float2 normal = float2(
+        roundedDistance(p + float2(0.75, 0.0), halfSize, r) - roundedDistance(p - float2(0.75, 0.0), halfSize, r),
+        roundedDistance(p + float2(0.0, 0.75), halfSize, r) - roundedDistance(p - float2(0.0, 0.75), halfSize, r)
+    );
+    normal = normal / max(length(normal), 0.0001);
+    float2 samplePoint = position + origin - normal * edge * strength * r * 0.36;
+    float2 dispersion = normal * edge * strength * 1.15;
+    half3 clear = half3(wallpaper.eval(samplePoint + dispersion).r,
+                       wallpaper.eval(samplePoint).g,
+                       wallpaper.eval(samplePoint - dispersion).b);
+    half3 diffuse = frosted.eval(samplePoint).rgb;
+    half3 color = mix(clear, diffuse, half(clamp(frostAmount, 0.0, 1.0)));
+    color = mix(color, half3(0.035, 0.065, 0.105), half(tint));
+    float lighting = dot(normal, normalize(float2(-0.65, -0.76)));
+    float specular = pow(max(lighting, 0.0), 5.0) * edge * 0.28;
+    float innerShade = max(-lighting, 0.0) * edge * 0.075;
+    color = color + half3(specular - innerShade);
+    return half4(clamp(color, half3(0.0), half3(1.0)), 1.0);
+}
