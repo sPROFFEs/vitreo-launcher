@@ -1,11 +1,14 @@
 package dev.vitreo.launcher
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.RuntimeShader
 import android.os.Build
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.lifecycle.Lifecycle
+import androidx.test.core.app.ApplicationProvider
+import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import dev.vitreo.launcher.graphics.GlassDiagnostics
@@ -19,7 +22,19 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class LauncherSmokeTest {
-    @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+    // Android distinguishes HOME and ordinary app tasks. Start as HOME so
+    // subsequent HOME intents reuse the same task and still match ActivityScenario.
+    @get:Rule val compose = AndroidComposeTestRule(
+        activityRule = ActivityScenarioRule<MainActivity>(
+            Intent(ApplicationProvider.getApplicationContext<Context>(), MainActivity::class.java)
+                .setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        ),
+        activityProvider = { rule ->
+            var activity: MainActivity? = null
+            rule.scenario.onActivity { activity = it }
+            checkNotNull(activity)
+        }
+    )
     private fun awaitReady() {
         compose.waitUntil(timeoutMillis = 20_000) {
             val nodes = compose.onAllNodesWithTag("launcher_root").fetchSemanticsNodes()
@@ -60,30 +75,21 @@ class LauncherSmokeTest {
         compose.onNodeWithTag("settings_button").performClick()
         compose.onNodeWithTag("settings_title").assertExists()
         val activity = compose.activity
-        val launchIntent = Intent(activity.intent)
-        try {
-            compose.runOnUiThread {
-                activity.startActivity(Intent(activity, MainActivity::class.java)
-                    .setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            }
-            compose.waitUntil(timeoutMillis = 10_000) {
-                compose.onAllNodesWithTag("settings_title").fetchSemanticsNodes().isEmpty()
-            }
-            assertSame(activity, compose.activity)
-            compose.runOnUiThread {
-                assertEquals(Intent.ACTION_MAIN, activity.intent.action)
-                assertTrue(activity.intent.hasCategory(Intent.CATEGORY_HOME))
-            }
-            compose.onNodeWithTag("launcher_root").assertIsDisplayed()
-        } finally {
-            // onNewIntent stores HOME, but ActivityScenario matches lifecycle events
-            // against the original LAUNCHER intent. Restore it even if an assertion fails
-            // so the rule can observe DESTROYED and clean up before the next test.
-            compose.runOnUiThread { activity.intent = launchIntent }
+        compose.runOnUiThread {
+            activity.startActivity(Intent(activity, MainActivity::class.java)
+                .setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }
-        compose.activityRule.scenario.close()
-        assertEquals(Lifecycle.State.DESTROYED, compose.activityRule.scenario.state)
+        compose.waitUntil(timeoutMillis = 10_000) {
+            compose.onAllNodesWithTag("settings_title").fetchSemanticsNodes().isEmpty()
+        }
+        assertSame(activity, compose.activity)
+        assertEquals(Lifecycle.State.RESUMED, compose.activityRule.scenario.state)
+        compose.runOnUiThread {
+            assertEquals(Intent.ACTION_MAIN, activity.intent.action)
+            assertTrue(activity.intent.hasCategory(Intent.CATEGORY_HOME))
+        }
+        compose.onNodeWithTag("launcher_root").assertIsDisplayed()
     }
     @Test fun activityRecreationKeepsLauncherUsable() {
         awaitReady()

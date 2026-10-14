@@ -108,7 +108,7 @@ No comprueba tipos Android, Compose, recursos ni ejecución AGSL.
 | 403 al publicar | Revisa políticas de Actions, permiso `contents: write` y reglas de etiquetas; no concedas un token personal amplio como arreglo automático |
 | Borrador `v0.1.0` ya existente | Revisa el build interrumpido; elimina expresamente el borrador incompleto y reejecuta el mismo commit. No borres una release pública |
 | Tag de versión en otro commit | Incrementa con `bump_version.py`; no muevas el tag ni sobrescribas una release |
-| `homeIntentClosesOpenSheet`: espera `DESTROYED`, último estado `PAUSED` | El test debe restaurar en `finally` el intent de lanzamiento tras comprobar HOME: `ActivityScenario` deja de reconocer los eventos si `setIntent()` cambia sus categorías. El test corregido comprueba también el cierre del escenario |
+| `homeIntentClosesOpenSheet`: espera `DESTROYED`, último estado `PAUSED`, o actividad destruida | La regla inicia el launcher con `MAIN/HOME` desde el principio. Android distingue las tareas HOME de las de apps: cambiar desde LAUNCHER puede abrir otra instancia, y `ActivityScenario` solo sigue intents equivalentes. El test comprueba que HOME reutilice la actividad y quede en `RESUMED`; la regla gestiona el cierre |
 | Error real de Kotlin/lint/AGSL | Conserva el log completo de la tarea y el SHA. Esta entrega no ha pasado una compilación Android local |
 | `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | No coincide la firma; consulta SIGNING.md antes de desinstalar |
 | `VERSION_DOWNGRADE` | No se instala encima una versionCode menor; incrementa la versión manteniendo firma y app ID |
