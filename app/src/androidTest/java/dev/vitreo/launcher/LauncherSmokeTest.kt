@@ -4,6 +4,9 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.RuntimeShader
 import android.os.Build
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.lifecycle.Lifecycle
@@ -126,6 +129,43 @@ class LauncherSmokeTest {
         compose.onNodeWithTag("search_field").assertExists()
         compose.onNodeWithText("Cancelar").performClick()
         compose.onNodeWithTag("dock").assertIsDisplayed()
+    }
+
+    @Test fun upperRightPullDownOpensControls() {
+        awaitReady()
+        compose.onNodeWithTag("home_workspace").performTouchInput {
+            swipe(Offset(width * .85f, 20f), Offset(width * .85f, height * .55f), 400)
+        }
+        compose.onNodeWithTag("control_center").assertIsDisplayed()
+        compose.onNodeWithText("Internet").assertExists()
+        compose.onNodeWithContentDescription("Cerrar").performClick()
+        compose.onNodeWithTag("dock").assertIsDisplayed()
+    }
+
+    @Test fun editModeDragReordersHomeIcons() {
+        awaitReady()
+        val icons = compose.onAllNodes(SemanticsMatcher("home icon") {
+            it.config.getOrNull(SemanticsProperties.TestTag)?.startsWith("home_entry:") == true
+        }).fetchSemanticsNodes().sortedWith(compareBy({ it.boundsInRoot.top }, { it.boundsInRoot.left }))
+        assertTrue("The emulator must have at least two home apps", icons.size >= 2)
+        val first = icons[0].config[SemanticsProperties.TestTag]
+        val second = icons[1].config[SemanticsProperties.TestTag]
+        compose.onNodeWithTag(first).performTouchInput { longClick() }
+        compose.onNodeWithText("Editar pantalla de inicio").performClick()
+        compose.onNodeWithTag("edit_done").assertIsDisplayed()
+        val source = compose.onNodeWithTag(first).fetchSemanticsNode().boundsInRoot.center
+        val target = compose.onNodeWithTag(second).fetchSemanticsNode().boundsInRoot.center
+        val root = compose.onNodeWithTag("launcher_root").fetchSemanticsNode().boundsInRoot.topLeft
+        compose.onNodeWithTag("launcher_root").performTouchInput {
+            down(source - root)
+            advanceEventTime(700)
+            moveTo(target - root, delayMillis = 200)
+            up()
+        }
+        compose.onNodeWithTag("edit_done").performClick()
+        val firstAfter = compose.onNodeWithTag(first).fetchSemanticsNode().boundsInRoot
+        val secondAfter = compose.onNodeWithTag(second).fetchSemanticsNode().boundsInRoot
+        assertTrue("Dragging must change the order", secondAfter.left < firstAfter.left)
     }
 
 }

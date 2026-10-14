@@ -297,7 +297,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                                                 if (entry == null) Spacer(Modifier.weight(1f).fillMaxHeight())
                                                 else key(entry.id) {
                                                     LauncherTile(entry, apps, geometry.iconSize.dp, appearance.showLabels,
-                                                        Modifier.weight(1f).fillMaxHeight(), editing, drag?.entry?.id == entry.id,
+                                                        Modifier.weight(1f).fillMaxHeight().testTag("home_entry:${entry.id}"), editing, drag?.entry?.id == entry.id,
                                                         onClick = { openEntry(entry) }, onActions = { sheet = Sheet.Actions(entry) },
                                                         onBounds = { cellBounds[entry.id] = it }, onRemove = {
                                                             if (entry is HomeEntry.App) model.removeApp(entry.id) else model.dissolve(entry.id)
@@ -376,11 +376,11 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                             { backupImport.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
                             { reportExport.launch("vitreo-diagnostics-${BuildConfig.VERSION_NAME}.json") }, model::refresh, model::resetLayout,
                             { sheet = Sheet.Licenses }, { sheet = Sheet.Widgets })
-                        Sheet.Widgets -> WidgetGallery(widgets, appearance.showWidgets, { model.appearance(appearance.copy(showWidgets = it)) },
+                        Sheet.Widgets -> WidgetGallery(widgets, appearance.showWidgets, { model.appearance(ui.layout.appearance.copy(showWidgets = it)) },
                             onConfigureWidget, { sheet = null }, model::message)
                         Sheet.Licenses -> LicensesSheet { sheet = Sheet.Settings }
                         Sheet.Controls -> ControlCenter(appearance.interfaceStyle == 2, { sheet = null }, ::system,
-                            { model.appearance(appearance.copy(interfaceStyle = if (it) 2 else 1)) }, { sheet = Sheet.Settings }, { sheet = Sheet.Widgets })
+                            { model.appearance(ui.layout.appearance.copy(interfaceStyle = if (it) 2 else 1)) }, { sheet = Sheet.Settings }, { sheet = Sheet.Widgets })
                         is Sheet.Folder -> {
                             val folder = ui.layout.home.filterIsInstance<HomeEntry.Folder>().find { it.id == current.id }
                             if (folder != null) FolderSheet(folder, apps, { sheet = null }, ::launch, { sheet = Sheet.Actions(HomeEntry.App(it)) }, { model.renameFolder(folder.id, it) })
