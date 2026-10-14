@@ -379,7 +379,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                         Sheet.Widgets -> WidgetGallery(widgets, appearance.showWidgets, { model.appearance(ui.layout.appearance.copy(showWidgets = it)) },
                             onConfigureWidget, { sheet = null }, model::message)
                         Sheet.Licenses -> LicensesSheet { sheet = Sheet.Settings }
-                        Sheet.Controls -> ControlCenter(appearance.interfaceStyle == 2, { sheet = null }, ::system,
+                        Sheet.Controls -> ControlCenter(MaterialTheme.colorScheme.background.luminance() < .5f, { sheet = null }, ::system,
                             { model.appearance(ui.layout.appearance.copy(interfaceStyle = if (it) 2 else 1)) }, { sheet = Sheet.Settings }, { sheet = Sheet.Widgets })
                         is Sheet.Folder -> {
                             val folder = ui.layout.home.filterIsInstance<HomeEntry.Folder>().find { it.id == current.id }

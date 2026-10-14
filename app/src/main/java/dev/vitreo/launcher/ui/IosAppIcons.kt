@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,41 +56,43 @@ fun IosAppIcon(kind: String, style: Int, tint: Color, modifier: Modifier = Modif
         else -> listOf(Color(0xfffafafa), Color(0xfff1f4fa))
     }
     val ink = if (style == 2) tint else Color.White
-    Box(modifier) {
-        if (style == 3) GlassPanel(Modifier.fillMaxSize(), radius = 15f, tint = .1f) {}
+    BoxWithConstraints(modifier) {
+        val scale = maxWidth.value / 60f
+        val textScale = scale / LocalDensity.current.fontScale
+        if (style == 3) GlassPanel(Modifier.fillMaxSize(), radius = 15f * scale, tint = .1f) {}
         else Box(Modifier.fillMaxSize().background(if (style > 0) Brush.verticalGradient(listOf(Color(0xff30343c), Color(0xff11151b))) else Brush.verticalGradient(colors)))
         when (kind) {
             "clock" -> {
                 val time = LocalHomeClock.current
                 val cal = remember(time) { Calendar.getInstance().apply { timeInMillis = time } }
                 val seconds = !LocalGlass.current.appearance.reducedEffects
-                Canvas(Modifier.fillMaxSize().padding(5.dp)) {
+                Canvas(Modifier.fillMaxSize().padding((5 * scale).dp)) {
                     val center = Offset(size.width / 2, size.height / 2); val r = size.minDimension * .47f
                     repeat(12) { index ->
                         val a = index * PI / 6
                         drawLine(ink, center + Offset((sin(a)*r*.85).toFloat(),(-cos(a)*r*.85).toFloat()),
-                            center + Offset((sin(a)*r).toFloat(),(-cos(a)*r).toFloat()),1.4.dp.toPx(),cap=StrokeCap.Round)
+                            center + Offset((sin(a)*r).toFloat(),(-cos(a)*r).toFloat()),(1.4 * scale).dp.toPx(),cap=StrokeCap.Round)
                     }
                     fun hand(a: Double, length: Float, width: Float, color: Color) {
                         drawLine(color,center,center+Offset((sin(a)*length).toFloat(),(-cos(a)*length).toFloat()),width,cap=StrokeCap.Round)
                     }
-                    hand((cal.get(Calendar.HOUR)+cal.get(Calendar.MINUTE)/60.0)*PI/6,r*.5f,2.7.dp.toPx(),ink)
-                    hand(cal.get(Calendar.MINUTE)*PI/30,r*.78f,1.8.dp.toPx(),ink)
-                    if (seconds) hand(cal.get(Calendar.SECOND)*PI/30,r*.88f,1.dp.toPx(),Color(0xffff9f0a))
-                    drawCircle(Color(0xffff9f0a),1.7.dp.toPx(),center)
+                    hand((cal.get(Calendar.HOUR)+cal.get(Calendar.MINUTE)/60.0)*PI/6,r*.5f,(2.7 * scale).dp.toPx(),ink)
+                    hand(cal.get(Calendar.MINUTE)*PI/30,r*.78f,(1.8 * scale).dp.toPx(),ink)
+                    if (seconds) hand(cal.get(Calendar.SECOND)*PI/30,r*.88f,(1 * scale).dp.toPx(),Color(0xffff9f0a))
+                    drawCircle(Color(0xffff9f0a),(1.7 * scale).dp.toPx(),center)
                 }
             }
             "calendar" -> {
                 val time = LocalHomeClock.current
                 val cal = remember(time) { Calendar.getInstance().apply { timeInMillis = time } }
-                Column(Modifier.fillMaxSize().padding(top = 7.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Column(Modifier.fillMaxSize().padding(top = (7 * scale).dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                     Text(cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.SHORT, Locale.getDefault()).orEmpty().uppercase(),
-                        color = if (style == 0) Color(0xffff453a) else ink, fontSize = 9.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                        color = if (style == 0) Color(0xffff453a) else ink, fontSize = (9 * textScale).sp, fontWeight = FontWeight.Medium, maxLines = 1)
                     Text(cal.get(Calendar.DAY_OF_MONTH).toString(), color = if (style == 0) Color(0xff171719) else ink,
-                        fontSize = 32.sp, fontWeight = FontWeight.Light, lineHeight = 33.sp)
+                        fontSize = (32 * textScale).sp, fontWeight = FontWeight.Light, lineHeight = (33 * textScale).sp)
                 }
             }
-            "photos" -> Canvas(Modifier.fillMaxSize().padding(9.dp)) {
+            "photos" -> Canvas(Modifier.fillMaxSize().padding((9 * scale).dp)) {
                 val center=Offset(size.width/2,size.height/2)
                 val shades=listOf(0xffffac33,0xffffd93b,0xffa6d84a,0xff36ba88,0xff5bc9e2,0xff687cdb,0xffd877c3,0xfff46a78)
                 repeat(8) { i ->
@@ -98,12 +101,12 @@ fun IosAppIcon(kind: String, style: Int, tint: Color, modifier: Modifier = Modif
                         center+Offset((sin(angle)*size.width*.24).toFloat(),(-cos(angle)*size.height*.24).toFloat()))
                 }
             }
-            "browser" -> Canvas(Modifier.fillMaxSize().padding(6.dp)) {
+            "browser" -> Canvas(Modifier.fillMaxSize().padding((6 * scale).dp)) {
                 val center=Offset(size.width/2,size.height/2);val r=size.minDimension*.49f
                 drawCircle(if(style==0)Color(0xff189ee6) else ink.copy(alpha=.2f),r,center)
                 repeat(24) { i ->
                     val a=i*PI/12;drawLine(ink.copy(alpha=.75f),center+Offset((sin(a)*r*.88).toFloat(),(-cos(a)*r*.88).toFloat()),
-                        center+Offset((sin(a)*r*.96).toFloat(),(-cos(a)*r*.96).toFloat()),.6.dp.toPx())
+                        center+Offset((sin(a)*r*.96).toFloat(),(-cos(a)*r*.96).toFloat()),(.6 * scale).dp.toPx())
                 }
                 val red=Path().apply {moveTo(center.x+r*.62f,center.y-r*.62f);lineTo(center.x-r*.13f,center.y-r*.13f);lineTo(center.x+r*.13f,center.y+r*.13f);close()}
                 val white=Path().apply {moveTo(center.x-r*.62f,center.y+r*.62f);lineTo(center.x-r*.13f,center.y-r*.13f);lineTo(center.x+r*.13f,center.y+r*.13f);close()}
@@ -117,7 +120,7 @@ fun IosAppIcon(kind: String, style: Int, tint: Color, modifier: Modifier = Modif
                     "maps"->Icons.Filled.Map; else->Icons.Filled.Email
                 }
                 val color=when { style>0->ink; kind=="camera"||kind=="settings"->Color(0xff40464e); kind=="files"->Color(0xff409bfa);else->Color.White }
-                Icon(vector,null,Modifier.fillMaxSize().padding(if(kind=="settings")5.dp else 10.dp),tint=color)
+                Icon(vector,null,Modifier.fillMaxSize().padding(((if (kind == "settings") 5 else 10) * scale).dp),tint=color)
             }
         }
     }

@@ -34,7 +34,7 @@ fun entryLabel(entry: HomeEntry, apps: Map<String, AppRecord>): String = when (e
 @Composable
 fun EntryIcon(entry: HomeEntry, apps: Map<String, AppRecord>, size: Dp, modifier: Modifier = Modifier) {
     val appearance = LocalGlass.current.appearance
-    Box(modifier.size(size).shadow(3.dp, IconShape, ambientColor = Color.Black.copy(alpha = .2f),
+    Box(modifier.size(size).shadow(size * .05f, IconShape, ambientColor = Color.Black.copy(alpha = .2f),
         spotColor = Color.Black.copy(alpha = .22f)).clip(IconShape)) {
         if (entry is HomeEntry.Folder) {
             GlassPanel(Modifier.fillMaxSize(), radius = size.value * .25f, tint = .12f) {}
@@ -42,10 +42,10 @@ fun EntryIcon(entry: HomeEntry, apps: Map<String, AppRecord>, size: Dp, modifier
                 repeat(3) { row ->
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         repeat(3) { column ->
-                            val image = entry.apps.getOrNull(row * 3 + column)?.let { apps[it]?.icon }
+                            val id = entry.apps.getOrNull(row * 3 + column)
                             val cell = size * .22f
-                            if (image == null) Spacer(Modifier.size(cell))
-                            else Image(image.asImageBitmap(), null, Modifier.size(cell).clip(IconShape))
+                            if (id == null) Spacer(Modifier.size(cell))
+                            else EntryIcon(HomeEntry.App(id), apps, cell)
                         }
                     }
                 }

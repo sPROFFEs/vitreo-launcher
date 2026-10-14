@@ -4,6 +4,13 @@ Un inicio Android inspirado en la pantalla de inicio actual de iOS y en
 [Folio](https://github.com/McCal-Codes/folio), con una interfaz más pequeña y directa.
 Android 12 o posterior, sin root, cuentas, anuncios ni telemetría.
 
+<p>
+  <img src="docs/screenshots/home.png" width="240" alt="Inicio de Vitreo con widgets y dock de cristal">
+  <img src="docs/screenshots/settings.png" width="240" alt="Ajustes agrupados de Vitreo">
+</p>
+
+Capturas reales del APK Preview en Android 12.
+
 ## La experiencia
 
 - **Inicio:** cuatro columnas, iconos con esquinas continuas y un dock de cristal de cuatro plazas.
