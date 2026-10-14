@@ -30,7 +30,7 @@ class StateCodecTest {
     }
     @Test fun newAppearanceOptionsRoundTrip() {
         val s = LauncherState(initialized = true, appearance = Appearance(iconStyle = 3,
-            tintColor = 0xffe6b4f3.toInt(), interfaceStyle = 2, showWidgets = false))
+            tintColor = 0xffe6b4f3.toInt(), interfaceStyle = 2, showWidgets = false, iosIcons = false))
         assertEquals(s, StateCodec.decode(StateCodec.encode(s)))
     }
     @Test fun previousVersionBackupsKeepLayoutAndGetNewDefaults() {

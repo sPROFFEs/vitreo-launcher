@@ -107,7 +107,7 @@ class LauncherSmokeTest {
     @Test fun appLibraryOpensAfterLastHomePage() {
         awaitReady()
         repeat(10) {
-            if (compose.onAllNodesWithTag("app_library").fetchSemanticsNodes().isEmpty())
+            if (!compose.onNodeWithTag("app_library").isDisplayed())
                 compose.onNodeWithTag("home_workspace").performTouchInput { swipeLeft() }
         }
         compose.onNodeWithTag("app_library").assertIsDisplayed()

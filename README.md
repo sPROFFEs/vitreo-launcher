@@ -13,7 +13,7 @@ Android 12 o posterior, sin root, cuentas, anuncios ni telemetría.
 - **Biblioteca de apps:** después de la última página. Grupos automáticos y acceso a todas tus aplicaciones.
 - **Carpetas:** panel central de cristal, cuadrícula de tres por tres, páginas y nombre editable.
 - **Edición:** mantén pulsado un espacio libre, o elige Editar pantalla de inicio en el menú de un icono. Los iconos se mueven suavemente; puedes reordenarlos, moverlos entre páginas manteniéndolos junto al borde y cambiarlos con los del dock. Mantén una app sobre otra para crear una carpeta o añadirla a una existente.
-- **Personalización:** iconos originales, oscuros, tintados o de cristal; aspecto claro, oscuro o automático; cuatro fondos originales y fotos locales.
+- **Personalización:** iconos claros, oscuros, tintados o de cristal; arte propio para las funciones comunes y opción de conservar los iconos de las apps; aspecto claro, oscuro o automático; cuatro fondos originales y fotos locales.
 - **Ajustes:** listas agrupadas, controles segmentados e interruptores al estilo iOS. Se abren desde la rueda de Hoy o desde el modo edición.
 - **Centro de control:** desliza hacia abajo desde la zona superior derecha del inicio. Accesos funcionales a Internet, Bluetooth, sonido y pantalla, además del aspecto y widgets de Vitreo.
 

@@ -85,7 +85,8 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                     }
                     IosSectionLabel("Iconos")
                     IosGroup {
-                        IosSegmented(listOf("Original", "Oscuro", "Tintado", "Cristal"), a.iconStyle, Modifier.padding(12.dp)) { onAppearance(a.copy(iconStyle = it)) }
+                        IosSegmented(listOf("Claro", "Oscuro", "Tintado", "Cristal"), a.iconStyle, Modifier.padding(12.dp)) { onAppearance(a.copy(iconStyle = it)) }
+                        IosToggleRow("Iconos estilo iOS", a.iosIcons) { onAppearance(a.copy(iosIcons = it)) }
                         if (a.iconStyle == 2) Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                             listOf(0xff8fbfff, 0xffe6b4f3, 0xffe9c68e, 0xffa5dfbb, 0xfff4b4bb).forEach { color ->
                                 Box(Modifier.size(32.dp).background(Color(color), CircleShape).clickable { onAppearance(a.copy(tintColor = color.toInt())) }, contentAlignment = Alignment.Center) {

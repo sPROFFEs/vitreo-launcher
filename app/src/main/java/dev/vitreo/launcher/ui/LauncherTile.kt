@@ -52,7 +52,11 @@ fun EntryIcon(entry: HomeEntry, apps: Map<String, AppRecord>, size: Dp, modifier
             }
         } else {
             val app = apps[entry.id]
+            val kind = if (appearance.iosIcons) commonIconKind(app?.packageName.orEmpty()) else null
             val style = appearance.iconStyle
+            if (kind != null) {
+                IosAppIcon(kind, style, Color(appearance.tintColor), Modifier.fillMaxSize())
+            } else {
             if (style == 3) GlassPanel(Modifier.fillMaxSize(), radius = size.value * .25f, tint = .08f) {}
             else Box(Modifier.fillMaxSize().background(if (style == 1 || style == 2) Color(0xff1e2229) else Color.White))
             val image = if (style != 0) app?.glyph ?: app?.icon else app?.icon
@@ -67,6 +71,7 @@ fun EntryIcon(entry: HomeEntry, apps: Map<String, AppRecord>, size: Dp, modifier
                 tint = if (style == 0) Color(0xff7c8999) else Color(appearance.tintColor))
             if (style > 0) Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
                 listOf(Color.White.copy(alpha = .12f), Color.Transparent, Color.Black.copy(alpha = .07f)))))
+            }
         }
     }
 }

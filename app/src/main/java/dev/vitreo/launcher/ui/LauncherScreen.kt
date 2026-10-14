@@ -13,7 +13,9 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.*
 import androidx.compose.foundation.shape.CircleShape
@@ -32,6 +34,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.layout.*
 import androidx.compose.ui.platform.*
 import androidx.compose.ui.semantics.*
@@ -52,6 +55,7 @@ import dev.vitreo.launcher.graphics.Viewport
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import kotlin.math.abs
 
 val LauncherReadyKey = SemanticsPropertyKey<Boolean>("LauncherReady")
 private sealed interface Sheet {
@@ -140,6 +144,10 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
         catch (_: Exception) { model.message("No se encontró una aplicación para esta acción.") }
     }
     fun launch(id: String) { sheet = null; onLaunch(id) }
+    fun openCalendar() {
+        val app = ui.apps.firstOrNull { "calendar" in it.packageName || "calendario" in searchKey(it.label) }
+        if (app != null) launch(app.id) else model.message("No se encontró una aplicación de calendario.")
+    }
     val opaqueScreen = sheet == Sheet.Settings || sheet == Sheet.Widgets || sheet == Sheet.Licenses ||
         sheet is Sheet.PairWith || sheet is Sheet.AddToFolder
     val lightChrome = opaqueScreen && MaterialTheme.colorScheme.background.luminance() > .5f
@@ -223,18 +231,25 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
             onDrag = { change, amount -> if (drag != null) { change.consume(); drag = drag?.let { it.copy(position = it.position + amount) } } },
             onDragEnd = { drop() }, onDragCancel = { drag = null; folderTarget = null })
     } else Modifier.pointerInput(editing) {
-        var total = 0f; var origin = Offset.Zero
-        detectVerticalDragGestures(onDragStart = { origin = it; total = 0f }, onVerticalDrag = { change, amount ->
-            if (currentSheet == null && currentPage in 1..currentHomePages) {
-                total += amount
-                if (total > 50.dp.toPx()) {
+        // Observe before the home scroll container. It otherwise owns vertical
+        // drags even when all rows fit, preventing the Spotlight gesture.
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            if (currentSheet != null || currentPage !in 1..currentHomePages) return@awaitEachGesture
+            while (true) {
+                val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: break
+                if (!change.pressed) break
+                val distance = change.position - down.position
+                if (abs(distance.x) > viewConfiguration.touchSlop && abs(distance.x) > abs(distance.y)) break
+                if (distance.y > 50.dp.toPx() && distance.y > abs(distance.x)) {
                     change.consume()
-                    sheet = if (origin.y < 100.dp.toPx() && origin.x > size.width * .65f) Sheet.Controls else Sheet.Search
+                    sheet = if (down.position.y < 100.dp.toPx() && down.position.x > size.width * .65f) Sheet.Controls else Sheet.Search
+                    break
                 }
             }
-        })
+        }
     }
-    CompositionLocalProvider(LocalGlass provides GlassEnvironment(frame, viewport, appearance)) {
+    CompositionLocalProvider(LocalGlass provides GlassEnvironment(frame, viewport, appearance), LocalHomeClock provides now) {
         Box(Modifier.fillMaxSize().testTag("launcher_root").semantics { this[LauncherReadyKey] = ui.ready && frame != null }
             .background(Color(0xff142f68)).then(gestureModifier).onGloballyPositioned { coordinates ->
                 val screen = IntArray(2); val window = IntArray(2)
@@ -249,8 +264,14 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
             Column(Modifier.fillMaxSize().safeDrawingPadding().padding(top = if (editing) 42.dp else 9.dp)
                 .blur(if (sheet != null && !opaqueScreen && !appearance.reducedEffects) 18.dp else 0.dp)) {
                 Box(Modifier.weight(1f).fillMaxWidth().testTag("home_workspace")
-                    .combinedClickable(onClick = {}, onLongClick = { if (sheet == null && onHomePage) { editing = true; haptic.performHapticFeedback(HapticFeedbackType.LongPress) } })
-                    .onSizeChanged { workspaceSize = it }.onGloballyPositioned { workspaceBounds = it.boundsInRoot() }) {
+                    .pointerInput(onHomePage, sheet) {
+                        detectTapGestures(onLongPress = { if (sheet == null && onHomePage) {
+                            editing = true; haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        } })
+                    }
+                    // Today/Library use the space left by the hidden dock;
+                    // their height must not change the home page count.
+                    .onSizeChanged { if (onHomePage) workspaceSize = it }.onGloballyPositioned { workspaceBounds = it.boundsInRoot() }) {
                     if (!ui.ready) CircularProgressIndicator(Modifier.align(Alignment.Center), color = Color.White)
                     else HorizontalPager(pager, Modifier.fillMaxSize(), userScrollEnabled = drag == null,
                         beyondViewportPageCount = 0) { page ->
@@ -258,7 +279,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                             0 -> TodayPage(now, widgets, suggestions, apps, onSearch = ::openSearch,
                                 onSettings = { sheet = Sheet.Settings }, onWidgets = { sheet = Sheet.Widgets },
                                 onClock = { system(AlarmClock.ACTION_SHOW_ALARMS) },
-                                onCalendar = { ui.apps.firstOrNull { "calendar" in it.packageName || "calendario" in searchKey(it.label) }?.let { launch(it.id) } }, onLaunch = ::launch)
+                                onCalendar = ::openCalendar, onLaunch = ::launch)
                             homePages + 1 -> AppLibrary(ui.apps, apps, suggestions, ::openSearch, ::launch,
                                 { sheet = Sheet.Actions(HomeEntry.App(it)) }, { title, records -> sheet = Sheet.Category(title, records) })
                             else -> {
@@ -268,9 +289,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                                 val entries = ui.layout.home.drop(begin).take(capacity)
                                 Column(Modifier.fillMaxSize().padding(horizontal = 18.dp).verticalScroll(rememberScrollState())) {
                                     if (index == 0 && withWidgets) HomeWidgets(now, Modifier.height((geometry.cells.rowHeight * 2).dp),
-                                        onClock = { system(AlarmClock.ACTION_SHOW_ALARMS) }, onCalendar = {
-                                            ui.apps.firstOrNull { "calendar" in it.packageName || "calendario" in searchKey(it.label) }?.let { launch(it.id) }
-                                        })
+                                        onClock = { system(AlarmClock.ACTION_SHOW_ALARMS) }, onCalendar = ::openCalendar)
                                     repeat(capacity / GRID_COLUMNS) { row ->
                                         Row(Modifier.fillMaxWidth().height(geometry.cells.rowHeight.dp)) {
                                             repeat(GRID_COLUMNS) { column ->

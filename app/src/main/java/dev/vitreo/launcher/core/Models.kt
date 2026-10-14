@@ -34,6 +34,7 @@ data class Appearance(
     val tintColor: Int = 0xff8fbfff.toInt(),
     val interfaceStyle: Int = 0,
     val showWidgets: Boolean = true,
+    val iosIcons: Boolean = true,
 ) {
     fun sanitized() = copy(
         iconSize = if (iconSize.isFinite()) iconSize.coerceIn(40f, 68f) else 60f,

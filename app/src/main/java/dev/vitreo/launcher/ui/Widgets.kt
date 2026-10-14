@@ -29,6 +29,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,9 +46,11 @@ import kotlin.math.*
 fun HomeWidgets(now: Long, modifier: Modifier = Modifier, onClock: () -> Unit, onCalendar: () -> Unit) {
     val calendar = remember(now) { Calendar.getInstance().apply { timeInMillis = now } }
     val secondsVisible = !LocalGlass.current.appearance.reducedEffects
+    val timeLabel = DateFormat.getTimeFormat(LocalContext.current).format(Date(now))
     Row(modifier.fillMaxWidth().padding(top = 5.dp, bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            GlassPanel(Modifier.weight(1f).fillMaxWidth().clickable(onClick = onClock), radius = 28f, tint = .1f) {
+            GlassPanel(Modifier.weight(1f).fillMaxWidth().semantics { contentDescription = "Reloj, $timeLabel" }
+                .clickable(onClick = onClock), radius = 28f, tint = .1f) {
                 Canvas(Modifier.fillMaxSize().padding(16.dp)) {
                     val r = min(size.width, size.height) * .48f
                     val center = Offset(size.width / 2, size.height / 2)

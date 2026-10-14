@@ -55,7 +55,7 @@ fun workspaceGeometry(width: Float, height: Float, preset: LayoutPreset, fontSca
     // The 80%-of-column cap and label allowance follow Folio's homeGeometry.
     val icon = minOf(p.iconSize, cellWidth * .8f).coerceAtLeast(24f)
     val minRow = maxOf(48f, icon + 20f * scale) + p.rowGap
-    val rows = floor(usableHeight / minRow).toInt().coerceIn(1, 7)
+    val rows = floor(usableHeight / minRow).toInt().coerceIn(1, 6)
     val rowHeight = maxOf(minRow, usableHeight / rows).coerceAtMost(minRow + 22f)
     return WorkspaceGeometry(GRID_COLUMNS, rows, icon, HomeCellLayout(cellWidth, rowHeight))
 }

@@ -36,6 +36,7 @@ object StateCodec {
                 put("tintColor", s.appearance.tintColor)
                 put("interfaceStyle", s.appearance.interfaceStyle)
                 put("showWidgets", s.appearance.showWidgets)
+                put("iosIcons", s.appearance.iosIcons)
             })
         }.toString(2)
     }
@@ -74,6 +75,7 @@ object StateCodec {
                 tintColor = a.optInt("tintColor", 0xff8fbfff.toInt()),
                 interfaceStyle = a.optInt("interfaceStyle", 0),
                 showWidgets = a.optBoolean("showWidgets", true),
+                iosIcons = a.optBoolean("iosIcons", true),
             ),
         ).sanitized()
     }

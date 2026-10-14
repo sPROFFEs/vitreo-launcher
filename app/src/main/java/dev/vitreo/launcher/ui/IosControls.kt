@@ -50,7 +50,7 @@ fun IosSwitch(checked: Boolean, enabled: Boolean = true) {
     Box(Modifier.size(51.dp, 31.dp).clip(CircleShape).background(
         if (checked) Color(0xff34c759).copy(alpha = if (enabled) 1f else .45f)
         else MaterialTheme.colorScheme.onSurface.copy(alpha = .15f))) {
-        Box(Modifier.offset(x = x, y = 2.dp).size(27.dp).shadow(2.dp, CircleShape)
+        Box(Modifier.offset { IntOffset(x.roundToPx(), 2.dp.roundToPx()) }.size(27.dp).shadow(2.dp, CircleShape)
             .background(Color.White, CircleShape))
     }
 }
