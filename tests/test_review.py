@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from release_validation import device_evidence, validate_assets
-from device_smoke import passed_tests, collect_native_screens
+from device_smoke import passed_tests, collect_native_screens, run_instrumentation
 import test_release
 from test_release import FakeGitHub
 import prepare_signing
@@ -154,6 +154,14 @@ class DeviceEvidenceTests(unittest.TestCase):
         self.assertEqual(passed_tests(self.root),3)
 
 class NativeScreenshotTests(unittest.TestCase):
+    def test_instrumentation_keeps_apks_and_output_until_collection(self):
+        with patch("device_smoke.subprocess.run") as run, patch("device_smoke.passed_tests", return_value=26):
+            self.assertEqual(run_instrumentation(), 26)
+        command = run.call_args.args[0]
+        self.assertIn("-Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true", command)
+        self.assertIn(":app:connectedDebugAndroidTest", command)
+        self.assertTrue(run.call_args.kwargs["check"])
+
     def test_file_transfer_preserves_binary_png_header(self):
         data = bytes([137,80,78,71,13,10,26,10,0,255,13,10])
         with tempfile.TemporaryDirectory() as directory:

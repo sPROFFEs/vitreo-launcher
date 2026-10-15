@@ -67,6 +67,13 @@ def collect_native_screens(output: Path, names: list[str]) -> None:
         if not data.startswith(bytes([137, 80, 78, 71, 13, 10, 26, 10])):
             raise RuntimeError(f"Invalid native screenshot {name}: {len(data)} bytes; header {data[:16].hex()}.")
 
+def run_instrumentation() -> int:
+    # AGP normally uninstalls both APKs, deleting their private/external files.
+    # Keep them on this disposable emulator until screenshot collection completes.
+    subprocess.run(["bash", "gradlew", "--no-daemon", "--console=plain",
+        "-Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true", ":app:connectedDebugAndroidTest"], cwd=ROOT, check=True)
+    return passed_tests(ROOT / "app/build/outputs/androidTest-results/connected")
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("api", type=int, choices=[31, 35])
@@ -84,8 +91,7 @@ def main() -> None:
     result_path = output / "smoke-result.json"
     result_path.unlink(missing_ok=True)
     try:
-        subprocess.run(["bash", "gradlew", "--no-daemon", "--console=plain", ":app:connectedDebugAndroidTest"], cwd=ROOT, check=True)
-        count = passed_tests(ROOT / "app/build/outputs/androidTest-results/connected")
+        count = run_instrumentation()
         native_screens = ["category-light", "category-dark", "settings-dark", "wallpaper-fit"]
         collect_native_screens(output, native_screens)
         apks = list((ROOT / "app/build/outputs/apk/preview").glob("*.apk"))

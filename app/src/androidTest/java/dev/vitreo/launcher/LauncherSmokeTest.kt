@@ -165,25 +165,31 @@ class LauncherSmokeTest {
     }
     @Test fun homeIntentClosesOpenSheet() {
         awaitReady()
-        openSettings()
-        compose.onNodeWithTag("settings_title").assertExists()
         val activity = compose.activity
-        compose.runOnUiThread {
-            activity.startActivity(Intent(activity, MainActivity::class.java)
-                .setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        repeat(3) {
+            openSettings()
+            compose.onNodeWithTag("settings_title").assertExists()
+            compose.runOnUiThread {
+                activity.startActivity(Intent(activity, MainActivity::class.java)
+                    .setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            }
+            compose.waitUntil(timeoutMillis = 10_000) {
+                // HOME can briefly detach the Compose owner while Android
+                // reattaches the task. No root during that interval is not a result.
+                compose.activityRule.scenario.state == Lifecycle.State.RESUMED && activity.hasWindowFocus() &&
+                    compose.onAllNodesWithTag("launcher_root").fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty() &&
+                    compose.onAllNodesWithTag("settings_title").fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+            }
+            assertSame(activity, compose.activity)
+            assertEquals(Lifecycle.State.RESUMED, compose.activityRule.scenario.state)
+            compose.runOnUiThread {
+                assertEquals(Intent.ACTION_MAIN, activity.intent.action)
+                assertTrue(activity.intent.hasCategory(Intent.CATEGORY_HOME))
+            }
+            compose.onNodeWithTag("launcher_root").assertIsDisplayed()
+            compose.onNodeWithTag("dock").assertIsDisplayed()
         }
-        compose.waitUntil(timeoutMillis = 10_000) {
-            compose.onAllNodesWithTag("settings_title").fetchSemanticsNodes().isEmpty()
-        }
-        assertSame(activity, compose.activity)
-        assertEquals(Lifecycle.State.RESUMED, compose.activityRule.scenario.state)
-        compose.runOnUiThread {
-            assertEquals(Intent.ACTION_MAIN, activity.intent.action)
-            assertTrue(activity.intent.hasCategory(Intent.CATEGORY_HOME))
-        }
-        compose.onNodeWithTag("launcher_root").assertIsDisplayed()
-        compose.onNodeWithTag("dock").assertIsDisplayed()
     }
     @Test fun activityRecreationKeepsLauncherUsable() {
         awaitReady()
