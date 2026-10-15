@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
@@ -110,9 +111,9 @@ fun NativeWidget(controller: WidgetController, id: Int) {
             })
         }
         Row(Modifier.fillMaxWidth().padding(start = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(provider.loadLabel(context.packageManager), Modifier.weight(1f), fontSize = 12.sp, color = Color.White.copy(alpha = .8f))
+            Text(provider.loadLabel(context.packageManager), Modifier.weight(1f), fontSize = 12.sp, color = LocalGlassContentColor.current.copy(alpha = .85f))
             IconButton(onClick = { controller.remove(id) }, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Outlined.RemoveCircleOutline, "Remove Widget", Modifier.size(19.dp), tint = Color.White.copy(alpha = .7f))
+                Icon(Icons.Outlined.RemoveCircleOutline, "Remove Widget", Modifier.size(19.dp), tint = LocalGlassContentColor.current.copy(alpha = .85f))
             }
         }
     }
@@ -160,7 +161,8 @@ fun WidgetGallery(controller: WidgetController, showHomeWidgets: Boolean, onTogg
                     Row(Modifier.padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Outlined.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         BasicTextField(query, { query = it.take(100) }, Modifier.weight(1f).padding(start = 10.dp).testTag("widget_search"),
-                            singleLine = true, textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp),
+                            singleLine = true, cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp),
                             decorationBox = { inner -> if (query.isEmpty()) Text("Search Widgets", color = MaterialTheme.colorScheme.onSurfaceVariant); inner() })
                     }
                 }

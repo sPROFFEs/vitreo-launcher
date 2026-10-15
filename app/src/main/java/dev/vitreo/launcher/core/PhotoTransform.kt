@@ -8,8 +8,8 @@ import kotlin.math.min
 data class PhotoTransform(val zoom: Float = 1f, val x: Float = 0f, val y: Float = 0f) {
     fun sanitized() = PhotoTransform(
         if (zoom.isFinite()) zoom.coerceIn(.0001f, 6f) else 1f,
-        if (x.isFinite()) x.coerceIn(-2f, 2f) else 0f,
-        if (y.isFinite()) y.coerceIn(-2f, 2f) else 0f,
+        if (x.isFinite()) x else 0f,
+        if (y.isFinite()) y else 0f,
     )
 }
 

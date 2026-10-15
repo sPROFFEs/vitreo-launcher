@@ -116,13 +116,16 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    private fun commit(next: LauncherState) {
+    private fun commit(next: LauncherState, preparedWallpaper: WallpaperFrame? = null) {
         if (!_ui.value.ready) return
         val old = _ui.value.layout
         val state = next.sanitized()
         _ui.value = _ui.value.copy(layout = state)
         saves.trySend(state)
-        if (old.appearance.palette != state.appearance.palette || old.appearance.usePhoto != state.appearance.usePhoto ||
+        if (preparedWallpaper != null) {
+            wallpaperJob?.cancel()
+            _wallpaper.value = preparedWallpaper
+        } else if (old.appearance.palette != state.appearance.palette || old.appearance.usePhoto != state.appearance.usePhoto ||
             old.appearance.photoTransform != state.appearance.photoTransform) reloadWallpaper()
     }
 
@@ -203,10 +206,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _photoBusy.value = true
         viewModelScope.launch {
             try {
-                withContext(Dispatchers.IO) { wallpaperStore.savePhoto(draft.frame.sharp) }
+                val prepared = withContext(Dispatchers.IO) {
+                    wallpaperStore.savePhoto(draft.frame.sharp)
+                    wallpaperStore.load(true, _ui.value.layout.appearance.palette, transform, wallpaperWidth, wallpaperHeight)
+                }
                 commit(_ui.value.layout.copy(appearance = _ui.value.layout.appearance.copy(
-                    usePhoto = true, photoTransform = transform)))
-                reloadWallpaper()
+                    usePhoto = true, photoTransform = transform)), prepared)
                 _photoDraft.value = null
                 message("Wallpaper saved.")
             } catch (e: CancellationException) { throw e }

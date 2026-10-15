@@ -21,6 +21,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
+import androidx.test.platform.app.InstrumentationRegistry
 import dev.vitreo.launcher.graphics.GlassDiagnostics
 import dev.vitreo.launcher.ui.LauncherReadyKey
 import dev.vitreo.launcher.ui.HomeRowsKey
@@ -55,6 +56,12 @@ class LauncherSmokeTest {
             nodes.any { it.config.contains(LauncherReadyKey) && it.config[LauncherReadyKey] }
         }
         compose.waitForIdle()
+    }
+    private fun captureEvidence(name: String) {
+        compose.waitForIdle()
+        val screenshot = checkNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot())
+        val directory = File(compose.activity.filesDir, "review").apply { mkdirs() }
+        File(directory, "$name.png").outputStream().use { screenshot.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
     private fun openSettings() {
         compose.onNodeWithTag("home_workspace").performTouchInput { swipeRight() }
@@ -220,8 +227,23 @@ class LauncherSmokeTest {
                 compose.onNodeWithText(label).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
                 assertTrue(layouts.isNotEmpty())
                 assertEquals(if (style == 1) Color(0xff1c1c1e) else Color(0xfff5f5f7), layouts.first().layoutInput.style.color)
+                captureEvidence(if (style == 1) "category-light" else "category-dark")
                 compose.onNodeWithContentDescription("Close").performClick()
             }
+        } finally { compose.runOnUiThread { model.appearance(original) } }
+    }
+
+    @Test fun darkSettingsUsesLightTextOnItsDarkBackground() {
+        awaitReady()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val original = model.ui.value.layout.appearance
+        try {
+            compose.runOnUiThread { model.appearance(original.copy(interfaceStyle = 2)) }
+            openSettings()
+            val layouts = mutableListOf<TextLayoutResult>()
+            compose.onNodeWithTag("settings_title").performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+            assertEquals(Color(0xfff5f5f7), layouts.first().layoutInput.style.color)
+            captureEvidence("settings-dark")
         } finally { compose.runOnUiThread { model.appearance(original) } }
     }
 
@@ -241,8 +263,15 @@ class LauncherSmokeTest {
         val before = model.ui.value.layout.appearance
         val file = openPhotoEditor(model)
         try {
+            compose.onNodeWithTag("wallpaper_editor").performTouchInput {
+                pinch(Offset(width * .4f, height * .4f), Offset(width * .6f, height * .4f),
+                    Offset(width * .3f, height * .4f), Offset(width * .7f, height * .4f))
+            }
+            assertTrue("The editor must handle a real pinch gesture",
+                compose.onNodeWithTag("wallpaper_editor").fetchSemanticsNode().config[PhotoZoomKey] > 1f)
             compose.onNodeWithTag("wallpaper_fit").performClick()
             assertTrue(compose.onNodeWithTag("wallpaper_editor").fetchSemanticsNode().config[PhotoZoomKey] < .5f)
+            captureEvidence("wallpaper-fit")
             compose.onNodeWithTag("wallpaper_fill").performClick()
             assertEquals(1f, compose.onNodeWithTag("wallpaper_editor").fetchSemanticsNode().config[PhotoZoomKey])
             compose.onNodeWithTag("wallpaper_cancel").performClick()

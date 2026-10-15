@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -27,10 +28,34 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
 import kotlin.math.*
+
+/** Keep Material's keyboard, accessibility and drag handling, with an iOS-sized track and thumb. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun IosSlider(value: Float, onChange: (Float) -> Unit, modifier: Modifier = Modifier,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f, enabled: Boolean = true, onDark: Boolean = false) {
+    val active = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = .25f)
+    val inactive = if (onDark) Color.White.copy(alpha = .22f) else MaterialTheme.colorScheme.onSurface.copy(alpha = .13f)
+    val fraction = ((value - valueRange.start) / (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
+    Slider(value, onChange, modifier.heightIn(min = 44.dp), enabled = enabled, valueRange = valueRange,
+        thumb = {
+            Box(Modifier.size(27.dp).shadow(if (enabled) 3.dp else 0.dp, CircleShape)
+                .background(if (enabled) Color.White else Color(0xffdedee3), CircleShape)
+                .border(.5.dp, Color.Black.copy(alpha = .08f), CircleShape))
+        }, track = {
+            Canvas(Modifier.fillMaxWidth().height(4.dp)) {
+                val y = size.height / 2f
+                drawLine(inactive, Offset(0f, y), Offset(size.width, y), 4.dp.toPx(), StrokeCap.Round)
+                drawLine(active, Offset(0f, y), Offset(size.width * fraction, y), 4.dp.toPx(), StrokeCap.Round)
+            }
+        })
+}
 
 /** Continuous corners, independent of the Android device's adaptive icon mask. */
 object IconShape : Shape {
@@ -69,14 +94,14 @@ fun IosGroup(modifier: Modifier = Modifier, content: @Composable ColumnScope.() 
 
 @Composable
 fun IosRow(title: String, detail: String? = null, enabled: Boolean = true,
-           destructive: Boolean = false, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick)
+           destructive: Boolean = false, onClick: (() -> Unit)? = null) {
+    Row(Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(enabled = enabled, onClick = onClick) else Modifier)
         .heightIn(min = 52.dp).padding(horizontal = 17.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically) {
         Text(title, Modifier.weight(1f), fontSize = 16.sp,
             color = if (destructive) Color(0xffff453a) else MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else .45f))
         detail?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp, modifier = Modifier.padding(start = 8.dp)) }
-        Icon(Icons.Outlined.ChevronRight, null, Modifier.size(19.dp).padding(start = 3.dp),
+        if (onClick != null) Icon(Icons.Outlined.ChevronRight, null, Modifier.size(19.dp).padding(start = 3.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .5f))
     }
 }

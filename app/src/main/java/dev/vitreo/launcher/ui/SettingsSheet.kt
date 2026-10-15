@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -114,6 +115,7 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                             if (a.iconStyle == 2) Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                                 listOf(0xff8fbfff, 0xffe6b4f3, 0xffe9c68e, 0xffa5dfbb, 0xfff4b4bb).forEachIndexed { index, color ->
                                     Box(Modifier.size(40.dp).background(Color(color), CircleShape)
+                                        .semantics { contentDescription = listOf("Blue", "Purple", "Gold", "Green", "Pink")[index] + " tint"; selected = a.tintColor == color.toInt() }
                                         .clickable { onAppearance(a.copy(tintColor = color.toInt())) }, contentAlignment = Alignment.Center) {
                                         if (a.tintColor == color.toInt()) Icon(Icons.Outlined.Check, "Selected tint ${index + 1}", Modifier.size(21.dp), tint = Color(0xff2d3440))
                                     }
@@ -145,9 +147,11 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                         IosGroup {
                             SettingsSlider("Frost", a.frost, "${(a.frost * 100).roundToInt()}%", enabled = !a.opaquePanels) { onAppearance(a.copy(frost = it)) }
                             IosDivider()
-                            SettingsSlider("Refraction", a.refraction, "${(a.refraction * 100).roundToInt()}%", enabled = !a.opaquePanels && !a.reducedEffects) { onAppearance(a.copy(refraction = it)) }
+                            SettingsSlider("Refraction", a.refraction, "${(a.refraction * 100).roundToInt()}%",
+                                enabled = !a.opaquePanels && !reduced && android.os.Build.VERSION.SDK_INT >= 33) { onAppearance(a.copy(refraction = it)) }
                         }
                         SettingsFootnote("Controls catch light at their curved edges. Folders and app lists use a denser material to keep names easy to read.")
+                        if (android.os.Build.VERSION.SDK_INT < 33) SettingsFootnote("This device uses frosted glass. Edge refraction is available on Android 13 and later.")
                         IosSectionLabel("Accessibility")
                         IosGroup {
                             IosToggleRow("Reduce Motion", a.reducedEffects) { onAppearance(a.copy(reducedEffects = it)) }; IosDivider()
@@ -179,7 +183,7 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                         SettingsFootnote("Backups include apps, folders and appearance. Photos stay on this device; add third-party widgets again on each device.")
                     }
                     SettingsPage.About -> {
-                        IosGroup { IosRow("Version", BuildConfig.VERSION_NAME, onClick = {}); IosDivider(); IosRow("Export Diagnostics", onClick = onDiagnostics) }
+                        IosGroup { IosRow("Version", BuildConfig.VERSION_NAME); IosDivider(); IosRow("Language", "English"); IosDivider(); IosRow("Export Diagnostics", onClick = onDiagnostics) }
                         SettingsFootnote("An iOS-inspired home for your Android apps, with original artwork and a native glass renderer. No accounts, ads or telemetry. Interface language: English.")
                     }
                 }
@@ -200,7 +204,7 @@ private fun SettingsSlider(title: String, value: Float, detail: String, range: C
     enabled: Boolean = true, onChange: (Float) -> Unit) {
     Column(Modifier.padding(horizontal = 17.dp, vertical = 12.dp)) {
         Row { Text(title, Modifier.weight(1f)); Text(detail, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        Slider(value, onChange, valueRange = range, enabled = enabled)
+        IosSlider(value, onChange, valueRange = range, enabled = enabled)
     }
 }
 
@@ -212,8 +216,13 @@ private fun HomeAppearancePreview(ui: LauncherViewModel.UiState) {
         frame?.let { Image(it.sharp.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
         Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .2f)))
         Row(Modifier.fillMaxSize().padding(horizontal = 14.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-            ui.apps.take(4).forEach { app -> LauncherTile(HomeEntry.App(app.id), apps, 50.dp, ui.layout.appearance.showLabels,
-                Modifier.weight(1f), onClick = {}, onActions = {}) }
+            ui.apps.take(4).forEach { app ->
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    EntryIcon(HomeEntry.App(app.id), apps, 50.dp)
+                    if (ui.layout.appearance.showLabels) Text(app.label, color = LocalGlassContentColor.current, fontSize = 12.sp,
+                        maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.padding(top = 7.dp))
+                }
+            }
         }
     }
 }

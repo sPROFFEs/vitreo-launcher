@@ -3,6 +3,7 @@ package dev.vitreo.launcher.ui
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -20,5 +21,7 @@ fun VitreoTheme(style: Int = 0, content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = colors, typography = Typography(
         bodyLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 17.sp),
         bodyMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 15.sp),
-        labelLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 16.sp)), content = content)
+        labelLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 16.sp))) {
+        CompositionLocalProvider(LocalContentColor provides colors.onSurface, content = content)
+    }
 }

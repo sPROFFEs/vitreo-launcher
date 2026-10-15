@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
@@ -44,6 +45,7 @@ fun FolderSheet(folder: HomeEntry.Folder, apps: Map<String, AppRecord>, onClose:
     Box(Modifier.fillMaxSize().clickable(onClick = onClose).safeDrawingPadding(), contentAlignment = Alignment.Center) {
         Column(Modifier.widthIn(max = 370.dp).fillMaxWidth().padding(horizontal = 25.dp).clickable {}, horizontalAlignment = Alignment.CenterHorizontally) {
             BasicTextField(name, { name = it.take(48); onRename(name) }, singleLine = true,
+                cursorBrush = SolidColor(Color.White),
                 textStyle = TextStyle(color = Color.White, fontSize = 30.sp, textAlign = TextAlign.Center, fontWeight = FontWeight.Medium),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp).testTag("folder_name"))
             GlassPanel(Modifier.fillMaxWidth().aspectRatio(.95f).testTag("folder_panel"), radius = 40f,
@@ -99,7 +101,8 @@ fun ActionsSheet(entry: HomeEntry, state: LauncherState, apps: Map<String, AppRe
                     is HomeEntry.Folder -> {
                         var title by remember(entry.id) { mutableStateOf(entry.title) }
                         BasicTextField(title, { title = it.take(48) }, Modifier.fillMaxWidth().padding(17.dp),
-                            singleLine = true, textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp))
+                            singleLine = true, cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp))
                         IosRow("Save Name") { onRename(entry.id, title) }
                         IosRow("Ungroup Folder", destructive = true) { onDissolve(entry.id) }
                     }

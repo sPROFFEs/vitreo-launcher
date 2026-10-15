@@ -1,6 +1,7 @@
 package dev.vitreo.launcher
 
 import android.app.role.RoleManager
+import android.app.ActivityOptions
 import android.appwidget.AppWidgetHost
 import android.content.ComponentName
 import android.content.Intent
@@ -14,6 +15,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.*
+import androidx.compose.ui.geometry.Rect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vitreo.launcher.ui.LauncherScreen
 import dev.vitreo.launcher.ui.VitreoTheme
@@ -57,14 +59,21 @@ class MainActivity : ComponentActivity() {
             else startActivity(Intent(Settings.ACTION_HOME_SETTINGS))
         } catch (e: Exception) { model.message("Open Android Settings > Default apps > Home app.") }
     }
-    private fun launchApp(id: String) {
+    private fun launchApp(id: String, source: Rect?) {
         // Only an activity from the live launchable-app catalog can be launched.
         if (model.ui.value.apps.none { it.id == id }) {
             model.message("This app is unavailable in this profile. You can remove its shortcut."); return
         }
         val component = ComponentName.unflattenFromString(id) ?: return
         try {
-            startActivity(Intent.makeMainActivity(component).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED))
+            val appearance = model.ui.value.layout.appearance
+            val options = when {
+                appearance.reducedEffects || model.ui.value.powerSaver -> ActivityOptions.makeCustomAnimation(this, 0, 0)
+                source != null -> ActivityOptions.makeScaleUpAnimation(window.decorView, source.left.toInt(), source.top.toInt(),
+                    source.width.toInt().coerceAtLeast(1), source.height.toInt().coerceAtLeast(1))
+                else -> null
+            }
+            startActivity(Intent.makeMainActivity(component).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED), options?.toBundle())
             model.recordLaunch(id)
         }
         catch (e: Exception) { model.message("Android could not open this app.") }

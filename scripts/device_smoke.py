@@ -78,6 +78,12 @@ def main() -> None:
     try:
         subprocess.run(["bash", "gradlew", "--no-daemon", "--console=plain", ":app:connectedDebugAndroidTest"], cwd=ROOT, check=True)
         count = passed_tests(ROOT / "app/build/outputs/androidTest-results/connected")
+        native_screens = ["category-light", "category-dark", "settings-dark", "wallpaper-fit"]
+        for name in native_screens:
+            image = subprocess.check_output(["adb", "exec-out", "run-as", "dev.vitreo.launcher.debug", "cat", f"files/review/{name}.png"], timeout=60)
+            if not image.startswith(bytes([137, 80, 78, 71, 13, 10, 26, 10])):
+                raise RuntimeError(f"Missing native screenshot: {name}.")
+            (output / f"native-{name}.png").write_bytes(image)
         apks = list((ROOT / "app/build/outputs/apk/preview").glob("*.apk"))
         if len(apks) != 1:
             raise RuntimeError("Expected exactly one optimized Preview APK.")
@@ -194,6 +200,7 @@ def main() -> None:
             "status": "passed", "debugTestsPassed": count, "optimizedPreviewStarted": True,
             "uiScreens": ["home", "today", "settings", "glass-settings", "wallpaper-settings", "widgets", "widget-previews", "spotlight", "library", "category", "controls"],
             "motionRecordedWithAnimationsEnabled": True,
+            "nativeScreens": native_screens,
             "physicalGrapheneOsTested": False}, indent=2) + "\n")
     finally:
         try:

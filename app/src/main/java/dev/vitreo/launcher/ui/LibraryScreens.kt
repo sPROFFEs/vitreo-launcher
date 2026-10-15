@@ -19,6 +19,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -133,6 +135,9 @@ fun AppLibrary(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestio
 @Composable
 fun CategoryScreen(title: String, records: List<AppRecord>, apps: Map<String, AppRecord>,
     onClose: () -> Unit, onLaunch: (String) -> Unit, onActions: (String) -> Unit) {
+    val columns = ((LocalConfiguration.current.screenWidthDp - 68) / 76).coerceAtLeast(1)
+    val rows = (records.size + columns - 1) / columns
+    val panelHeight = rows * (60f + 20f * LocalDensity.current.fontScale + 12f) + (rows - 1).coerceAtLeast(0) * 12f + 40f
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(title, Modifier.weight(1f), color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
@@ -140,7 +145,7 @@ fun CategoryScreen(title: String, records: List<AppRecord>, apps: Map<String, Ap
         }
         Text("${records.size} apps", color = Color.White.copy(alpha = .8f), fontSize = 14.sp,
             modifier = Modifier.padding(top = 2.dp, bottom = 20.dp))
-        GlassPanel(Modifier.fillMaxWidth().weight(1f, fill = false).testTag("category_panel"),
+        GlassPanel(Modifier.fillMaxWidth().heightIn(max = panelHeight.dp).weight(1f, fill = false).testTag("category_panel"),
             radius = 34f, material = GlassMaterial.Regular) {
             LazyVerticalGrid(GridCells.Adaptive(76.dp), Modifier.fillMaxWidth().padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 6.dp)) {

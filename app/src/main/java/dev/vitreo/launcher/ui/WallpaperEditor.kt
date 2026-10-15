@@ -37,12 +37,14 @@ fun WallpaperEditor(draft: LauncherViewModel.PhotoDraft, busy: Boolean, onCancel
     val fit = photoFitZoom(bitmap.width.toFloat(), bitmap.height.toFloat(), size.width.toFloat(), size.height.toFloat())
     fun update(value: PhotoTransform) { zoom = value.zoom; x = value.x; y = value.y }
     val transform = PhotoTransform(zoom, x, y)
-    val current by rememberUpdatedState(transform)
+    // Pointer events may arrive in a batch before recomposition. Read the live
+    // state here so every incremental pinch/pan is accumulated, even on a slow frame.
+    fun current() = PhotoTransform(zoom, x, y)
     Box(Modifier.fillMaxSize().background(Color.Black).testTag("wallpaper_editor").semantics { this[PhotoZoomKey] = zoom }) {
         Canvas(Modifier.fillMaxSize().onSizeChanged { size = it }.pointerInput(draft.frame, busy) {
             if (!busy) detectTransformGestures { centroid, pan, scale, _ ->
                 update(transformPhoto(bitmap.width.toFloat(), bitmap.height.toFloat(), size.width.toFloat(), size.height.toFloat(),
-                    current, scale, pan.x, pan.y, centroid.x, centroid.y))
+                    current(), scale, pan.x, pan.y, centroid.x, centroid.y))
             }
         }) {
             drawIntoCanvas { WallpaperStore.drawPhoto(it.nativeCanvas, draft.frame, this.size.width, this.size.height, transform) }
@@ -54,7 +56,7 @@ fun WallpaperEditor(draft: LauncherViewModel.PhotoDraft, busy: Boolean, onCancel
                 Text("Move & Scale", Modifier.weight(1f), color = Color.White, fontWeight = FontWeight.SemiBold,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 TextButton(onClick = { onSave(photoPlacement(bitmap.width.toFloat(), bitmap.height.toFloat(),
-                    size.width.toFloat(), size.height.toFloat(), transform).transform) }, enabled = !busy,
+                    size.width.toFloat(), size.height.toFloat(), current()).transform) }, enabled = !busy,
                     modifier = Modifier.testTag("wallpaper_save")) { Text(if (busy) "Saving…" else "Save", color = Color.White, fontWeight = FontWeight.Bold) }
             }
             Spacer(Modifier.weight(1f))
@@ -66,9 +68,9 @@ fun WallpaperEditor(draft: LauncherViewModel.PhotoDraft, busy: Boolean, onCancel
                     Text("Zoom", Modifier.weight(1f), color = Color.White)
                     Text("${(zoom * 100).roundToInt()}%", color = Color.White.copy(alpha = .8f))
                 }
-                Slider(zoom.coerceIn(fit, 6f), { update(transformPhoto(bitmap.width.toFloat(), bitmap.height.toFloat(),
-                    size.width.toFloat(), size.height.toFloat(), current, it / zoom, 0f, 0f)) },
-                    valueRange = fit..6f, enabled = !busy, modifier = Modifier.testTag("wallpaper_zoom"))
+                IosSlider(zoom.coerceIn(fit, 6f), { update(transformPhoto(bitmap.width.toFloat(), bitmap.height.toFloat(),
+                    size.width.toFloat(), size.height.toFloat(), current(), it / zoom, 0f, 0f)) },
+                    valueRange = fit..6f, enabled = !busy, onDark = true, modifier = Modifier.testTag("wallpaper_zoom"))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     TextButton(onClick = { update(PhotoTransform(fit)) }, enabled = !busy, modifier = Modifier.testTag("wallpaper_fit")) { Text("Fit", color = Color.White) }
                     TextButton(onClick = { update(PhotoTransform()) }, enabled = !busy, modifier = Modifier.testTag("wallpaper_fill")) { Text("Fill", color = Color.White) }

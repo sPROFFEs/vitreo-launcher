@@ -53,4 +53,12 @@ class PhotoTransformTest {
         assertEquals(PhotoTransform(), a.photoTransform)
         assertEquals(.12f, a.wallpaperDim)
     }
+    @Test fun heavilyZoomedLandscapePhotoCanReachBothEdges() {
+        val left = photoPlacement(1600f, 900f, 400f, 900f, PhotoTransform(6f, 100f))
+        val right = photoPlacement(1600f, 900f, 400f, 900f, PhotoTransform(6f, -100f))
+        assertEquals(0f, left.left, .001f)
+        assertEquals(400f, right.left + right.width, .001f)
+        assertTrue(left.transform.x > 2f)
+        assertEquals(left, photoPlacement(1600f, 900f, 400f, 900f, left.transform))
+    }
 }

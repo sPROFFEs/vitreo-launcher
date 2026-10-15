@@ -35,6 +35,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -79,7 +82,7 @@ private data class DragSession(val entry: HomeEntry, val position: Offset)
 
 @Composable
 fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boolean,
-    onSetHome: () -> Unit, onLaunch: (String) -> Unit, onAppInfo: (String) -> Unit,
+    onSetHome: () -> Unit, onLaunch: (String, Rect?) -> Unit, onAppInfo: (String) -> Unit,
     onConfigureWidget: (AppWidgetHost, Int, (Boolean) -> Unit) -> Unit) {
     val ui by model.ui.collectAsStateWithLifecycle()
     val frame by model.wallpaper.collectAsStateWithLifecycle()
@@ -161,14 +164,16 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
         try { context.startActivity(Intent(action)); sheet = null }
         catch (_: Exception) { model.message("No app is available for this action.") }
     }
-    fun launch(id: String) { sheet = null; onLaunch(id) }
+    fun launch(id: String) { val source = cellBounds[id]; sheet = null; onLaunch(id, source) }
     fun openCalendar() {
         val app = ui.apps.firstOrNull { "calendar" in it.packageName || "calendario" in searchKey(it.label) }
         if (app != null) launch(app.id) else model.message("No calendar app is installed.")
     }
     val opaqueScreen = sheet == Sheet.Settings || sheet == Sheet.Widgets || sheet == Sheet.Licenses || sheet == Sheet.Wallpaper ||
         sheet is Sheet.PairWith || sheet is Sheet.AddToFolder
-    val lightChrome = opaqueScreen && MaterialTheme.colorScheme.background.luminance() > .5f
+    val lightWallpaper = (frame?.brightness ?: 0f) * (1f - appearance.wallpaperDim) > .62f
+    val lightChrome = opaqueScreen && sheet != Sheet.Wallpaper && MaterialTheme.colorScheme.background.luminance() > .5f ||
+        sheet == null && lightWallpaper
     SideEffect {
         (context as? Activity)?.let { activity -> WindowCompat.getInsetsController(activity.window, localView).apply {
             isAppearanceLightStatusBars = lightChrome; isAppearanceLightNavigationBars = lightChrome
@@ -283,9 +288,9 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
             }
         }
     }
-    val modalProgress by animateFloatAsState(if (sheet != null && !opaqueScreen) 1f else 0f,
+    val modalProgress = animateFloatAsState(if (sheet != null && !opaqueScreen) 1f else 0f,
         if (appearance.reducedEffects) tween(0) else tween(250), label = "backdrop")
-    val wallpaperText = if ((frame?.brightness ?: 0f) * (1f - appearance.wallpaperDim) > .62f) Color(0xff151518) else Color.White
+    val wallpaperText = if (lightWallpaper) Color(0xff151518) else Color.White
     CompositionLocalProvider(LocalGlass provides GlassEnvironment(frame, viewport, appearance), LocalHomeClock provides now,
         LocalGlassContentColor provides wallpaperText) {
         Box(Modifier.fillMaxSize().testTag("launcher_root").semantics {
@@ -306,7 +311,12 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
             Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.displayCutout))
                 .padding(top = if (editing) 42.dp else 9.dp)
                 .then(if (sheet != null) Modifier.clearAndSetSemantics {} else Modifier)
-                .blur(if (appearance.reducedEffects) 0.dp else (modalProgress * 22).dp)) {
+                .graphicsLayer {
+                    // Read the animation in the drawing phase. Rebuilding the entire
+                    // workspace for every blur frame causes avoidable layout/recomposition.
+                    val blurRadius = if (appearance.reducedEffects) 0f else modalProgress.value * 22.dp.toPx()
+                    renderEffect = if (blurRadius > .05f) BlurEffect(blurRadius, blurRadius, TileMode.Clamp) else null
+                }) {
                 Box(Modifier.weight(1f).fillMaxWidth().testTag("home_workspace")
                     .pointerInput(onHomePage, sheet) {
                         detectTapGestures(onLongPress = { if (sheet == null && onHomePage) {
@@ -400,7 +410,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                 GlassPanel(radius = 20f) { Text("Add Widgets", color = Color.White, fontSize = 13.sp,
                     modifier = Modifier.clickable { sheet = Sheet.Widgets }.padding(horizontal = 14.dp, vertical = 10.dp)) }
                 Row {
-                    IconButton(onClick = { sheet = Sheet.Settings }, modifier = Modifier.testTag("settings_button")) { Icon(Icons.Outlined.Settings, "Settings", tint = Color.White) }
+                    IconButton(onClick = { sheet = Sheet.Settings }, modifier = Modifier.testTag("settings_button")) { Icon(Icons.Outlined.Settings, "Settings", tint = LocalGlassContentColor.current) }
                     GlassPanel(radius = 20f) { Text("Done", color = Color.White, fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.testTag("edit_done").clickable { editing = false }.padding(horizontal = 17.dp, vertical = 10.dp)) }
                 }
@@ -428,7 +438,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                     // A transparent/blurred background must never launch an app.
                     Box(Modifier.fillMaxSize().pointerInput(current) { detectTapGestures(onTap = {}) }
                         .background(if (current == Sheet.Settings || current == Sheet.Widgets || current == Sheet.Wallpaper || current == Sheet.Licenses)
-                            Color.Transparent else Color.Black.copy(alpha = .32f)))
+                            Color.Transparent else Color.Black.copy(alpha = if (lightWallpaper) .62f else .32f)))
                     when (current) {
                         Sheet.Search -> Spotlight(ui.apps, apps, suggestions, { focusManager.clearFocus(); keyboard?.hide(); sheet = null }, ::launch, { sheet = Sheet.Actions(HomeEntry.App(it)) })
                         Sheet.Settings -> SettingsSheet(ui, defaultHome, { sheet = null }, model::appearance, onSetHome,
