@@ -59,6 +59,14 @@ def tap_node(root: ET.Element, attribute: str, value: str) -> None:
     left, top, right, bottom = map(int, bounds.groups())
     adb("shell", "input", "tap", str((left + right) // 2), str((top + bottom) // 2))
 
+def collect_native_screens(output: Path, names: list[str]) -> None:
+    for name in names:
+        image = output / f"native-{name}.png"
+        adb("pull", f"/sdcard/Android/data/dev.vitreo.launcher.debug/files/review/{name}.png", str(image))
+        data = image.read_bytes()
+        if not data.startswith(bytes([137, 80, 78, 71, 13, 10, 26, 10])):
+            raise RuntimeError(f"Invalid native screenshot {name}: {len(data)} bytes; header {data[:16].hex()}.")
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("api", type=int, choices=[31, 35])
@@ -79,11 +87,7 @@ def main() -> None:
         subprocess.run(["bash", "gradlew", "--no-daemon", "--console=plain", ":app:connectedDebugAndroidTest"], cwd=ROOT, check=True)
         count = passed_tests(ROOT / "app/build/outputs/androidTest-results/connected")
         native_screens = ["category-light", "category-dark", "settings-dark", "wallpaper-fit"]
-        for name in native_screens:
-            image = subprocess.check_output(["adb", "exec-out", "run-as", "dev.vitreo.launcher.debug", "cat", f"files/review/{name}.png"], timeout=60)
-            if not image.startswith(bytes([137, 80, 78, 71, 13, 10, 26, 10])):
-                raise RuntimeError(f"Missing native screenshot: {name}.")
-            (output / f"native-{name}.png").write_bytes(image)
+        collect_native_screens(output, native_screens)
         apks = list((ROOT / "app/build/outputs/apk/preview").glob("*.apk"))
         if len(apks) != 1:
             raise RuntimeError("Expected exactly one optimized Preview APK.")

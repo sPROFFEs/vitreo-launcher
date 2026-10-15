@@ -60,8 +60,12 @@ class LauncherSmokeTest {
     private fun captureEvidence(name: String) {
         compose.waitForIdle()
         val screenshot = checkNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot())
-        val directory = File(compose.activity.filesDir, "review").apply { mkdirs() }
-        File(directory, "$name.png").outputStream().use { screenshot.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        // adb pull copies the file as bytes; it does not depend on run-as output framing.
+        val directory = checkNotNull(compose.activity.getExternalFilesDir("review"))
+        check(directory.isDirectory || directory.mkdirs())
+        File(directory, "$name.png").outputStream().use {
+            check(screenshot.compress(Bitmap.CompressFormat.PNG, 100, it))
+        }
     }
     private fun openSettings() {
         compose.onNodeWithTag("home_workspace").performTouchInput { swipeRight() }

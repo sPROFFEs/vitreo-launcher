@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from release_validation import device_evidence, validate_assets
-from device_smoke import passed_tests
+from device_smoke import passed_tests, collect_native_screens
 import test_release
 from test_release import FakeGitHub
 import prepare_signing
@@ -152,6 +152,27 @@ class DeviceEvidenceTests(unittest.TestCase):
     def test_junit_counts_exclude_skips(self):
         (self.root/"TEST-example.xml").write_text('<testsuite tests="4" failures="0" errors="0" skipped="1"/>')
         self.assertEqual(passed_tests(self.root),3)
+
+class NativeScreenshotTests(unittest.TestCase):
+    def test_file_transfer_preserves_binary_png_header(self):
+        data = bytes([137,80,78,71,13,10,26,10,0,255,13,10])
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            def pull(*args):
+                self.assertEqual(args[:2], ("pull", "/sdcard/Android/data/dev.vitreo.launcher.debug/files/review/category-light.png"))
+                Path(args[2]).write_bytes(data)
+                return "1 file pulled"
+            with patch("device_smoke.adb", side_effect=pull):
+                collect_native_screens(root, ["category-light"])
+            self.assertEqual((root / "native-category-light.png").read_bytes(), data)
+
+    def test_invalid_file_keeps_diagnostics_and_blocks_success(self):
+        with tempfile.TemporaryDirectory() as directory:
+            def pull(*args):
+                Path(args[2]).write_bytes(b"not a PNG")
+            with patch("device_smoke.adb", side_effect=pull):
+                with self.assertRaisesRegex(RuntimeError, "Invalid native screenshot category-light"):
+                    collect_native_screens(Path(directory), ["category-light"])
 
 class StrictSigningTests(unittest.TestCase):
     def test_release_never_silently_falls_back_to_preview(self):
