@@ -1,5 +1,16 @@
 # Cambios
 
+## 0.3.0 — Glass, movimiento y personalización — 2026-10-15
+
+- Interfaz, mensajes, fechas y categorías en inglés por defecto.
+- Cristal con refracción en los bordes, reflejos direccionales y respuesta a la pulsación; material más denso y texto adaptado al tema para carpetas y categorías.
+- Transiciones con muelles, apertura diferenciada de paneles, desenfoque progresivo y pulsación de iconos; respeto de Reducir movimiento y ahorro de batería.
+- Ajustes reorganizados con vistas previas, navegación animada, controles de refracción y escarcha y oscurecimiento del fondo.
+- Galería de widgets con búsqueda y previsualizaciones suministradas por las apps, sin asignar IDs para mostrarlas.
+- Editor de fotos con pellizco, arrastre, Fit/Fill/Reset, guardar y cancelar; extensión desenfocada para ver la imagen completa y original conservado para ajustes posteriores.
+- Geometría del fondo compartida entre editor y cristal; zoom y posición persistentes con compatibilidad de copias anteriores.
+
+
 ## 0.2.1 — Revisión y releases normales — 2026-10-15
 
 - Publicación como release normal y selección de Latest por versión; promoción de las prereleases existentes sin cambiar tags ni assets.

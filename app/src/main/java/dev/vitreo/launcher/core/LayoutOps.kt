@@ -92,7 +92,7 @@ object LayoutOps {
         val result = state.home.toMutableList()
         val at = minOf(result.indexOfFirst { it.id == first }, result.indexOfFirst { it.id == second })
         result.removeAll { it.id == first || it.id == second }
-        result.add(at, HomeEntry.Folder(folderId, "Carpeta", listOf(first, second)))
+        result.add(at, HomeEntry.Folder(folderId, "Folder", listOf(first, second)))
         return state.copy(home = result).sanitized()
     }
 

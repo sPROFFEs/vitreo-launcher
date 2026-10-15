@@ -16,7 +16,7 @@ fun VitreoTheme(style: Int = 0, content: @Composable () -> Unit) {
         onSurface = Color(0xfff5f5f7), onSurfaceVariant = Color(0xff98989d), outline = Color(0xff38383a))
     else lightColorScheme(primary = Color(0xff007aff), secondary = Color(0xff34c759),
         background = Color(0xfff2f2f7), surface = Color.White, surfaceVariant = Color(0xffe5e5ea),
-        onSurface = Color(0xff1c1c1e), onSurfaceVariant = Color(0xff8e8e93), outline = Color(0xffc6c6c8))
+        onSurface = Color(0xff1c1c1e), onSurfaceVariant = Color(0xff626269), outline = Color(0xffc6c6c8))
     MaterialTheme(colorScheme = colors, typography = Typography(
         bodyLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 17.sp),
         bodyMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 15.sp),

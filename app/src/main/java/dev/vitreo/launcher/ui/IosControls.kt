@@ -2,6 +2,8 @@ package dev.vitreo.launcher.ui
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,6 +20,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
@@ -46,7 +50,9 @@ object IconShape : Shape {
 
 @Composable
 fun IosSwitch(checked: Boolean, enabled: Boolean = true) {
-    val x by animateDpAsState(if (checked) 22.dp else 2.dp, tween(180), label = "switch")
+    val reduced = LocalGlass.current.appearance.reducedEffects
+    val x by animateDpAsState(if (checked) 22.dp else 2.dp,
+        if (reduced) tween(0) else spring(dampingRatio = .85f, stiffness = 650f), label = "switch")
     Box(Modifier.size(51.dp, 31.dp).clip(CircleShape).background(
         if (checked) Color(0xff34c759).copy(alpha = if (enabled) 1f else .45f)
         else MaterialTheme.colorScheme.onSurface.copy(alpha = .15f))) {
@@ -80,7 +86,7 @@ fun IosToggleRow(title: String, checked: Boolean, enabled: Boolean = true, modif
                  onChange: (Boolean) -> Unit) {
     Row(modifier.fillMaxWidth().toggleable(checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)
         .heightIn(min = 54.dp).padding(horizontal = 17.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, Modifier.weight(1f).padding(end = 12.dp), fontSize = 16.sp)
+        Text(title, Modifier.weight(1f).padding(end = 12.dp).alpha(if (enabled) 1f else .5f), fontSize = 16.sp)
         IosSwitch(checked, enabled)
     }
 }
@@ -99,15 +105,23 @@ fun IosSectionLabel(text: String) {
 
 @Composable
 fun IosSegmented(options: List<String>, selected: Int, modifier: Modifier = Modifier, onSelect: (Int) -> Unit) {
-    Row(modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp))
+    val progress by animateFloatAsState(selected.toFloat(),
+        if (LocalGlass.current.appearance.reducedEffects) tween(0) else spring(dampingRatio = .85f, stiffness = 650f), label = "segment")
+    BoxWithConstraints(modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp))
         .background(MaterialTheme.colorScheme.onSurface.copy(alpha = .07f)).padding(3.dp)) {
+        val segmentWidth = maxWidth / options.size
+        val position = progress.coerceIn(0f, (options.size - 1).toFloat())
+        Box(Modifier.matchParentSize().padding(start = segmentWidth * position,
+            end = segmentWidth * (options.size - 1 - position))
+            .shadow(1.dp, RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp)))
+        Row(Modifier.fillMaxWidth()) {
         options.forEachIndexed { index, title ->
             Box(Modifier.weight(1f).clip(RoundedCornerShape(8.dp))
-                .background(if (selected == index) MaterialTheme.colorScheme.surface else Color.Transparent)
                 .selectable(selected = selected == index, role = Role.Tab, onClick = { onSelect(index) })
                 .padding(vertical = 9.dp), contentAlignment = Alignment.Center) {
                 Text(title, fontSize = 12.sp, fontWeight = if (selected == index) FontWeight.SemiBold else FontWeight.Normal)
             }
+        }
         }
     }
 }

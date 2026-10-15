@@ -11,6 +11,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -32,6 +34,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -65,6 +68,7 @@ private sealed interface Sheet {
     data object Licenses : Sheet
     data object Widgets : Sheet
     data object Controls : Sheet
+    data object Wallpaper : Sheet
     data class Folder(val id: String) : Sheet
     data class Actions(val entry: HomeEntry) : Sheet
     data class Category(val title: String, val apps: List<AppRecord>) : Sheet
@@ -79,6 +83,8 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
     onConfigureWidget: (AppWidgetHost, Int, (Boolean) -> Unit) -> Unit) {
     val ui by model.ui.collectAsStateWithLifecycle()
     val frame by model.wallpaper.collectAsStateWithLifecycle()
+    val photoDraft by model.photoDraft.collectAsStateWithLifecycle()
+    val photoBusy by model.photoBusy.collectAsStateWithLifecycle()
     val apps = remember(ui.apps) { ui.apps.associateBy { it.id } }
     val suggestions = remember(ui.apps, ui.recentApps, ui.layout.dock) {
         (ui.recentApps + ui.layout.dock + ui.apps.map { it.id }).distinct().mapNotNull(apps::get)
@@ -94,6 +100,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
     var dockBounds by remember { mutableStateOf(Rect.Zero) }
     var drag by remember { mutableStateOf<DragSession?>(null) }
     var folderTarget by remember { mutableStateOf<String?>(null) }
+    var folderAnchor by remember { mutableStateOf(TransformOrigin.Center) }
     val cellBounds = remember { mutableStateMapOf<String, Rect>() }
     val context = LocalContext.current
     val localView = LocalView.current
@@ -134,7 +141,11 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
         widgetCount = widgets.ids.size
     }
     val onHomePage = pager.currentPage in 1..homePages
-    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let(model::importPhoto) }
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let { model.preparePhoto(it) } }
+    LaunchedEffect(photoDraft) {
+        if (photoDraft != null) sheet = Sheet.Wallpaper
+        else if (sheet == Sheet.Wallpaper) sheet = null
+    }
     val backupExport = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { it?.let(model::exportLayout) }
     val backupImport = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let(model::importLayout) }
     val reportExport = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { it?.let(model::exportDiagnostics) }
@@ -148,14 +159,14 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
     fun openSearch() { editing = false; sheet = Sheet.Search }
     fun system(action: String) {
         try { context.startActivity(Intent(action)); sheet = null }
-        catch (_: Exception) { model.message("No se encontró una aplicación para esta acción.") }
+        catch (_: Exception) { model.message("No app is available for this action.") }
     }
     fun launch(id: String) { sheet = null; onLaunch(id) }
     fun openCalendar() {
         val app = ui.apps.firstOrNull { "calendar" in it.packageName || "calendario" in searchKey(it.label) }
-        if (app != null) launch(app.id) else model.message("No se encontró una aplicación de calendario.")
+        if (app != null) launch(app.id) else model.message("No calendar app is installed.")
     }
-    val opaqueScreen = sheet == Sheet.Settings || sheet == Sheet.Widgets || sheet == Sheet.Licenses ||
+    val opaqueScreen = sheet == Sheet.Settings || sheet == Sheet.Widgets || sheet == Sheet.Licenses || sheet == Sheet.Wallpaper ||
         sheet is Sheet.PairWith || sheet is Sheet.AddToFolder
     val lightChrome = opaqueScreen && MaterialTheme.colorScheme.background.luminance() > .5f
     SideEffect {
@@ -167,7 +178,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
     LaunchedEffect(sheet) {
         if (sheet != Sheet.Search) { focusManager.clearFocus(); keyboard?.hide() }
     }
-    LaunchedEffect(homeSerial) { sheet = null; editing = false; drag = null; focusManager.clearFocus(); keyboard?.hide(); pager.scrollToPage(1) }
+    LaunchedEffect(homeSerial) { sheet = null; model.discardPhoto(); editing = false; drag = null; focusManager.clearFocus(); keyboard?.hide(); pager.scrollToPage(1) }
     var previousHomePages by remember { mutableIntStateOf(homePages) }
     LaunchedEffect(pager.currentPage, homePages, editing) {
         val shrank = homePages < previousHomePages
@@ -177,6 +188,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
     }
     BackHandler {
         when {
+            sheet == Sheet.Wallpaper -> { if (!photoBusy) { model.discardPhoto(); sheet = Sheet.Settings } }
             sheet != null -> sheet = null
             editing -> { editing = false; drag = null }
             pager.currentPage != 1 -> scope.launch { pager.animateScrollToPage(1) }
@@ -186,7 +198,13 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
         if (editing) sheet = Sheet.Actions(entry)
         else when (entry) {
             is HomeEntry.App -> launch(entry.id)
-            is HomeEntry.Folder -> sheet = Sheet.Folder(entry.id)
+            is HomeEntry.Folder -> {
+                folderAnchor = cellBounds[entry.id]?.center?.let {
+                    TransformOrigin(((it.x - rootPosition.x) / viewport.width).coerceIn(0f, 1f),
+                        ((it.y - rootPosition.y) / viewport.height).coerceIn(0f, 1f))
+                } ?: TransformOrigin.Center
+                sheet = Sheet.Folder(entry.id)
+            }
         }
     }
     val hovered = drag?.let { session ->
@@ -265,7 +283,11 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
             }
         }
     }
-    CompositionLocalProvider(LocalGlass provides GlassEnvironment(frame, viewport, appearance), LocalHomeClock provides now) {
+    val modalProgress by animateFloatAsState(if (sheet != null && !opaqueScreen) 1f else 0f,
+        if (appearance.reducedEffects) tween(0) else tween(250), label = "backdrop")
+    val wallpaperText = if ((frame?.brightness ?: 0f) * (1f - appearance.wallpaperDim) > .62f) Color(0xff151518) else Color.White
+    CompositionLocalProvider(LocalGlass provides GlassEnvironment(frame, viewport, appearance), LocalHomeClock provides now,
+        LocalGlassContentColor provides wallpaperText) {
         Box(Modifier.fillMaxSize().testTag("launcher_root").semantics {
             this[LauncherReadyKey] = ui.ready && frame != null
             this[HomeRowsKey] = geometry.rows
@@ -276,14 +298,15 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                 val origin = coordinates.positionInWindow()
                 viewport = Viewport(coordinates.size.width.toFloat(), coordinates.size.height.toFloat(),
                     origin.x + screen[0] - window[0], origin.y + screen[1] - window[1])
+                model.wallpaperViewport(coordinates.size.width, coordinates.size.height)
                 rootPosition = coordinates.positionInRoot()
             }) {
             frame?.let { Image(it.sharp.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
-            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = .08f), Color.Transparent, Color.Black.copy(alpha = .13f)))))
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = appearance.wallpaperDim)))
             Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.displayCutout))
                 .padding(top = if (editing) 42.dp else 9.dp)
                 .then(if (sheet != null) Modifier.clearAndSetSemantics {} else Modifier)
-                .blur(if (sheet != null && !opaqueScreen && !appearance.reducedEffects) 18.dp else 0.dp)) {
+                .blur(if (appearance.reducedEffects) 0.dp else (modalProgress * 22).dp)) {
                 Box(Modifier.weight(1f).fillMaxWidth().testTag("home_workspace")
                     .pointerInput(onHomePage, sheet) {
                         detectTapGestures(onLongPress = { if (sheet == null && onHomePage) {
@@ -330,7 +353,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                                             }
                                         }
                                     }
-                                    if (entries.isEmpty() && !withWidgets) Text("Desliza hacia la izquierda para ver tus apps", color = Color.White.copy(alpha = .7f),
+                                    if (entries.isEmpty() && !withWidgets) Text("Swipe left to see your apps", color = Color.White.copy(alpha = .7f),
                                         fontSize = 14.sp, modifier = Modifier.padding(top = 40.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                                 }
                             }
@@ -345,10 +368,10 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                                     Box(Modifier.size(6.dp).background(Color.White.copy(alpha = if (index + 1 == pager.currentPage) 1f else .35f), CircleShape))
                                 }
                             }
-                        } else GlassPanel(Modifier.testTag("library_button").clickable { openSearch() }, radius = 18f, tint = .1f) {
+                        } else GlassPanel(Modifier.testTag("library_button").clickable { openSearch() }, radius = 18f, tint = .1f, interactive = true) {
                             Row(Modifier.padding(horizontal = 14.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Outlined.Search, null, Modifier.size(14.dp), tint = Color.White)
-                                Text("Buscar", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 5.dp))
+                                Text("Search", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 5.dp))
                             }
                         }
                     }
@@ -358,7 +381,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                             repeat(DOCK_SLOTS) { slot ->
                                 val id = ui.layout.dock.getOrNull(slot)
                                 if (id == null) Box(Modifier.weight(1f).fillMaxHeight().clickable { openSearch() }, contentAlignment = Alignment.Center) {
-                                    if (editing) Icon(Icons.Outlined.Add, "Añadir al dock", tint = Color.White.copy(alpha = .6f))
+                                    if (editing) Icon(Icons.Outlined.Add, "Add to Dock", tint = Color.White.copy(alpha = .6f))
                                 } else key(id) {
                                     LauncherTile(HomeEntry.App(id), apps, minOf(geometry.iconSize, 62f).dp, false,
                                         Modifier.weight(1f).fillMaxHeight(), editing, drag?.entry?.id == id,
@@ -374,11 +397,11 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
             }
             if (editing && sheet == null) Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 18.dp),
                 horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                GlassPanel(radius = 20f) { Text("Añadir widgets", color = Color.White, fontSize = 13.sp,
+                GlassPanel(radius = 20f) { Text("Add Widgets", color = Color.White, fontSize = 13.sp,
                     modifier = Modifier.clickable { sheet = Sheet.Widgets }.padding(horizontal = 14.dp, vertical = 10.dp)) }
                 Row {
-                    IconButton(onClick = { sheet = Sheet.Settings }, modifier = Modifier.testTag("settings_button")) { Icon(Icons.Outlined.Settings, "Ajustes", tint = Color.White) }
-                    GlassPanel(radius = 20f) { Text("OK", color = Color.White, fontWeight = FontWeight.SemiBold,
+                    IconButton(onClick = { sheet = Sheet.Settings }, modifier = Modifier.testTag("settings_button")) { Icon(Icons.Outlined.Settings, "Settings", tint = Color.White) }
+                    GlassPanel(radius = 20f) { Text("Done", color = Color.White, fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.testTag("edit_done").clickable { editing = false }.padding(horizontal = 17.dp, vertical = 10.dp)) }
                 }
             }
@@ -388,22 +411,34 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                     IntOffset((session.position.x - rootPosition.x - px / 2).roundToInt(), (session.position.y - rootPosition.y - px / 2).roundToInt()) })
             }
             AnimatedContent(sheet, transitionSpec = {
-                val enter = if (appearance.reducedEffects) 0 else 180
-                val exit = if (appearance.reducedEffects) 0 else 120
-                (fadeIn(tween(enter)) + scaleIn(tween(enter), initialScale = .96f)).togetherWith(fadeOut(tween(exit)))
+                if (appearance.reducedEffects) EnterTransition.None togetherWith ExitTransition.None
+                else {
+                    val enter = when (targetState) {
+                        is Sheet.Folder -> scaleIn(spring(dampingRatio = .88f, stiffness = 420f), initialScale = .35f, transformOrigin = folderAnchor)
+                        is Sheet.Category -> scaleIn(spring(dampingRatio = .9f, stiffness = 420f), initialScale = .86f)
+                        Sheet.Search -> slideInVertically(spring(dampingRatio = .95f, stiffness = 550f)) { -it / 14 }
+                        Sheet.Controls -> slideInVertically(spring(dampingRatio = .92f, stiffness = 400f)) { -it / 5 }
+                        else -> slideInVertically(spring(dampingRatio = .96f, stiffness = 420f)) { it / 8 }
+                    }
+                    (fadeIn(tween(200)) + enter).togetherWith(fadeOut(tween(160)) + scaleOut(tween(200), targetScale = .98f))
+                }
             }, modifier = Modifier.fillMaxSize(), label = "surface") { current ->
                 if (current != null) {
                     // Consume taps in modal gaps as well as on its controls.
                     // A transparent/blurred background must never launch an app.
                     Box(Modifier.fillMaxSize().pointerInput(current) { detectTapGestures(onTap = {}) }
-                        .background(if (opaqueScreen) Color.Transparent else Color.Black.copy(alpha = .22f)))
+                        .background(if (current == Sheet.Settings || current == Sheet.Widgets || current == Sheet.Wallpaper || current == Sheet.Licenses)
+                            Color.Transparent else Color.Black.copy(alpha = .32f)))
                     when (current) {
                         Sheet.Search -> Spotlight(ui.apps, apps, suggestions, { focusManager.clearFocus(); keyboard?.hide(); sheet = null }, ::launch, { sheet = Sheet.Actions(HomeEntry.App(it)) })
                         Sheet.Settings -> SettingsSheet(ui, defaultHome, { sheet = null }, model::appearance, onSetHome,
-                            { photoPicker.launch(arrayOf("image/*")) }, { backupExport.launch("vitreo-layout-${BuildConfig.VERSION_NAME}.json") },
+                            { photoPicker.launch(arrayOf("image/*")) }, { model.preparePhoto() }, photoBusy,
+                            { backupExport.launch("vitreo-layout-${BuildConfig.VERSION_NAME}.json") },
                             { backupImport.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
                             { reportExport.launch("vitreo-diagnostics-${BuildConfig.VERSION_NAME}.json") }, model::refresh, model::resetLayout,
                             { sheet = Sheet.Licenses }, { sheet = Sheet.Widgets })
+                        Sheet.Wallpaper -> photoDraft?.let { draft -> WallpaperEditor(draft, photoBusy,
+                            { model.discardPhoto(); sheet = Sheet.Settings }, model::savePhoto) }
                         Sheet.Widgets -> WidgetGallery(widgets, appearance.showWidgets, { model.appearance(ui.layout.appearance.copy(showWidgets = it)) },
                             onConfigureWidget, { sheet = null }, model::message)
                         Sheet.Licenses -> LicensesSheet { sheet = Sheet.Settings }
@@ -420,9 +455,9 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                             { id, title -> model.renameFolder(id, title); sheet = null }, { model.dissolve(it); sheet = null }, {
                                 scope.launch { pager.scrollToPage(pager.currentPage.coerceIn(1, homePages)); editing = true; sheet = null }
                             })
-                        is Sheet.PairWith -> ChoiceSheet("Crear carpeta", ui.layout.home.filterIsInstance<HomeEntry.App>().filter { it.id != current.app }
+                        is Sheet.PairWith -> ChoiceSheet("Create Folder", ui.layout.home.filterIsInstance<HomeEntry.App>().filter { it.id != current.app }
                             .map { it.id to entryLabel(it, apps) }, { sheet = null }) { model.folder(current.app, it); sheet = null }
-                        is Sheet.AddToFolder -> ChoiceSheet("Mover a una carpeta", ui.layout.home.filterIsInstance<HomeEntry.Folder>().filter { current.app !in it.apps && it.apps.size < MAX_FOLDER_APPS }
+                        is Sheet.AddToFolder -> ChoiceSheet("Move to Folder", ui.layout.home.filterIsInstance<HomeEntry.Folder>().filter { current.app !in it.apps && it.apps.size < MAX_FOLDER_APPS }
                             .map { it.id to it.title }, { sheet = null }) { model.addToFolder(current.app, it); sheet = null }
                     }
                 }

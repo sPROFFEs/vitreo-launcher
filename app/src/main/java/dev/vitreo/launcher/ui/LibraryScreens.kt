@@ -49,21 +49,21 @@ fun Spotlight(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestion
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         keyboardActions = KeyboardActions(onSearch = { results.firstOrNull()?.let { onLaunch(it.id) } }),
                         decorationBox = { inner ->
-                            if (query.isEmpty()) Text("Buscar", color = Color.White.copy(alpha = .6f), fontSize = 18.sp)
+                            if (query.isEmpty()) Text("Search", color = Color.White.copy(alpha = .6f), fontSize = 18.sp)
                             inner()
                         })
-                    if (query.isNotEmpty()) Icon(Icons.Outlined.Cancel, "Borrar búsqueda",
+                    if (query.isNotEmpty()) Icon(Icons.Outlined.Cancel, "Clear Search",
                         Modifier.size(20.dp).clickable { query = "" }, tint = Color.White.copy(alpha = .6f))
                 }
             }
-            Text("Cancelar", color = Color.White, fontSize = 17.sp,
+            Text("Cancel", color = Color.White, fontSize = 17.sp,
                 modifier = Modifier.clickable(onClick = onClose).padding(start = 13.dp, top = 12.dp, bottom = 12.dp))
         }
-        Text(if (query.isBlank()) "Sugerencias" else "Aplicaciones", color = Color.White.copy(alpha = .7f),
+        Text(if (query.isBlank()) "Suggestions" else "Apps", color = Color.White.copy(alpha = .7f),
             fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 9.dp, bottom = 10.dp))
         if (results.isEmpty()) Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.TopCenter) {
-            Text("Sin resultados", color = Color.White.copy(alpha = .7f), modifier = Modifier.padding(top = 40.dp))
-        } else GlassPanel(Modifier.fillMaxWidth().heightIn(max = 370.dp), radius = 27f, tint = .2f) {
+            Text("No Results", color = Color.White.copy(alpha = .7f), modifier = Modifier.padding(top = 40.dp))
+        } else GlassPanel(Modifier.fillMaxWidth().heightIn(max = 370.dp), radius = 27f, material = GlassMaterial.Regular) {
             LazyVerticalGrid(GridCells.Fixed(4), Modifier.fillMaxWidth().padding(10.dp),
                 verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 items(results, key = { it.id }) { app ->
@@ -82,21 +82,22 @@ fun AppLibrary(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestio
     onSearch: () -> Unit, onLaunch: (String) -> Unit, onActions: (String) -> Unit,
     onCategory: (String, List<AppRecord>) -> Unit) {
     val groups = remember(records, suggestions) {
-        listOf("Sugerencias" to suggestions.take(8)) + records.groupBy { appGroup(it.label, it.packageName, it.category) }
+        listOf("Suggestions" to suggestions.take(8)) + records.groupBy { appGroup(it.label, it.packageName, it.category) }
             .toSortedMap().toList()
     }
     Column(Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 12.dp).testTag("app_library")) {
         GlassPanel(Modifier.fillMaxWidth().height(51.dp).clickable(onClick = onSearch), radius = 24f, tint = .2f) {
             Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                 Icon(Icons.Outlined.Search, null, Modifier.size(20.dp), tint = Color.White.copy(alpha = .8f))
-                Text("Biblioteca de apps", color = Color.White.copy(alpha = .85f), fontSize = 18.sp, modifier = Modifier.padding(start = 9.dp))
+                Text("App Library", color = Color.White.copy(alpha = .85f), fontSize = 18.sp, modifier = Modifier.padding(start = 9.dp))
             }
         }
         LazyVerticalGrid(GridCells.Fixed(2), Modifier.weight(1f).fillMaxWidth().padding(top = 22.dp),
             horizontalArrangement = Arrangement.spacedBy(18.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             items(groups, key = { it.first }) { (title, group) ->
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    GlassPanel(Modifier.fillMaxWidth().aspectRatio(1f).clickable { onCategory(title, group) }, radius = 29f, tint = .17f) {
+                    GlassPanel(Modifier.fillMaxWidth().aspectRatio(1f).testTag("library_category:$title")
+                        .clickable { onCategory(title, group) }, radius = 29f, tint = .26f) {
                         Column(Modifier.fillMaxSize().padding(11.dp), verticalArrangement = Arrangement.SpaceEvenly) {
                             repeat(2) { row ->
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -121,7 +122,7 @@ fun AppLibrary(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestio
                             }
                         }
                     }
-                    Text(title, color = Color.White, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+                    Text(title, color = LocalGlassContentColor.current, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
                 }
             }
             item(span = { GridItemSpan(2) }) { Spacer(Modifier.height(18.dp)) }
@@ -135,11 +136,18 @@ fun CategoryScreen(title: String, records: List<AppRecord>, apps: Map<String, Ap
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(title, Modifier.weight(1f), color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-            IconButton(onClick = onClose) { Icon(Icons.Outlined.Close, "Cerrar", tint = Color.White) }
+            IconButton(onClick = onClose) { Icon(Icons.Outlined.Close, "Close", tint = Color.White) }
         }
-        LazyVerticalGrid(GridCells.Fixed(4), Modifier.fillMaxWidth().padding(top = 30.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-            items(records, key = { it.id }) { app ->
-                LauncherTile(HomeEntry.App(app.id), apps, 60.dp, true, onClick = { onLaunch(app.id) }, onActions = { onActions(app.id) })
+        Text("${records.size} apps", color = Color.White.copy(alpha = .8f), fontSize = 14.sp,
+            modifier = Modifier.padding(top = 2.dp, bottom = 20.dp))
+        GlassPanel(Modifier.fillMaxWidth().weight(1f, fill = false).testTag("category_panel"),
+            radius = 34f, material = GlassMaterial.Regular) {
+            LazyVerticalGrid(GridCells.Adaptive(76.dp), Modifier.fillMaxWidth().padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 6.dp)) {
+                items(records, key = { it.id }) { app ->
+                    LauncherTile(HomeEntry.App(app.id), apps, 60.dp, true, Modifier.testTag("category_entry:${app.id}"),
+                        onClick = { onLaunch(app.id) }, onActions = { onActions(app.id) })
+                }
             }
         }
     }

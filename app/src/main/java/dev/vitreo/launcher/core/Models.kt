@@ -35,6 +35,8 @@ data class Appearance(
     val interfaceStyle: Int = 0,
     val showWidgets: Boolean = true,
     val iosIcons: Boolean = true,
+    val photoTransform: PhotoTransform = PhotoTransform(),
+    val wallpaperDim: Float = .12f,
 ) {
     fun sanitized() = copy(
         iconSize = if (iconSize.isFinite()) iconSize.coerceIn(40f, 68f) else 60f,
@@ -44,6 +46,8 @@ data class Appearance(
         iconStyle = iconStyle.coerceIn(0, 3),
         interfaceStyle = interfaceStyle.coerceIn(0, 2),
         tintColor = tintColor or 0xff000000.toInt(),
+        photoTransform = photoTransform.sanitized(),
+        wallpaperDim = if (wallpaperDim.isFinite()) wallpaperDim.coerceIn(0f, .6f) else .12f,
     )
 }
 
@@ -73,7 +77,7 @@ data class LauncherState(
                         when (apps.size) {
                             0 -> null
                             1 -> HomeEntry.App(apps.first())
-                            else -> entry.copy(title = entry.title.trim().take(48).ifBlank { "Carpeta" }, apps = apps)
+                            else -> entry.copy(title = entry.title.trim().take(48).ifBlank { "Folder" }, apps = apps)
                         }
                     }
                 }

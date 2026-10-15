@@ -13,6 +13,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -28,6 +29,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -48,7 +51,7 @@ fun HomeWidgets(now: Long, modifier: Modifier = Modifier, onClock: () -> Unit, o
     val timeLabel = DateFormat.getTimeFormat(LocalContext.current).format(Date(now))
     Row(modifier.fillMaxWidth().padding(top = 5.dp, bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            GlassPanel(Modifier.weight(1f).fillMaxWidth().semantics { contentDescription = "Reloj, $timeLabel" }
+            GlassPanel(Modifier.weight(1f).fillMaxWidth().semantics { contentDescription = "Clock, $timeLabel" }
                 .clickable(onClick = onClock), radius = 28f, tint = .1f) {
                 Canvas(Modifier.fillMaxSize().padding(16.dp)) {
                     val r = min(size.width, size.height) * .48f
@@ -72,19 +75,19 @@ fun HomeWidgets(now: Long, modifier: Modifier = Modifier, onClock: () -> Unit, o
                     drawCircle(Color(0xffff9f0a), 3.dp.toPx(), center)
                 }
             }
-            Text("Reloj", color = Color.White, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+            Text("Clock", color = LocalGlassContentColor.current, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
         }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
             Column(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(Color(0xfff9f9f6))
                 .clickable(onClick = onCalendar).padding(15.dp), verticalArrangement = Arrangement.SpaceBetween) {
-                Text(SimpleDateFormat("EEEE", Locale.getDefault()).format(Date(now)).uppercase(),
+                Text(SimpleDateFormat("EEEE", Locale.ENGLISH).format(Date(now)).uppercase(Locale.ENGLISH),
                     fontSize = 12.sp, color = Color(0xffff453a), fontWeight = FontWeight.Medium, maxLines = 1)
                 Text(calendar.get(Calendar.DAY_OF_MONTH).toString(), fontSize = 54.sp,
                     fontWeight = FontWeight.Light, color = Color(0xff171719))
-                Text(SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(Date(now)), fontSize = 12.sp,
+                Text(SimpleDateFormat("MMMM yyyy", Locale.ENGLISH).format(Date(now)), fontSize = 12.sp,
                     color = Color(0xff757579), maxLines = 1)
             }
-            Text("Calendario", color = Color.White, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+            Text("Calendar", color = LocalGlassContentColor.current, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
         }
     }
 }
@@ -109,7 +112,7 @@ fun NativeWidget(controller: WidgetController, id: Int) {
         Row(Modifier.fillMaxWidth().padding(start = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(provider.loadLabel(context.packageManager), Modifier.weight(1f), fontSize = 12.sp, color = Color.White.copy(alpha = .8f))
             IconButton(onClick = { controller.remove(id) }, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Outlined.RemoveCircleOutline, "Eliminar widget", Modifier.size(19.dp), tint = Color.White.copy(alpha = .7f))
+                Icon(Icons.Outlined.RemoveCircleOutline, "Remove Widget", Modifier.size(19.dp), tint = Color.White.copy(alpha = .7f))
             }
         }
     }
@@ -120,6 +123,10 @@ fun WidgetGallery(controller: WidgetController, showHomeWidgets: Boolean, onTogg
     onConfigure: (AppWidgetHost, Int, (Boolean) -> Unit) -> Unit, onClose: () -> Unit, onError: (String) -> Unit) {
     val context = LocalContext.current
     val providers = remember { controller.providers() }
+    var query by remember { mutableStateOf("") }
+    val filtered = remember(providers, query) { providers.filter {
+        dev.vitreo.launcher.core.searchKey(query) in dev.vitreo.launcher.core.searchKey(it.loadLabel(context.packageManager))
+    } }
     fun finish(id: Int, accepted: Boolean) {
         if (controller.finishAdd(id, accepted)) onClose()
     }
@@ -141,15 +148,29 @@ fun WidgetGallery(controller: WidgetController, showHomeWidgets: Boolean, onTogg
         SheetHeader("Widgets", onClose, "widgets_title")
         LazyColumn(Modifier.weight(1f).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
-                Text("Añade lo que te importa", fontSize = 28.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 15.dp))
-                IosGroup { IosToggleRow("Reloj y calendario en Inicio", showHomeWidgets, onChange = onToggleHome) }
-                IosSectionLabel("Widgets de tus aplicaciones")
-                Text("Se añaden a Hoy, a la izquierda de Inicio.", fontSize = 13.sp,
+                Text("Add what matters", fontSize = 28.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 15.dp))
+                CompositionLocalProvider(LocalGlassContentColor provides MaterialTheme.colorScheme.onSurface) {
+                    HomeWidgets(LocalHomeClock.current, Modifier.height(190.dp), {}, {})
+                }
+                IosGroup { IosToggleRow("Clock & Calendar on Home", showHomeWidgets, onChange = onToggleHome) }
+                IosSectionLabel("Widgets from your apps")
+                Text("Add widgets to Today, to the left of Home.", fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 17.dp, bottom = 8.dp))
-            }
-            items(providers, key = { it.provider.flattenToString() }) { info ->
                 IosGroup {
-                    IosRow(info.loadLabel(context.packageManager), "Añadir", enabled = controller.ids.size < 8 && controller.pendingId < 0) {
+                    Row(Modifier.padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        BasicTextField(query, { query = it.take(100) }, Modifier.weight(1f).padding(start = 10.dp).testTag("widget_search"),
+                            singleLine = true, textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp),
+                            decorationBox = { inner -> if (query.isEmpty()) Text("Search Widgets", color = MaterialTheme.colorScheme.onSurfaceVariant); inner() })
+                    }
+                }
+                if (controller.ids.size >= 8) Text("You have 8 widgets. Remove one from Today to add another.", fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(12.dp))
+            }
+            items(filtered, key = { it.provider.flattenToString() }) { info ->
+                IosGroup {
+                    WidgetPreview(info)
+                    IosRow(info.loadLabel(context.packageManager), "Add", enabled = controller.ids.size < 8 && controller.pendingId < 0) {
                         try {
                             val id = controller.beginAdd() ?: return@IosRow
                             if (controller.manager.bindAppWidgetIdIfAllowed(id, info.provider)) configure(id)
@@ -157,11 +178,14 @@ fun WidgetGallery(controller: WidgetController, showHomeWidgets: Boolean, onTogg
                                 .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
                                 .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, info.provider)
                                 .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER_PROFILE, info.profile))
-                        } catch (_: Exception) { controller.cancelAdd(); onError("No se pudo añadir el widget.") }
+                        } catch (_: Exception) { controller.cancelAdd(); onError("Could not add this widget.") }
                     }
+                    Text("${info.targetCellWidth.coerceAtLeast(1)} × ${info.targetCellHeight.coerceAtLeast(1)} · Today", fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 17.dp, bottom = 14.dp))
                 }
             }
-            if (providers.isEmpty()) item { Text("Los widgets de las apps que instales aparecerán aquí.",
+            if (filtered.isEmpty() && providers.isNotEmpty()) item { Text("No matching widgets", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(15.dp)) }
+            if (providers.isEmpty()) item { Text("Widgets from your installed apps will appear here.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(15.dp)) }
             item { Spacer(Modifier.height(24.dp)) }
         }

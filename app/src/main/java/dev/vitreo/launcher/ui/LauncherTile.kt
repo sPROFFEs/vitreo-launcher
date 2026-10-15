@@ -4,6 +4,8 @@ package dev.vitreo.launcher.ui
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Android
@@ -88,23 +90,29 @@ fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, l
         value
     } else 0f
     val label = entryLabel(entry, apps)
+    val interactions = remember { MutableInteractionSource() }
+    val pressed by interactions.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed && !editing && !appearance.reducedEffects) .91f else 1f,
+        if (appearance.reducedEffects) tween(0) else spring(dampingRatio = .72f, stiffness = 650f), label = "icon press")
+    val contentColor = LocalGlassContentColor.current
     Column(modifier.onGloballyPositioned { onBounds(it.boundsInRoot()) }
         .semantics {
             if (!labels) contentDescription = label
-            if (entry is HomeEntry.App && apps[entry.id] == null) stateDescription = "No disponible"
-        }.combinedClickable(role = Role.Button, onClick = onClick,
-            onLongClickLabel = "Acciones de $label", onLongClick = if (editing) null else onActions)
+            if (entry is HomeEntry.App && apps[entry.id] == null) stateDescription = "Unavailable"
+        }.combinedClickable(interactionSource = interactions, indication = null, role = Role.Button, onClick = onClick,
+            onLongClickLabel = "Actions for $label", onLongClick = if (editing) null else onActions)
         .alpha(if (dragging) .2f else if (entry is HomeEntry.App && apps[entry.id] == null) .5f else 1f)
         .padding(top = 7.dp, bottom = 5.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.rotate(angle)) {
+        Box(Modifier.rotate(angle).scale(scale)) {
             EntryIcon(entry, apps, iconSize)
             if (editing && onRemove != null) Box(Modifier.offset((-5).dp, (-5).dp).size(23.dp)
                 .background(Color(0xffd5d7db), CircleShape).clickable(onClick = onRemove), contentAlignment = Alignment.Center) {
-                Icon(Icons.Outlined.Remove, "Quitar $label", Modifier.size(17.dp), tint = Color(0xff303238))
+                Icon(Icons.Outlined.Remove, "Remove $label", Modifier.size(17.dp), tint = Color(0xff303238))
             }
         }
         if (labels) Text(label, Modifier.fillMaxWidth().padding(top = 6.dp, start = 1.dp, end = 1.dp),
             maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
-            style = TextStyle(fontSize = 12.sp, color = Color.White, shadow = Shadow(Color.Black.copy(alpha = .5f), blurRadius = 5f)))
+            style = TextStyle(fontSize = 12.sp, color = contentColor,
+                shadow = if (contentColor == Color.White) Shadow(Color.Black.copy(alpha = .6f), blurRadius = 6f) else null))
     }
 }

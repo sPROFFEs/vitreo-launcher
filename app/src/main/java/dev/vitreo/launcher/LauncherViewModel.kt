@@ -40,6 +40,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val ui: StateFlow<UiState> = _ui.asStateFlow()
     private val _wallpaper = MutableStateFlow<WallpaperFrame?>(null)
     val wallpaper: StateFlow<WallpaperFrame?> = _wallpaper.asStateFlow()
+    data class PhotoDraft(val frame: WallpaperFrame, val transform: PhotoTransform)
+    private val _photoDraft = MutableStateFlow<PhotoDraft?>(null)
+    val photoDraft: StateFlow<PhotoDraft?> = _photoDraft.asStateFlow()
+    private val _photoBusy = MutableStateFlow(false)
+    val photoBusy: StateFlow<Boolean> = _photoBusy.asStateFlow()
+    private var photoJob: Job? = null
+    private var wallpaperWidth = 720
+    private var wallpaperHeight = 1600
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val messages: SharedFlow<String> = _messages.asSharedFlow()
     private val saves = Channel<LauncherState>(Channel.CONFLATED)
@@ -66,7 +74,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 for (state in saves) {
                     try { store.save(state) }
                     catch (e: CancellationException) { throw e }
-                    catch (e: Exception) { _messages.tryEmit("No se guardaron los cambios: ${e.javaClass.simpleName}.") }
+                    catch (e: Exception) { _messages.tryEmit("Changes could not be saved: ${e.javaClass.simpleName}.") }
                 }
             } finally { persistenceScope.cancel() }
         }
@@ -103,7 +111,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 _ui.value = _ui.value.copy(ready = true)
-                _messages.emit("No se pudo actualizar la lista de aplicaciones. Puedes reintentar en Ajustes.")
+                _messages.emit("Could not refresh your apps. Try again in Settings.")
             }
         }
     }
@@ -114,7 +122,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val state = next.sanitized()
         _ui.value = _ui.value.copy(layout = state)
         saves.trySend(state)
-        if (old.appearance.palette != state.appearance.palette || old.appearance.usePhoto != state.appearance.usePhoto) reloadWallpaper()
+        if (old.appearance.palette != state.appearance.palette || old.appearance.usePhoto != state.appearance.usePhoto ||
+            old.appearance.photoTransform != state.appearance.photoTransform) reloadWallpaper()
     }
 
     fun appearance(value: Appearance) = commit(_ui.value.layout.copy(appearance = value))
@@ -124,7 +133,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun removeApp(appId: String) = commit(LayoutOps.removeApp(_ui.value.layout, appId))
     fun pinDock(appId: String) {
         if (_ui.value.layout.dock.size >= DOCK_SLOTS && appId !in _ui.value.layout.dock) {
-            message("El dock tiene cuatro plazas. Mueve una app al escritorio primero."); return
+            message("The dock holds four apps. Move one to Home first."); return
         }
         commit(LayoutOps.pinDock(_ui.value.layout, appId))
     }
@@ -151,28 +160,64 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val appearance = _ui.value.layout.appearance
         wallpaperJob = viewModelScope.launch {
             try {
-                val frame = withContext(Dispatchers.IO) { wallpaperStore.load(appearance.usePhoto, appearance.palette) }
+                val frame = withContext(Dispatchers.IO) { wallpaperStore.load(appearance.usePhoto, appearance.palette,
+                    appearance.photoTransform, wallpaperWidth, wallpaperHeight) }
                 ensureActive(); _wallpaper.value = frame
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { message("No se pudo preparar el fondo. Prueba otra imagen.") }
+            catch (e: Exception) { message("Could not prepare the wallpaper. Try another image.") }
         }
     }
 
-    fun importPhoto(uri: Uri) {
+    fun wallpaperViewport(width: Int, height: Int) {
+        if (width <= 0 || height <= 0 || width == wallpaperWidth && height == wallpaperHeight) return
+        wallpaperWidth = width; wallpaperHeight = height
+        if (_ui.value.layout.appearance.usePhoto) reloadWallpaper()
+    }
+
+    fun preparePhoto(uri: Uri? = null) {
+        if (_photoBusy.value) return
+        photoJob?.cancel()
+        photoJob = viewModelScope.launch {
+            _photoBusy.value = true
+            try {
+                val source = withContext(Dispatchers.IO) {
+                    val bitmap = if (uri != null) wallpaperStore.decodePhoto(uri) else wallpaperStore.readPhoto()
+                    wallpaperStore.frame(checkNotNull(bitmap))
+                }
+                ensureActive()
+                _photoDraft.value = PhotoDraft(source, if (uri == null) _ui.value.layout.appearance.photoTransform else PhotoTransform())
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { message("Could not open this photo. Your wallpaper has not changed.") }
+            finally { _photoBusy.value = false }
+        }
+    }
+
+    fun discardPhoto() {
+        if (_photoDraft.value == null) photoJob?.cancel()
+        _photoDraft.value = null
+    }
+
+    fun savePhoto(transform: PhotoTransform) {
+        val draft = _photoDraft.value ?: return
+        if (_photoBusy.value) return
+        _photoBusy.value = true
         viewModelScope.launch {
             try {
-                withContext(Dispatchers.IO) { wallpaperStore.importPhoto(uri) }
-                commit(_ui.value.layout.copy(appearance = _ui.value.layout.appearance.copy(usePhoto = true)))
-                reloadWallpaper() // Also handles replacing an already active photo.
-                message("Fondo guardado dentro de Vitreo.")
+                withContext(Dispatchers.IO) { wallpaperStore.savePhoto(draft.frame.sharp) }
+                commit(_ui.value.layout.copy(appearance = _ui.value.layout.appearance.copy(
+                    usePhoto = true, photoTransform = transform)))
+                reloadWallpaper()
+                _photoDraft.value = null
+                message("Wallpaper saved.")
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { message("No se pudo importar la imagen. Se conserva el fondo anterior.") }
+            catch (_: Exception) { message("Could not save this photo. Please try again.") }
+            finally { _photoBusy.value = false }
         }
     }
 
     fun exportLayout(uri: Uri) {
         val state = _ui.value.layout
-        writeDocument(uri, "Copia guardada.") {
+        writeDocument(uri, "Backup saved.") {
             // A portable layout is not permission to reopen a URI on another device.
             StateCodec.encode(state.copy(appearance = state.appearance.copy(usePhoto = false)))
         }
@@ -181,17 +226,17 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             try {
                 val state = withContext(Dispatchers.IO) {
-                    val stream = app.contentResolver.openInputStream(uri) ?: error("No se pudo abrir la copia.")
+                    val stream = app.contentResolver.openInputStream(uri) ?: error("Could not open this backup.")
                     stream.use { StateCodec.decode(StateStore.readLimited(it)) }
                 }
                 commit(LayoutOps.reconcile(state.copy(initialized = true,
                     appearance = state.appearance.copy(usePhoto = false)), _ui.value.apps.map { it.id }))
-                message("Copia importada. El fondo de foto no forma parte de la copia.")
+                message("Layout imported. Photos are not included in backups.")
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { message("Copia rechazada. El escritorio anterior no se ha modificado.") }
+            catch (e: Exception) { message("Backup rejected. Your current layout has not changed.") }
         }
     }
-    fun exportDiagnostics(uri: Uri) = writeDocument(uri, "Informe guardado. Rev\u00edsalo antes de compartirlo.") {
+    fun exportDiagnostics(uri: Uri) = writeDocument(uri, "Report saved. Review it before sharing.") {
         JSONObject().apply {
             put("app", "Vitreo"); put("version", BuildConfig.VERSION_NAME)
             put("applicationId", BuildConfig.APPLICATION_ID); put("buildType", BuildConfig.BUILD_TYPE)
@@ -209,12 +254,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             try {
                 withContext(Dispatchers.IO) {
                     val bytes = contents().toByteArray(Charsets.UTF_8)
-                    val stream = app.contentResolver.openOutputStream(uri, "wt") ?: error("No se pudo escribir el documento.")
+                    val stream = app.contentResolver.openOutputStream(uri, "wt") ?: error("Could not write this document.")
                     stream.use { it.write(bytes) }
                 }
                 message(success)
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { message("No se pudo guardar el documento.") }
+            catch (e: Exception) { message("Could not save this document.") }
         }
     }
 

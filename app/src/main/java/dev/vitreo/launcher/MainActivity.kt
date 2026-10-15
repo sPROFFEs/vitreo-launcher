@@ -55,24 +55,24 @@ class MainActivity : ComponentActivity() {
             val role = getSystemService(RoleManager::class.java)
             if (role != null && role.isRoleAvailable(RoleManager.ROLE_HOME)) roleRequest.launch(role.createRequestRoleIntent(RoleManager.ROLE_HOME))
             else startActivity(Intent(Settings.ACTION_HOME_SETTINGS))
-        } catch (e: Exception) { model.message("Abre Ajustes de Android > Apps predeterminadas > App de inicio.") }
+        } catch (e: Exception) { model.message("Open Android Settings > Default apps > Home app.") }
     }
     private fun launchApp(id: String) {
         // Only an activity from the live launchable-app catalog can be launched.
         if (model.ui.value.apps.none { it.id == id }) {
-            model.message("La app no est\u00e1 disponible en este perfil. Puedes quitar su acceso directo."); return
+            model.message("This app is unavailable in this profile. You can remove its shortcut."); return
         }
         val component = ComponentName.unflattenFromString(id) ?: return
         try {
             startActivity(Intent.makeMainActivity(component).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED))
             model.recordLaunch(id)
         }
-        catch (e: Exception) { model.message("Android no ha permitido abrir esta aplicaci\u00f3n.") }
+        catch (e: Exception) { model.message("Android could not open this app.") }
     }
     private fun appInfo(id: String) {
         val app = model.ui.value.apps.find { it.id == id } ?: return
         try { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", app.packageName, null))) }
-        catch (e: Exception) { model.message("No se pudo abrir la informaci\u00f3n de la app.") }
+        catch (e: Exception) { model.message("Could not open App Info.") }
     }
     private fun configureWidget(host: AppWidgetHost, id: Int, result: (Boolean) -> Unit) {
         val request = try { widgetConfigurations.register(result) }

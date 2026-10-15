@@ -28,21 +28,21 @@ fun TodayPage(now: Long, widgets: WidgetController, suggestions: List<AppRecord>
     onCalendar: () -> Unit, onLaunch: (String) -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 21.dp).testTag("today_page")) {
         Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Hoy", Modifier.weight(1f), fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            IconButton(onClick = onWidgets) { Icon(Icons.Outlined.Add, "Añadir widgets", tint = Color.White) }
-            IconButton(onClick = onSettings, modifier = Modifier.testTag("settings_button")) { Icon(Icons.Outlined.Settings, "Ajustes", tint = Color.White) }
+            Text("Today", Modifier.weight(1f), fontSize = 34.sp, fontWeight = FontWeight.Bold, color = LocalGlassContentColor.current)
+            IconButton(onClick = onWidgets) { Icon(Icons.Outlined.Add, "Add Widgets", tint = LocalGlassContentColor.current) }
+            IconButton(onClick = onSettings, modifier = Modifier.testTag("settings_button")) { Icon(Icons.Outlined.Settings, "Settings", tint = LocalGlassContentColor.current) }
         }
         GlassPanel(Modifier.fillMaxWidth().height(47.dp).clickable(onClick = onSearch), radius = 22f, tint = .13f) {
             Row(Modifier.fillMaxSize().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.Search, null, Modifier.size(21.dp), tint = Color.White.copy(alpha = .8f))
-                Text("Buscar", color = Color.White.copy(alpha = .7f), fontSize = 17.sp, modifier = Modifier.padding(start = 8.dp))
+                Text("Search", color = Color.White.copy(alpha = .7f), fontSize = 17.sp, modifier = Modifier.padding(start = 8.dp))
             }
         }
         Spacer(Modifier.height(17.dp))
         HomeWidgets(now, Modifier.height(207.dp), onClock, onCalendar)
         GlassPanel(Modifier.fillMaxWidth(), radius = 28f, tint = .12f) {
             Column(Modifier.padding(14.dp)) {
-                Text("Sugerencias", color = Color.White.copy(alpha = .8f), fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 6.dp, bottom = 6.dp))
+                Text("Suggestions", color = Color.White.copy(alpha = .8f), fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 6.dp, bottom = 6.dp))
                 Row(Modifier.fillMaxWidth()) {
                     suggestions.take(4).forEach { app ->
                         LauncherTile(HomeEntry.App(app.id), apps, 53.dp, true, Modifier.weight(1f), onClick = { onLaunch(app.id) }, onActions = {})
@@ -53,7 +53,7 @@ fun TodayPage(now: Long, widgets: WidgetController, suggestions: List<AppRecord>
         Spacer(Modifier.height(18.dp))
         widgets.ids.forEach { id -> androidx.compose.runtime.key(id) { NativeWidget(widgets, id); Spacer(Modifier.height(10.dp)) } }
         TextButton(onClick = onWidgets, modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = 15.dp)) {
-            Text("Añadir widgets", color = Color.White, fontSize = 15.sp)
+            Text("Add Widgets", color = Color.White, fontSize = 15.sp)
         }
         Spacer(Modifier.height(16.dp))
     }
@@ -61,7 +61,7 @@ fun TodayPage(now: Long, widgets: WidgetController, suggestions: List<AppRecord>
 
 @Composable
 private fun ControlTile(title: String, icon: ImageVector, modifier: Modifier = Modifier, active: Boolean = false, onClick: () -> Unit) {
-    GlassPanel(modifier.height(107.dp).clickable(onClick = onClick), radius = 28f, tint = .24f) {
+    GlassPanel(modifier.height(107.dp).clickable(onClick = onClick), radius = 28f, tint = .24f, interactive = true) {
         if (active) Box(Modifier.fillMaxSize().background(Color(0xff007aff).copy(alpha = .7f)))
         Column(Modifier.fillMaxSize().padding(17.dp), verticalArrangement = Arrangement.SpaceBetween) {
             Icon(icon, null, Modifier.size(29.dp), tint = Color.White)
@@ -78,9 +78,9 @@ fun ControlCenter(dark: Boolean, onClose: () -> Unit, onSystem: (String) -> Unit
         Row(Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 30.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(DateFormat.getTimeFormat(context).format(Date()), color = Color.White, fontSize = 44.sp, fontWeight = FontWeight.Light)
-                Text("Centro de control", color = Color.White.copy(alpha = .6f), fontSize = 14.sp)
+                Text("Control Center", color = Color.White.copy(alpha = .6f), fontSize = 14.sp)
             }
-            IconButton(onClick = onClose) { Icon(Icons.Outlined.Close, "Cerrar", tint = Color.White) }
+            IconButton(onClick = onClose) { Icon(Icons.Outlined.Close, "Close", tint = Color.White) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             ControlTile("Internet", Icons.Outlined.Wifi, Modifier.weight(1f)) { onSystem(Settings.Panel.ACTION_INTERNET_CONNECTIVITY) }
@@ -88,16 +88,16 @@ fun ControlCenter(dark: Boolean, onClose: () -> Unit, onSystem: (String) -> Unit
         }
         Spacer(Modifier.height(14.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            ControlTile("Sonido", Icons.Outlined.VolumeUp, Modifier.weight(1f)) { onSystem(Settings.Panel.ACTION_VOLUME) }
-            ControlTile("Pantalla", Icons.Outlined.BrightnessMedium, Modifier.weight(1f)) { onSystem(Settings.ACTION_DISPLAY_SETTINGS) }
+            ControlTile("Sound", Icons.Outlined.VolumeUp, Modifier.weight(1f)) { onSystem(Settings.Panel.ACTION_VOLUME) }
+            ControlTile("Display", Icons.Outlined.BrightnessMedium, Modifier.weight(1f)) { onSystem(Settings.ACTION_DISPLAY_SETTINGS) }
         }
         Spacer(Modifier.height(14.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            ControlTile("Modo oscuro", Icons.Outlined.DarkMode, Modifier.weight(1f), active = dark) { onDark(!dark) }
+            ControlTile("Dark Mode", Icons.Outlined.DarkMode, Modifier.weight(1f), active = dark) { onDark(!dark) }
             ControlTile("Widgets", Icons.Outlined.Widgets, Modifier.weight(1f), onClick = onWidgets)
         }
         Spacer(Modifier.height(14.dp))
-        ControlTile("Ajustes de Vitreo", Icons.Outlined.Settings, Modifier.fillMaxWidth(), onClick = onSettings)
+        ControlTile("Vitreo Settings", Icons.Outlined.Settings, Modifier.fillMaxWidth(), onClick = onSettings)
         Spacer(Modifier.height(30.dp))
     }
 }

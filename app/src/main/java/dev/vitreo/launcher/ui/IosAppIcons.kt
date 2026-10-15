@@ -86,7 +86,7 @@ fun IosAppIcon(kind: String, style: Int, tint: Color, modifier: Modifier = Modif
                 val time = LocalHomeClock.current
                 val cal = remember(time) { Calendar.getInstance().apply { timeInMillis = time } }
                 Column(Modifier.fillMaxSize().padding(top = (7 * scale).dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    Text(cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.SHORT, Locale.getDefault()).orEmpty().uppercase(),
+                    Text(cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.SHORT, Locale.ENGLISH).orEmpty().uppercase(Locale.ENGLISH),
                         color = if (style == 0) Color(0xffff453a) else ink, fontSize = (9 * textScale).sp, fontWeight = FontWeight.Medium, maxLines = 1)
                     Text(cal.get(Calendar.DAY_OF_MONTH).toString(), color = if (style == 0) Color(0xff171719) else ink,
                         fontSize = (32 * textScale).sp, fontWeight = FontWeight.Light, lineHeight = (33 * textScale).sp)

@@ -4,6 +4,12 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.RuntimeShader
 import android.os.Build
+import android.graphics.Bitmap
+import android.graphics.Color as AndroidColor
+import android.net.Uri
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -18,6 +24,7 @@ import androidx.test.filters.SdkSuppress
 import dev.vitreo.launcher.graphics.GlassDiagnostics
 import dev.vitreo.launcher.ui.LauncherReadyKey
 import dev.vitreo.launcher.ui.HomeRowsKey
+import dev.vitreo.launcher.ui.PhotoZoomKey
 import dev.vitreo.launcher.data.AppCatalog
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
@@ -25,6 +32,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class LauncherSmokeTest {
@@ -65,7 +73,7 @@ class LauncherSmokeTest {
         val first = icons[0]; val second = icons[1]
         val rows = compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[HomeRowsKey]
         compose.onNodeWithTag(first).performTouchInput { longClick() }
-        compose.onNodeWithText("Editar pantalla de inicio").performClick()
+        compose.onNodeWithText("Edit Home Screen").performClick()
         assertEquals("Edit mode must preserve the grid", rows,
             compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[HomeRowsKey])
         val source = compose.onNodeWithTag(first).fetchSemanticsNode().boundsInRoot.center
@@ -77,7 +85,7 @@ class LauncherSmokeTest {
         compose.onNodeWithTag("launcher_root").performTouchInput {
             down(source - root); advanceEventTime(700); moveTo(target - root, delayMillis = 200); up()
         }
-        compose.onNodeWithText("OK").performClick()
+        compose.onNodeWithText("Done").performClick()
         compose.onNodeWithTag("edit_done").performClick()
         assertTrue("A modal must not reorder icons behind it",
             compose.onNodeWithTag(first).fetchSemanticsNode().boundsInRoot.left <
@@ -88,7 +96,7 @@ class LauncherSmokeTest {
     @Test fun leavingHomeEndsEditMode() {
         awaitReady()
         compose.onNodeWithTag(homeIconTags().first()).performTouchInput { longClick() }
-        compose.onNodeWithText("Editar pantalla de inicio").performClick()
+        compose.onNodeWithText("Edit Home Screen").performClick()
         compose.onNodeWithTag("home_workspace").performTouchInput { swipeRight() }
         compose.onNodeWithTag("today_page").assertIsDisplayed()
         compose.onNodeWithTag("edit_done").assertDoesNotExist()
@@ -102,7 +110,7 @@ class LauncherSmokeTest {
         compose.onNodeWithTag("library_title").assertIsDisplayed()
         assertEquals("Showing the IME must not resize the home grid", rows,
             compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[HomeRowsKey])
-        compose.onNodeWithText("Cancelar").performClick()
+        compose.onNodeWithText("Cancel").performClick()
         compose.onNodeWithTag("dock").assertIsDisplayed()
         assertEquals(rows, compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[HomeRowsKey])
     }
@@ -142,7 +150,7 @@ class LauncherSmokeTest {
         awaitReady()
         compose.onNodeWithTag("library_button").performClick()
         compose.onNodeWithTag("search_field").performTextInput("zzzz-no-such-vitreo-app-193847")
-        compose.onNodeWithText("Sin resultados").assertExists()
+        compose.onNodeWithText("No Results").assertExists()
     }
     @Test fun homeIntentClosesOpenSheet() {
         awaitReady()
@@ -180,20 +188,94 @@ class LauncherSmokeTest {
                 compose.onNodeWithTag("home_workspace").performTouchInput { swipeLeft() }
         }
         compose.onNodeWithTag("app_library").assertIsDisplayed()
-        compose.onNodeWithText("Biblioteca de apps").assertExists()
+        compose.onNodeWithText("App Library").assertExists()
     }
     @Test fun widgetGalleryOpensFromToday() {
         awaitReady()
         compose.onNodeWithTag("home_workspace").performTouchInput { swipeRight() }
-        compose.onNodeWithContentDescription("Añadir widgets").performClick()
+        compose.onNodeWithContentDescription("Add Widgets").performClick()
         compose.onNodeWithTag("widgets_title").assertExists()
-        compose.onNodeWithText("Reloj y calendario en Inicio").assertExists()
+        compose.onNodeWithText("Clock & Calendar on Home").assertExists()
+    }
+
+    @Test fun libraryCategoryHasItsOwnMaterialAndReadableLabelsInBothThemes() {
+        awaitReady()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val original = model.ui.value.layout.appearance
+        try {
+            for (style in listOf(1, 2)) {
+                compose.runOnUiThread { model.appearance(original.copy(interfaceStyle = style)) }
+                repeat(10) {
+                    if (!compose.onNodeWithTag("app_library").isDisplayed())
+                        compose.onNodeWithTag("home_workspace").performTouchInput { swipeLeft() }
+                }
+                compose.onNodeWithTag("library_category:Suggestions").performClick()
+                compose.onNodeWithTag("category_panel").assertIsDisplayed()
+                val entry = compose.onAllNodes(SemanticsMatcher("category app") {
+                    it.config.getOrNull(SemanticsProperties.TestTag)?.startsWith("category_entry:") == true
+                }).fetchSemanticsNodes().first()
+                val id = entry.config[SemanticsProperties.TestTag].substringAfter("category_entry:")
+                val label = model.ui.value.apps.first { it.id == id }.label
+                val layouts = mutableListOf<TextLayoutResult>()
+                compose.onNodeWithText(label).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+                assertTrue(layouts.isNotEmpty())
+                assertEquals(if (style == 1) Color(0xff1c1c1e) else Color(0xfff5f5f7), layouts.first().layoutInput.style.color)
+                compose.onNodeWithContentDescription("Close").performClick()
+            }
+        } finally { compose.runOnUiThread { model.appearance(original) } }
+    }
+
+    private fun openPhotoEditor(model: LauncherViewModel): File {
+        val image = Bitmap.createBitmap(1600, 900, Bitmap.Config.ARGB_8888).apply { eraseColor(AndroidColor.rgb(40, 110, 180)) }
+        val file = File(compose.activity.cacheDir, "wallpaper-editor-test.png")
+        file.outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        compose.runOnUiThread { model.preparePhoto(Uri.fromFile(file)) }
+        compose.waitUntil(15_000) { compose.onAllNodesWithTag("wallpaper_editor").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitForIdle()
+        return file
+    }
+
+    @Test fun fittingAndCancellingPhotoPreservesTheCurrentWallpaper() {
+        awaitReady()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val before = model.ui.value.layout.appearance
+        val file = openPhotoEditor(model)
+        try {
+            compose.onNodeWithTag("wallpaper_fit").performClick()
+            assertTrue(compose.onNodeWithTag("wallpaper_editor").fetchSemanticsNode().config[PhotoZoomKey] < .5f)
+            compose.onNodeWithTag("wallpaper_fill").performClick()
+            assertEquals(1f, compose.onNodeWithTag("wallpaper_editor").fetchSemanticsNode().config[PhotoZoomKey])
+            compose.onNodeWithTag("wallpaper_cancel").performClick()
+            compose.onNodeWithTag("wallpaper_editor").assertDoesNotExist()
+            assertEquals(before, model.ui.value.layout.appearance)
+        } finally { file.delete() }
+    }
+
+    @Test fun fittedPhotoCanBeSavedAndAdjustedAgainFromTheOriginal() {
+        awaitReady()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val before = model.ui.value.layout.appearance
+        val file = openPhotoEditor(model)
+        try {
+            compose.onNodeWithTag("wallpaper_fit").performClick()
+            val zoom = compose.onNodeWithTag("wallpaper_editor").fetchSemanticsNode().config[PhotoZoomKey]
+            compose.onNodeWithTag("wallpaper_save").performClick()
+            compose.waitUntil(15_000) { model.photoDraft.value == null }
+            assertTrue(model.ui.value.layout.appearance.usePhoto)
+            assertEquals(zoom, model.ui.value.layout.appearance.photoTransform.zoom, .0001f)
+            compose.runOnUiThread { model.preparePhoto() }
+            compose.waitUntil(15_000) { model.photoDraft.value != null }
+            assertEquals(1600, model.photoDraft.value!!.frame.sharp.width)
+            assertEquals(900, model.photoDraft.value!!.frame.sharp.height)
+            assertEquals(zoom, model.photoDraft.value!!.transform.zoom, .0001f)
+            compose.onNodeWithTag("wallpaper_cancel").performClick()
+        } finally { compose.runOnUiThread { model.discardPhoto(); model.appearance(before) }; file.delete() }
     }
     @Test fun pullDownOpensSpotlight() {
         awaitReady()
         compose.onNodeWithTag("home_workspace").performTouchInput { swipeDown() }
         compose.onNodeWithTag("search_field").assertExists()
-        compose.onNodeWithText("Cancelar").performClick()
+        compose.onNodeWithText("Cancel").performClick()
         compose.onNodeWithTag("dock").assertIsDisplayed()
     }
 
@@ -204,7 +286,7 @@ class LauncherSmokeTest {
         }
         compose.onNodeWithTag("control_center").assertIsDisplayed()
         compose.onNodeWithText("Internet").assertExists()
-        compose.onNodeWithContentDescription("Cerrar").performClick()
+        compose.onNodeWithContentDescription("Close").performClick()
         compose.onNodeWithTag("dock").assertIsDisplayed()
     }
 
@@ -217,7 +299,7 @@ class LauncherSmokeTest {
         val first = icons[0].config[SemanticsProperties.TestTag]
         val second = icons[1].config[SemanticsProperties.TestTag]
         compose.onNodeWithTag(first).performTouchInput { longClick() }
-        compose.onNodeWithText("Editar pantalla de inicio").performClick()
+        compose.onNodeWithText("Edit Home Screen").performClick()
         compose.onNodeWithTag("edit_done").assertIsDisplayed()
         val source = compose.onNodeWithTag(first).fetchSemanticsNode().boundsInRoot.center
         val target = compose.onNodeWithTag(second).fetchSemanticsNode().boundsInRoot.center

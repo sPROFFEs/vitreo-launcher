@@ -98,7 +98,7 @@ def main() -> None:
         adb("shell", "uiautomator", "dump", "/sdcard/vitreo-smoke.xml")
         adb("pull", "/sdcard/vitreo-smoke.xml", str(output / "window.xml"))
         nodes = ET.parse(output / "window.xml").getroot().iter("node")
-        if not any(n.get("package") == PACKAGE and n.get("text") == "Buscar" for n in nodes):
+        if not any(n.get("package") == PACKAGE and n.get("text") == "Search" for n in nodes):
             raise RuntimeError("The optimized launcher UI is not visible after the HOME key.")
         screenshot = subprocess.check_output(["adb", "exec-out", "screencap", "-p"], timeout=60)
         if not screenshot.startswith(bytes([137, 80, 78, 71, 13, 10, 26, 10])):
@@ -113,32 +113,77 @@ def main() -> None:
                 str(int(width * end)), str(int(height * .48)), "350")
             time.sleep(.7)
         swipe(.2, .8)
-        today = capture_screen(output, "today", "Hoy")
-        tap_node(today, "content-desc", "Ajustes")
+        today = capture_screen(output, "today", "Today")
+        tap_node(today, "content-desc", "Settings")
         time.sleep(.7)
-        capture_screen(output, "settings", "Ajustes")
+        settings = capture_screen(output, "settings", "Settings")
+        tap_node(settings, "text", "Motion & Glass")
+        time.sleep(.7)
+        capture_screen(output, "glass-settings", "Motion & Glass")
+        adb("shell", "input", "keyevent", "KEYCODE_BACK")
+        time.sleep(.7)
+        settings = capture_screen(output, "settings", "Settings")
+        tap_node(settings, "text", "Wallpaper")
+        time.sleep(.7)
+        capture_screen(output, "wallpaper-settings", "Wallpaper")
+        adb("shell", "input", "keyevent", "KEYCODE_BACK")
+        time.sleep(.7)
+        settings = capture_screen(output, "settings", "Settings")
+        tap_node(settings, "text", "Widgets")
+        time.sleep(.7)
+        capture_screen(output, "widgets", "Add what matters")
+        adb("shell", "input", "swipe", str(width // 2), str(int(height * .75)), str(width // 2), str(int(height * .3)), "350")
+        time.sleep(.7)
+        capture_screen(output, "widget-previews", "Widgets")
         adb("shell", "input", "keyevent", "KEYCODE_HOME")
         time.sleep(.7)
-        home = capture_screen(output, "home", "Buscar")
-        tap_node(home, "text", "Buscar")
+        home = capture_screen(output, "home", "Search")
+        tap_node(home, "text", "Search")
         time.sleep(.7)
-        capture_screen(output, "spotlight", "Cancelar")
+        capture_screen(output, "spotlight", "Cancel")
         adb("shell", "input", "keyevent", "KEYCODE_HOME")
         time.sleep(.7)
         for _ in range(10):
             swipe(.8, .2)
             adb("shell", "uiautomator", "dump", "/sdcard/vitreo-smoke.xml")
             xml = adb("shell", "cat", "/sdcard/vitreo-smoke.xml")
-            if "Biblioteca de apps" in xml:
+            if "App Library" in xml:
                 break
-        capture_screen(output, "library", "Biblioteca de apps")
+        library = capture_screen(output, "library", "App Library")
+        # Tap the gap in the first category card, avoiding its individual app buttons.
+        label = next(node for node in library.iter("node") if node.get("text") == "Suggestions")
+        bounds = list(map(int, re.findall(r"\d+", label.get("bounds", ""))))
+        density_values = re.findall(r"density: (\d+)", adb("shell", "wm", "density"))
+        density = int(density_values[-1]) / 160
+        adb("shell", "input", "tap", str((bounds[0] + bounds[2]) // 2), str(int(bounds[1] - 85 * density)))
+        time.sleep(.7)
+        capture_screen(output, "category", "Suggestions")
         adb("shell", "input", "keyevent", "KEYCODE_HOME")
         time.sleep(.7)
         adb("shell", "input", "swipe", str(int(width * .85)), str(int(height * .09)),
             str(int(width * .85)), str(int(height * .45)), "350")
         time.sleep(.7)
-        capture_screen(output, "controls", "Centro de control")
+        capture_screen(output, "controls", "Control Center")
         adb("shell", "input", "keyevent", "KEYCODE_HOME")
+        # Native tests use disabled system animations; record the optimized app with real motion enabled as well.
+        for setting in ("window_animation_scale", "transition_animation_scale", "animator_duration_scale"):
+            adb("shell", "settings", "put", "global", setting, "1")
+        adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
+        recording = subprocess.Popen(["adb", "shell", "screenrecord", "--time-limit", "12", "--bit-rate", "4000000", "/sdcard/vitreo-motion.mp4"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            time.sleep(1)
+            for _ in range(2):
+                adb("shell", "input", "swipe", str(width // 2), str(int(height * .35)), str(width // 2), str(int(height * .65)), "350")
+                time.sleep(.7)
+                adb("shell", "input", "keyevent", "KEYCODE_HOME")
+                time.sleep(.7)
+            recording.wait(timeout=20)
+            adb("pull", "/sdcard/vitreo-motion.mp4", str(output / "optimized-motion.mp4"))
+        finally:
+            if recording.poll() is None:
+                recording.terminate()
+        (output / "optimized-frame-stats.txt").write_text(adb("shell", "dumpsys", "gfxinfo", PACKAGE, "framestats"))
         if adb("shell", "pidof", PACKAGE).strip() != original_pid:
             raise RuntimeError("The optimized launcher process restarted unexpectedly.")
         crash_log = adb("logcat", "-b", "crash", "-d")
@@ -147,7 +192,8 @@ def main() -> None:
             raise RuntimeError("A fatal crash occurred during optimized APK smoke testing.")
         result_path.write_text(json.dumps({"schema": 1, "commit": commit, "api": args.api,
             "status": "passed", "debugTestsPassed": count, "optimizedPreviewStarted": True,
-            "uiScreens": ["home", "today", "settings", "spotlight", "library", "controls"],
+            "uiScreens": ["home", "today", "settings", "glass-settings", "wallpaper-settings", "widgets", "widget-previews", "spotlight", "library", "category", "controls"],
+            "motionRecordedWithAnimationsEnabled": True,
             "physicalGrapheneOsTested": False}, indent=2) + "\n")
     finally:
         try:

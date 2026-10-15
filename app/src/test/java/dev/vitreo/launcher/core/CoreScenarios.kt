@@ -133,7 +133,7 @@ object CoreScenarios {
         }
         scenario("folder name normalized") {
             val s = LayoutOps.renameFolder(LayoutOps.folder(state(), app(0), app(1), "folder:a"), "folder:a", "  ")
-            check(s.home.filterIsInstance<HomeEntry.Folder>().single().title == "Carpeta"); invariant(s)
+            check(s.home.filterIsInstance<HomeEntry.Folder>().single().title == "Folder"); invariant(s)
         }
         scenario("global placement cap includes folders and dock") {
             val folders = (0..30).map { f -> HomeEntry.Folder("folder:$f", "Folder", (0 until 100).map { app(f * 100 + it) }) }

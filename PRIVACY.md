@@ -1,4 +1,4 @@
-# Privacidad — Vitreo 0.2.1
+# Privacidad — Vitreo 0.3.0
 
 Vitreo no tiene conexión propia a Internet, cuentas, anuncios ni telemetría.
 La búsqueda y la clasificación de aplicaciones son locales y se limitan al usuario Android actual.
@@ -32,3 +32,5 @@ No contiene un inventario de tus apps, fotografías o contraseñas.
 
 El cristal procesa exclusivamente el fondo propio del launcher. No captura otras apps ni
 sustituye las funciones de seguridad, notificaciones, bloqueo o Recientes de Android.
+
+Las fotos elegidas se copian al almacenamiento privado únicamente al guardar en el editor. Cancelar no sustituye el fondo. Se conserva una copia del original (limitada a 1600 píxeles en su lado mayor); el zoom y la posición se guardan por separado. Las previsualizaciones de widgets proceden de recursos de las apps instaladas y se muestran sin asignar ni vincular un ID de widget.

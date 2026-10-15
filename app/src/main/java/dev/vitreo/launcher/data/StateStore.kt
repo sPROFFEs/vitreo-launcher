@@ -19,13 +19,13 @@ class StateStore(context: Context) {
         catch (e: Exception) {
             val recovery = File(file.parentFile, "layout-corrupt-${System.currentTimeMillis()}.json")
             runCatching { if (file.exists()) file.copyTo(recovery) }
-            Loaded(LauncherState(), "No se pudo leer el escritorio. Se ha intentado conservar una copia local del archivo da\u00f1ado.")
+            Loaded(LauncherState(), "Could not read your layout. A local recovery copy was attempted.")
         }
     }
 
     fun save(state: LauncherState) {
         val bytes = StateCodec.encode(state).toByteArray(Charsets.UTF_8)
-        require(bytes.size <= StateCodec.MAX_BYTES) { "El escritorio supera el limite de almacenamiento." }
+        require(bytes.size <= StateCodec.MAX_BYTES) { "Layout exceeds the storage limit." }
         val stream = atomic.startWrite()
         try { stream.write(bytes); atomic.finishWrite(stream) }
         catch (e: Exception) { atomic.failWrite(stream); throw e }
@@ -40,7 +40,7 @@ class StateStore(context: Context) {
                 val count = stream.read(buffer)
                 if (count < 0) break
                 total += count
-                require(total <= StateCodec.MAX_BYTES) { "El archivo supera 1 MiB." }
+                require(total <= StateCodec.MAX_BYTES) { "File exceeds 1 MiB." }
                 output.write(buffer, 0, count)
             }
             return output.toByteArray().toString(Charsets.UTF_8)

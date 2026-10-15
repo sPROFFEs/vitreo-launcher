@@ -32,9 +32,9 @@ class DockAndGroupsTest {
         assertEquals(start.placedApps().toSet(), result.placedApps().toSet())
     }
     @Test fun declaredCategoriesWinOverNameHints() {
-        assertEquals("Juegos", appGroup("Calendar Wars", "games.calendar", 0))
-        assertEquals("Creatividad", appGroup("Cámara", "camera.android", -1))
+        assertEquals("Games", appGroup("Calendar Wars", "games.calendar", 0))
+        assertEquals("Creativity", appGroup("Cámara", "camera.android", -1))
         assertEquals("Social", appGroup("Mensajes", "com.android.messaging", -1))
-        assertEquals("Utilidades", appGroup("Unknown", "example.app", -1))
+        assertEquals("Utilities", appGroup("Unknown", "example.app", -1))
     }
 }

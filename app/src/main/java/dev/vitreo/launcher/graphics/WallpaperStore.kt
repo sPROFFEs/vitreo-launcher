@@ -4,47 +4,68 @@ import android.content.Context
 import android.graphics.*
 import android.net.Uri
 import android.util.AtomicFile
+import dev.vitreo.launcher.core.PhotoTransform
+import dev.vitreo.launcher.core.photoPlacement
 import java.io.File
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
 /** Both bitmaps are immutable once exposed. Do not recycle a bitmap still used by Compose. */
-data class WallpaperFrame(val sharp: Bitmap, val frosted: Bitmap)
+data class WallpaperFrame(val sharp: Bitmap, val frosted: Bitmap, val brightness: Float = 0f)
 
 class WallpaperStore(private val context: Context) {
     private val file = File(context.filesDir, "wallpaper.png")
 
     @Synchronized
-    fun load(usePhoto: Boolean, palette: Int): WallpaperFrame {
-        val bitmap = if (usePhoto) runCatching {
-            AtomicFile(file).openRead().use { BitmapFactory.decodeStream(it) }
-        }.getOrNull() else null
-        return frame(bitmap ?: procedural(palette))
+    fun load(usePhoto: Boolean, palette: Int, transform: PhotoTransform = PhotoTransform(),
+        width: Int = 720, height: Int = 1600): WallpaperFrame {
+        val bitmap = if (usePhoto) readPhoto() else null
+        if (bitmap == null) return frame(procedural(palette))
+        val source = frame(bitmap)
+        val factor = min(1f, 1600f / max(width, height).coerceAtLeast(1))
+        val w = max(1, (width * factor).roundToInt()); val h = max(1, (height * factor).roundToInt())
+        val composed = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        drawPhoto(Canvas(composed), source, w.toFloat(), h.toFloat(), transform)
+        return frame(composed)
     }
 
     @Synchronized
+    fun readPhoto(): Bitmap? = runCatching {
+            AtomicFile(file).openRead().use { BitmapFactory.decodeStream(it) }
+        }.getOrNull()
+
+    @Synchronized
     fun importPhoto(uri: Uri) {
+        savePhoto(decodePhoto(uri))
+    }
+
+    fun decodePhoto(uri: Uri): Bitmap {
         val source = ImageDecoder.createSource(context.contentResolver, uri)
         val decoded = ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
             val width = info.size.width
             val height = info.size.height
-            require(width > 0 && height > 0) { "Imagen no v\u00e1lida." }
+            require(width > 0 && height > 0) { "Invalid image." }
             val scale = min(1.0, 1600.0 / max(width, height))
             decoder.setTargetSize(max(1, (width * scale).roundToInt()), max(1, (height * scale).roundToInt()))
             decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
         }
         val opaque = Bitmap.createBitmap(decoded.width, decoded.height, Bitmap.Config.ARGB_8888)
         Canvas(opaque).apply { drawColor(Color.rgb(16, 27, 43)); drawBitmap(decoded, 0f, 0f, null) }
+        return opaque
+    }
+
+    @Synchronized
+    fun savePhoto(opaque: Bitmap) {
         val atomic = AtomicFile(file)
         val stream = atomic.startWrite()
         try {
-            check(opaque.compress(Bitmap.CompressFormat.PNG, 100, stream)) { "No se pudo guardar la imagen." }
+            check(opaque.compress(Bitmap.CompressFormat.PNG, 100, stream)) { "Could not save this image." }
             atomic.finishWrite(stream)
         } catch (e: Exception) { atomic.failWrite(stream); throw e }
     }
 
-    private fun procedural(palette: Int): Bitmap {
+    fun procedural(palette: Int): Bitmap {
         val b = Bitmap.createBitmap(720, 1600, Bitmap.Config.ARGB_8888)
         val colors = when (palette.coerceIn(0, 3)) {
             1 -> intArrayOf(0xff2c246f.toInt(), 0xff9476d7.toInt(), 0xffedacbb.toInt())
@@ -79,7 +100,7 @@ class WallpaperStore(private val context: Context) {
         return b
     }
 
-    private fun frame(original: Bitmap): WallpaperFrame {
+    fun frame(original: Bitmap): WallpaperFrame {
         // The frosted texture is prepared once, off the UI thread. No continuous CPU/GPU blur loop.
         val width = min(180, original.width)
         val height = max(1, (original.height * width.toFloat() / original.width).roundToInt())
@@ -88,7 +109,29 @@ class WallpaperStore(private val context: Context) {
         small.getPixels(pixels, 0, width, 0, 0, width, height)
         repeat(3) { pixels = boxBlur(pixels, width, height, 4) }
         val frost = Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
-        return WallpaperFrame(original, frost)
+        var brightness = 0f
+        repeat(8) { row -> repeat(6) { column ->
+            val pixel = original.getPixel((original.width * (column + .5f) / 6).toInt().coerceAtMost(original.width - 1),
+                (original.height * (row + .5f) / 8).toInt().coerceAtMost(original.height - 1))
+            brightness += (.2126f * Color.red(pixel) + .7152f * Color.green(pixel) + .0722f * Color.blue(pixel)) / 255f
+        } }
+        return WallpaperFrame(original, frost, brightness / 48f)
+    }
+
+    companion object {
+        /** The editor and committed wallpaper use the same placement and soft extended backdrop. */
+        fun drawPhoto(canvas: Canvas, source: WallpaperFrame, width: Float, height: Float, transform: PhotoTransform) {
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+            val b = source.frosted
+            val cover = max(width / b.width, height / b.height)
+            val background = RectF((width - b.width * cover) / 2f, (height - b.height * cover) / 2f,
+                (width + b.width * cover) / 2f, (height + b.height * cover) / 2f)
+            canvas.drawBitmap(b, null, background, paint)
+            canvas.drawColor(0x24000000)
+            val image = source.sharp
+            val p = photoPlacement(image.width.toFloat(), image.height.toFloat(), width, height, transform)
+            canvas.drawBitmap(image, null, RectF(p.left, p.top, p.left + p.width, p.top + p.height), paint)
+        }
     }
 
     private fun boxBlur(source: IntArray, width: Int, height: Int, radius: Int): IntArray {

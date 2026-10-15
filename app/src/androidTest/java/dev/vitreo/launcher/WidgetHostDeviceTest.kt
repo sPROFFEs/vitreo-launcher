@@ -2,10 +2,15 @@ package dev.vitreo.launcher
 
 import android.Manifest
 import android.content.Context
+import android.content.ComponentName
+import android.appwidget.AppWidgetProviderInfo
+import android.graphics.Bitmap
+import android.graphics.Color
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import dev.vitreo.launcher.data.WidgetController
+import dev.vitreo.launcher.ui.renderWidgetPreview
 import org.junit.Assert.*
 import org.junit.Assume.assumeNotNull
 import org.junit.Test
@@ -13,6 +18,25 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class WidgetHostDeviceTest {
+    @Test fun providerLayoutPreviewRendersWithoutAllocatingOrBindingAWidget() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val resourceContext = instrumentation.context
+        val widgets = WidgetController(context)
+        val before = widgets.host.appWidgetIds.toSet()
+        val info = AppWidgetProviderInfo().apply {
+            provider = ComponentName(resourceContext.packageName, "PreviewFixture")
+            previewLayout = resourceContext.resources.getIdentifier("widget_preview_fixture", "layout", resourceContext.packageName)
+        }
+        assertTrue(info.previewLayout != 0)
+        var preview: Bitmap? = null
+        instrumentation.runOnMainSync { preview = renderWidgetPreview(context, info, 320, 160, false) }
+        assertNotNull(preview)
+        assertEquals(Color.rgb(18, 108, 66), preview!!.getPixel(160, 120))
+        assertEquals(before, widgets.host.appWidgetIds.toSet())
+        assertEquals(-1, widgets.pendingId)
+    }
+
     @Test fun cancellationRejectsLateResultsAndAllowsAnotherRequest() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val widgets = WidgetController(context)

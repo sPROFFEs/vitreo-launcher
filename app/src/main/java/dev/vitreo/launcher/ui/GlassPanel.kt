@@ -2,10 +2,19 @@ package dev.vitreo.launcher.ui
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.animation.core.*
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import dev.vitreo.launcher.core.Appearance
@@ -15,13 +24,33 @@ import dev.vitreo.launcher.graphics.WallpaperFrame
 
 data class GlassEnvironment(val frame: WallpaperFrame?, val viewport: Viewport, val appearance: Appearance)
 val LocalGlass = staticCompositionLocalOf { GlassEnvironment(null, Viewport(), Appearance()) }
+enum class GlassMaterial { Clear, Regular }
+val LocalGlassContentColor = staticCompositionLocalOf { Color.White }
 
 @Composable
-fun GlassPanel(modifier: Modifier = Modifier, radius: Float = 28f, tint: Float = .18f, content: @Composable BoxScope.() -> Unit) {
+fun GlassPanel(modifier: Modifier = Modifier, radius: Float = 28f, tint: Float = .18f,
+    material: GlassMaterial = GlassMaterial.Clear, interactive: Boolean = false, content: @Composable BoxScope.() -> Unit) {
     val glass = LocalGlass.current
-    Box(modifier.clip(RoundedCornerShape(radius.dp))) {
+    var pressed by remember { mutableStateOf(false) }
+    var touch by remember { mutableStateOf(Offset(.5f, .5f)) }
+    val light by animateFloatAsState(if (pressed && !glass.appearance.reducedEffects) 1f else 0f,
+        if (glass.appearance.reducedEffects) tween(0) else spring(dampingRatio = .85f, stiffness = 500f), label = "glass touch")
+    val color = if (material == GlassMaterial.Regular) MaterialTheme.colorScheme.onSurface else Color.White
+    val gesture = if (!interactive) Modifier else Modifier.pointerInput(Unit) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            touch = Offset(down.position.x / size.width.coerceAtLeast(1), down.position.y / size.height.coerceAtLeast(1))
+            pressed = true
+            try { while (awaitPointerEvent(PointerEventPass.Final).changes.any { it.pressed }) { /* Observe without consuming. */ } }
+            finally { pressed = false }
+        }
+    }
+    Box(modifier.then(gesture).graphicsLayer {
+        scaleX = 1f - light * .014f; scaleY = 1f - light * .014f
+    }.clip(RoundedCornerShape(radius.dp))) {
         AndroidView(factory = { GlassView(it) }, modifier = Modifier.matchParentSize(),
-            update = { it.configure(glass.frame, glass.viewport, glass.appearance, radius, tint) })
-        content()
+            update = { it.configure(glass.frame, glass.viewport, glass.appearance, radius, tint,
+                material == GlassMaterial.Regular, touch.x, touch.y, light) })
+        CompositionLocalProvider(LocalGlassContentColor provides color, LocalContentColor provides color) { content() }
     }
 }

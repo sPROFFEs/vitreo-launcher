@@ -28,7 +28,7 @@ import kotlinx.coroutines.withContext
 fun SheetHeader(title: String, onClose: () -> Unit, tag: String = "") {
     Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(title, Modifier.weight(1f).testTag(tag), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-        TextButton(onClick = onClose) { Text("OK", fontWeight = FontWeight.SemiBold) }
+        TextButton(onClick = onClose) { Text("Done", fontWeight = FontWeight.SemiBold) }
     }
 }
 
@@ -46,7 +46,8 @@ fun FolderSheet(folder: HomeEntry.Folder, apps: Map<String, AppRecord>, onClose:
             BasicTextField(name, { name = it.take(48); onRename(name) }, singleLine = true,
                 textStyle = TextStyle(color = Color.White, fontSize = 30.sp, textAlign = TextAlign.Center, fontWeight = FontWeight.Medium),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp).testTag("folder_name"))
-            GlassPanel(Modifier.fillMaxWidth().aspectRatio(.95f).testTag("folder_panel"), radius = 40f, tint = .24f) {
+            GlassPanel(Modifier.fillMaxWidth().aspectRatio(.95f).testTag("folder_panel"), radius = 40f,
+                material = GlassMaterial.Regular) {
                 HorizontalPager(pager, Modifier.fillMaxSize()) { page ->
                     Column(Modifier.fillMaxSize().padding(15.dp), verticalArrangement = Arrangement.SpaceEvenly) {
                         repeat(3) { row ->
@@ -76,30 +77,31 @@ fun ActionsSheet(entry: HomeEntry, state: LauncherState, apps: Map<String, AppRe
     onChooseFolder: (String) -> Unit, onRename: (String, String) -> Unit, onDissolve: (String) -> Unit,
     onEdit: () -> Unit) {
     Box(Modifier.fillMaxSize().clickable(onClick = onClose).safeDrawingPadding(), contentAlignment = Alignment.Center) {
-        Column(Modifier.widthIn(max = 310.dp).fillMaxWidth().padding(horizontal = 20.dp).clickable {}, horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.widthIn(max = 350.dp).fillMaxWidth().padding(horizontal = 20.dp)
+            .verticalScroll(rememberScrollState()).clickable {}, horizontalAlignment = Alignment.CenterHorizontally) {
             EntryIcon(entry, apps, 76.dp)
             Text(entryLabel(entry, apps), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(top = 10.dp, bottom = 18.dp))
             IosGroup {
-                IosRow("Editar pantalla de inicio", onClick = onEdit)
+                IosRow("Edit Home Screen", onClick = onEdit)
                 IosDivider()
                 when (entry) {
                     is HomeEntry.App -> {
-                        if (state.home.none { it is HomeEntry.App && it.id == entry.id }) IosRow("Añadir a Inicio") { onHome(entry.id) }
-                        if (entry.id !in state.dock) IosRow("Añadir al dock", enabled = state.dock.size < DOCK_SLOTS) { onDock(entry.id) }
-                        if (state.home.any { it is HomeEntry.App && it.id != entry.id }) IosRow("Crear carpeta…") { onPair(entry.id) }
-                        if (state.home.any { it is HomeEntry.Folder && entry.id !in it.apps && it.apps.size < MAX_FOLDER_APPS }) IosRow("Mover a una carpeta…") { onChooseFolder(entry.id) }
-                        IosRow("Información de la app", enabled = entry.id in apps) { onInfo(entry.id) }
+                        if (state.home.none { it is HomeEntry.App && it.id == entry.id }) IosRow("Add to Home Screen") { onHome(entry.id) }
+                        if (entry.id !in state.dock) IosRow("Add to Dock", enabled = state.dock.size < DOCK_SLOTS) { onDock(entry.id) }
+                        if (state.home.any { it is HomeEntry.App && it.id != entry.id }) IosRow("Create Folder…") { onPair(entry.id) }
+                        if (state.home.any { it is HomeEntry.Folder && entry.id !in it.apps && it.apps.size < MAX_FOLDER_APPS }) IosRow("Move to Folder…") { onChooseFolder(entry.id) }
+                        IosRow("App Info", enabled = entry.id in apps) { onInfo(entry.id) }
                         if (entry.id in state.placedApps()) {
-                            IosDivider(); IosRow("Quitar de Inicio", destructive = true) { onRemove(entry.id) }
+                            IosDivider(); IosRow("Remove from Home Screen", destructive = true) { onRemove(entry.id) }
                         }
                     }
                     is HomeEntry.Folder -> {
                         var title by remember(entry.id) { mutableStateOf(entry.title) }
                         BasicTextField(title, { title = it.take(48) }, Modifier.fillMaxWidth().padding(17.dp),
                             singleLine = true, textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp))
-                        IosRow("Guardar nombre") { onRename(entry.id, title) }
-                        IosRow("Deshacer carpeta", destructive = true) { onDissolve(entry.id) }
+                        IosRow("Save Name") { onRename(entry.id, title) }
+                        IosRow("Ungroup Folder", destructive = true) { onDissolve(entry.id) }
                     }
                 }
             }
@@ -124,7 +126,7 @@ fun LicensesSheet(onClose: () -> Unit) {
         value = withContext(Dispatchers.IO) { context.assets.open("licenses/NOTICE.txt").bufferedReader().use { it.readText() } }
     }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).safeDrawingPadding()) {
-        SheetHeader("Licencias", onClose)
+        SheetHeader("Licenses", onClose)
         Text(text, Modifier.padding(20.dp).verticalScroll(rememberScrollState()), fontSize = 13.sp)
     }
 }

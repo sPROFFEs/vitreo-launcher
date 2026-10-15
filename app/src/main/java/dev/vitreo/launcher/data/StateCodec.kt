@@ -37,23 +37,27 @@ object StateCodec {
                 put("interfaceStyle", s.appearance.interfaceStyle)
                 put("showWidgets", s.appearance.showWidgets)
                 put("iosIcons", s.appearance.iosIcons)
+                put("photoZoom", s.appearance.photoTransform.zoom.toDouble())
+                put("photoX", s.appearance.photoTransform.x.toDouble())
+                put("photoY", s.appearance.photoTransform.y.toDouble())
+                put("wallpaperDim", s.appearance.wallpaperDim.toDouble())
             })
         }.toString(2)
     }
 
     fun decode(text: String): LauncherState {
-        require(text.toByteArray(Charsets.UTF_8).size <= MAX_BYTES) { "La copia supera 1 MiB." }
+        require(text.toByteArray(Charsets.UTF_8).size <= MAX_BYTES) { "Backup exceeds 1 MiB." }
         val root = JSONObject(text)
-        require(root.getInt("schema") == STATE_SCHEMA) { "Formato de copia no compatible." }
+        require(root.getInt("schema") == STATE_SCHEMA) { "Unsupported backup format." }
         val entries = root.getJSONArray("home")
-        require(entries.length() <= MAX_ITEMS) { "Demasiados elementos." }
+        require(entries.length() <= MAX_ITEMS) { "Too many items." }
         val home = (0 until entries.length()).map { index ->
             val obj = entries.getJSONObject(index)
             when (obj.getString("type")) {
                 "app" -> HomeEntry.App(obj.getString("id"))
                 "folder" -> HomeEntry.Folder(obj.getString("id"), obj.getString("title"),
                     strings(obj.getJSONArray("apps"), MAX_FOLDER_APPS))
-                else -> error("Tipo de elemento no compatible.")
+                else -> error("Unsupported item type.")
             }
         }
         val a = root.optJSONObject("appearance") ?: JSONObject()
@@ -76,12 +80,15 @@ object StateCodec {
                 interfaceStyle = a.optInt("interfaceStyle", 0),
                 showWidgets = a.optBoolean("showWidgets", true),
                 iosIcons = a.optBoolean("iosIcons", true),
+                photoTransform = PhotoTransform(a.optDouble("photoZoom", 1.0).toFloat(),
+                    a.optDouble("photoX", 0.0).toFloat(), a.optDouble("photoY", 0.0).toFloat()),
+                wallpaperDim = a.optDouble("wallpaperDim", .12).toFloat(),
             ),
         ).sanitized()
     }
 
     private fun strings(array: JSONArray, maximum: Int): List<String> {
-        require(array.length() <= maximum) { "Lista demasiado grande." }
+        require(array.length() <= maximum) { "List is too large." }
         return (0 until array.length()).map { array.getString(it) }
     }
 }
