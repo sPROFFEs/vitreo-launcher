@@ -17,6 +17,7 @@ Capturas reales del APK Preview en Android 12 (inicio/ajustes) y Android 15 (bib
 
 La interfaz está en inglés por defecto.
 
+- **Icono de la APK:** fondo adaptativo completo y marca sin recuadro; recurso circular y soporte de iconos monocromáticos.
 - **Inicio:** cuatro columnas, iconos con esquinas continuas y un dock de cristal de cuatro plazas.
 - **Widgets de inicio:** reloj analógico y calendario con la fecha real, que puedes mostrar u ocultar.
 - **Hoy:** desliza a la derecha. Sugerencias basadas en las apps que abres desde Vitreo y widgets reales de tus apps Android.
@@ -78,7 +79,7 @@ Los assets publicados son inmutables: cada revisión utiliza una versión nueva.
 
 ## Diseño, privacidad y procedencia
 
-La referencia visual es [iOS 27](https://www.apple.com/os/ios/) y sus controles
+La referencia visual es [iOS](https://www.apple.com/os/ios/) y sus controles
 Liquid Glass ([UIKit](https://developer.apple.com/documentation/uikit/uiglasseffect) y [materiales](https://developer.apple.com/design/human-interface-guidelines/materials)), la referencia visual de [liquid-glass.pro](https://www.liquid-glass.pro/), junto con las interacciones de [Folio](https://github.com/McCal-Codes/folio).
 Vitreo dibuja sus propios fondos y materiales y utiliza el arte de las aplicaciones
 instaladas. La geometría, los roles de movimiento y el anclaje de menús adaptados de Folio conservan su licencia y atribución en

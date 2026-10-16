@@ -1,8 +1,10 @@
-# Privacidad — Vitreo 0.3.0
+# Privacidad — Vitreo 0.4.0
 
 Vitreo no tiene conexión propia a Internet, cuentas, anuncios ni telemetría.
 La búsqueda y la clasificación de aplicaciones son locales y se limitan al usuario Android actual.
 La consulta de apps se restringe a actividades de inicio y proveedores de widgets.
+Los menús pueden consultar accesos rápidos de las apps mediante LauncherApps cuando Android reconoce a Vitreo como launcher predeterminado. Se muestran localmente y no se incluyen en las copias exportadas.
+El arte de iconos se conserva en memoria y se invalida al cambiar la versión instalada o la configuración.
 
 La distribución, las preferencias, una copia reducida del fondo elegido y las últimas
 16 apps abiertas desde Vitreo se guardan en el almacenamiento privado de la app.

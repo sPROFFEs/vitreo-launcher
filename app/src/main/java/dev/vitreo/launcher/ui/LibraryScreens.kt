@@ -188,7 +188,7 @@ fun CategoryScreen(title: String, records: List<AppRecord>, apps: Map<String, Ap
     val columns = ((LocalConfiguration.current.screenWidthDp - 68) / 76).coerceAtLeast(1)
     val rows = (records.size + columns - 1) / columns
     val panelHeight = rows * (60f + 20f * LocalDensity.current.fontScale + 12f) + (rows - 1).coerceAtLeast(0) * 12f + 40f
-    Column(Modifier.fillMaxSize().clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null, onClick = onClose).safeDrawingPadding().padding(20.dp)) {
+    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(title, Modifier.weight(1f), color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
             IconButton(onClick = onClose) { Icon(Icons.Outlined.Close, "Close", tint = Color.White) }
