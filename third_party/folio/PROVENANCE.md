@@ -41,3 +41,24 @@ La interfaz, persistencia, shader, herramientas y workflows restantes de Vitreo
 son implementaciones nuevas. No se ha copiado código ni recursos de Liquid Touch,
 ni se ha integrado Backdrop/AndroidLiquidGlass. La semejanza visual buscada es
 una referencia de diseño, no una promesa de equivalencia con iOS.
+
+## Revisión de movimiento y menús — 2026-10-16
+
+Checkout consultado: `be9f0a908ab620fbc5ddc391f434eb3e33ed2215`.
+Archivos: `FolioTokens.kt` (roles y muelles de movimiento), `AppContextMenu.kt`
+(anclaje al icono, elección de espacio superior/inferior y consulta de accesos
+rápidos con LauncherApps), `MainActivity.kt` (sourceBounds y contrato del launcher),
+`FolioSheet.kt` (retención del contenido y recuperación al salir al fondo) y
+`FolioGlass.kt` (jerarquía de materiales y contraste).
+
+`SurfaceMotion.kt` adapta los roles Panel/Menu/Close. `AppContextMenu.kt` adapta
+la colocación del menú y la consulta de shortcuts. Conservan el aviso MIT de
+Duo Launcher contributors incluido en `third_party/folio/LICENSE` y en la APK.
+El menú, navegación, renderizado y pruebas se han integrado en la arquitectura
+de Vitreo; no se han añadido servicios, Dynamic Island ni código de shaders
+externos. No se ha compilado Folio ni se atribuyen a Vitreo sus resultados.
+
+Se revisó también `egip31/ios-launcher`, commit
+`260b48de26ca615406f576c8544c0e00f9c64eff`, licencia MIT (Egi Pratama).
+Su menú central y su biblioteca de lista son más básicos para este caso. No
+se copió código ni recursos de ese repositorio.

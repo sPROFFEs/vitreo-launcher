@@ -23,6 +23,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import dev.vitreo.launcher.graphics.GlassDiagnostics
+import dev.vitreo.launcher.ui.AppReturnSerialKey
+import dev.vitreo.launcher.ui.AppOpeningKey
 import dev.vitreo.launcher.ui.LauncherReadyKey
 import dev.vitreo.launcher.ui.HomeRowsKey
 import dev.vitreo.launcher.ui.PhotoZoomKey
@@ -353,6 +355,126 @@ class LauncherSmokeTest {
         val firstAfter = compose.onNodeWithTag(first).fetchSemanticsNode().boundsInRoot
         val secondAfter = compose.onNodeWithTag(second).fetchSemanticsNode().boundsInRoot
         assertTrue("Dragging must change the order", secondAfter.left < firstAfter.left)
+    }
+
+    private fun shell(command: String): String = InstrumentationRegistry.getInstrumentation().uiAutomation
+        .executeShellCommand(command).use { descriptor ->
+            java.io.FileInputStream(descriptor.fileDescriptor).bufferedReader().use { it.readText() }
+        }
+
+    private fun openLibraryCategory() {
+        repeat(10) {
+            if (!compose.onNodeWithTag("app_library").isDisplayed())
+                compose.onNodeWithTag("home_workspace").performTouchInput { swipeLeft() }
+        }
+        compose.onNodeWithTag("library_category:Suggestions").performClick()
+        compose.onNodeWithTag("category_panel").assertIsDisplayed()
+    }
+
+    @Test fun categoryMenuLiftsTheActualIconAndRestoresItsCategory() {
+        awaitReady()
+        openLibraryCategory()
+        val node = compose.onAllNodes(SemanticsMatcher("category app") {
+            it.config.getOrNull(SemanticsProperties.TestTag)?.startsWith("category_entry:") == true
+        }).fetchSemanticsNodes().first()
+        val tag = node.config[SemanticsProperties.TestTag]
+        val source = node.boundsInRoot
+        compose.onNodeWithTag(tag).performTouchInput { longClick() }
+        compose.onNodeWithTag("context_menu").assertIsDisplayed()
+        compose.onNodeWithTag("category_panel").assertDoesNotExist()
+        val lifted = compose.onNodeWithTag("context_icon").fetchSemanticsNode().boundsInRoot
+        assertEquals(source.center.x, lifted.center.x, 3f)
+        val density = compose.activity.resources.displayMetrics.density
+        assertEquals(source.top + 37f * density, lifted.center.y, 3f)
+        captureEvidence("app-menu")
+        compose.onNodeWithText("More").performClick()
+        compose.onNodeWithText("App Info").assertIsDisplayed()
+        captureEvidence("app-menu-more")
+        compose.onNodeWithText("Back").performClick()
+        compose.onNodeWithText("Edit Home Screen").assertIsDisplayed()
+        shell("input keyevent KEYCODE_BACK")
+        compose.onNodeWithTag("context_menu").assertDoesNotExist()
+        compose.onNodeWithTag("category_panel").assertIsDisplayed()
+        compose.onNodeWithTag(tag).assertIsDisplayed()
+    }
+
+    @Test fun dismissingSearchMenuKeepsTheSearchAndItsQuery() {
+        awaitReady()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val app = model.ui.value.apps.first { it.packageName == "com.android.settings" }
+        compose.onNodeWithTag("library_button").performClick()
+        compose.onNodeWithTag("search_field").performTextInput(app.label)
+        compose.onNodeWithTag("search_entry:${app.id}").performTouchInput { longClick() }
+        compose.onNodeWithText("More").performClick()
+        compose.onNodeWithText("Create Folder…").performClick()
+        compose.onNodeWithText("Create Folder").assertIsDisplayed()
+        compose.onNodeWithText("Done").performClick()
+        compose.onNodeWithTag("context_menu").assertIsDisplayed()
+        shell("input keyevent KEYCODE_BACK")
+        compose.onNodeWithTag("search_field").assertTextEquals(app.label)
+        compose.onNodeWithTag("search_entry:${app.id}").assertIsDisplayed()
+    }
+
+    @Test fun openingAppAndReturningTwicePreservesSearchWithAnimationsEnabled() {
+        awaitReady()
+        val settings = listOf("window_animation_scale", "transition_animation_scale", "animator_duration_scale")
+        val old = settings.associateWith { shell("settings get global $it").trim() }
+        val activity = compose.activity
+        val model = ViewModelProvider(activity)[LauncherViewModel::class.java]
+        val app = model.ui.value.apps.first { it.packageName == "com.android.settings" }
+        try {
+            settings.forEach { shell("settings put global $it 1") }
+            compose.onNodeWithTag("library_button").performClick()
+            compose.onNodeWithTag("search_field").performTextInput(app.label)
+            repeat(2) { attempt ->
+                val previous = compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[AppReturnSerialKey]
+                compose.onNodeWithTag("search_entry:${app.id}").performClick()
+                compose.waitUntil(15_000) {
+                    shell("dumpsys activity activities").lineSequence().any {
+                        ("mResumedActivity" in it || "topResumedActivity" in it) && "com.android.settings/" in it
+                    }
+                }
+                if (attempt == 0) shell("input keyevent KEYCODE_BACK")
+                else activity.runOnUiThread {
+                    activity.startActivity(Intent(activity, MainActivity::class.java).setAction(Intent.ACTION_MAIN)
+                        .addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                }
+                compose.waitUntil(15_000) {
+                    compose.onAllNodesWithTag("launcher_root").fetchSemanticsNodes(atLeastOneRootRequired = false).any {
+                        it.config[AppReturnSerialKey] > previous && !it.config[AppOpeningKey]
+                    }
+                }
+                compose.onNodeWithTag("search_field").assertTextEquals(app.label)
+                compose.onNodeWithTag("search_entry:${app.id}").assertIsDisplayed()
+            }
+        } finally { old.forEach { (key, value) -> shell("settings put global $key $value") } }
+    }
+
+    @Test fun librarySearchShowsAllAppsAndFiltersThem() {
+        awaitReady()
+        repeat(10) {
+            if (!compose.onNodeWithTag("app_library").isDisplayed())
+                compose.onNodeWithTag("home_workspace").performTouchInput { swipeLeft() }
+        }
+        compose.onNodeWithText("App Library").performClick()
+        compose.onNodeWithTag("alphabetical_apps").assertIsDisplayed()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val app = model.ui.value.apps.first { it.packageName == "com.android.settings" }
+        compose.onNodeWithTag("search_field").performTextInput(app.label)
+        compose.onNodeWithTag("alphabetical_entry:${app.id}").assertIsDisplayed()
+        captureEvidence("alphabetical-library")
+    }
+
+    @Test fun categoryPullCanCancelAndThenDismiss() {
+        awaitReady()
+        openLibraryCategory()
+        val density = compose.activity.resources.displayMetrics.density
+        val start = Offset(110 * density, 68 * density)
+        compose.onNodeWithTag("launcher_root").performTouchInput { swipe(start, start + Offset(0f, 38 * density), 350) }
+        compose.onNodeWithTag("category_panel").assertIsDisplayed()
+        compose.onNodeWithTag("launcher_root").performTouchInput { swipe(start, start + Offset(0f, 130 * density), 350) }
+        compose.onNodeWithTag("category_panel").assertDoesNotExist()
+        compose.onNodeWithTag("app_library").assertIsDisplayed()
     }
 
 }

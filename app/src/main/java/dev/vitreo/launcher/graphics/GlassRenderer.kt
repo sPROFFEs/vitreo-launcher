@@ -3,8 +3,6 @@ package dev.vitreo.launcher.graphics
 import android.content.Context
 import android.graphics.*
 import android.os.Build
-import android.view.View
-import android.view.ViewTreeObserver
 import androidx.annotation.RequiresApi
 import dev.vitreo.launcher.core.Appearance
 import kotlin.math.max
@@ -16,8 +14,8 @@ object GlassDiagnostics {
 
 data class Viewport(val width: Float = 1f, val height: Float = 1f, val screenX: Float = 0f, val screenY: Float = 0f)
 
-/** A passive view behind Compose content. It never intercepts touches or samples another app. */
-class GlassView(context: Context) : View(context) {
+/** Draws inside the Compose display list: no AndroidView, pre-draw listener or idle render loop. */
+class GlassRenderer(private val context: Context) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val border = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     private var frame: WallpaperFrame? = null
@@ -34,40 +32,13 @@ class GlassView(context: Context) : View(context) {
     private var fallback: BitmapShader? = null
     private var runtime: Shader? = null
     private var shaderFailed = false
-    private val location = IntArray(2)
     private val matrix = Matrix()
     private val bounds = RectF()
-
-    private var lastScreenX = Int.MIN_VALUE
-    private var lastScreenY = Int.MIN_VALUE
-    private val preDraw = ViewTreeObserver.OnPreDrawListener {
-        getLocationOnScreen(location)
-        if (location[0] != lastScreenX || location[1] != lastScreenY) {
-            lastScreenX = location[0]; lastScreenY = location[1]
-            invalidate()
-        }
-        true
-    }
-
-    override fun onAttachedToWindow() {
-        super.onAttachedToWindow()
-        viewTreeObserver.addOnPreDrawListener(preDraw)
-    }
-    override fun onDetachedFromWindow() {
-        if (viewTreeObserver.isAlive) viewTreeObserver.removeOnPreDrawListener(preDraw)
-        super.onDetachedFromWindow()
-    }
-
-    init {
-        isClickable = false
-        isFocusable = false
-        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-    }
+    private var borderWidth = 0
+    private var borderHeight = 0
 
     fun configure(frame: WallpaperFrame?, viewport: Viewport, appearance: Appearance, radius: Float, tint: Float,
         regular: Boolean = false, touchX: Float = .5f, touchY: Float = .5f, pressed: Float = 0f) {
-        val changed = this.frame !== frame || this.viewport != viewport || this.appearance != appearance || radiusDp != radius || panelTint != tint ||
-            this.regular != regular || this.touchX != touchX || this.touchY != touchY || this.pressed != pressed
         if (this.frame !== frame) {
             this.frame = frame
             sharp = frame?.let { BitmapShader(it.sharp, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP) }
@@ -77,7 +48,6 @@ class GlassView(context: Context) : View(context) {
         this.viewport = viewport; this.appearance = appearance
         radiusDp = radius; panelTint = tint
         this.regular = regular; this.touchX = touchX; this.touchY = touchY; this.pressed = pressed
-        if (changed) invalidate()
     }
 
     private fun align(shader: BitmapShader, bitmap: Bitmap, subtractX: Float = 0f, subtractY: Float = 0f) {
@@ -88,35 +58,33 @@ class GlassView(context: Context) : View(context) {
         shader.setLocalMatrix(matrix)
     }
 
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
+    fun draw(canvas: Canvas, width: Int, height: Int, screenX: Float, screenY: Float) {
         if (width <= 0 || height <= 0) return
-        val density = resources.displayMetrics.density
+        val density = context.resources.displayMetrics.density
         val radius = min(radiusDp * density, min(width, height) * .5f)
         bounds.set(0f, 0f, width.toFloat(), height.toFloat())
         val f = frame
         val dark = appearance.interfaceStyle == 2 || appearance.interfaceStyle == 0 &&
-            resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK == android.content.res.Configuration.UI_MODE_NIGHT_YES
+            context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK == android.content.res.Configuration.UI_MODE_NIGHT_YES
         val materialDark = dark || !regular
-        val opacity = if (regular) max(panelTint, if (dark) .82f else .88f)
-            else max(panelTint, if ((f?.brightness ?: 0f) > .7f) .55f else .23f)
+        val opacity = if (regular) max(panelTint, if (dark) .74f else .80f)
+            else max(panelTint, if ((f?.brightness ?: 0f) > .7f) .56f else .20f)
         val materialColor = if (materialDark) Color.rgb(23, 25, 32) else Color.rgb(248, 249, 253)
         if (appearance.opaquePanels || f == null || viewport.width <= 1f) {
             paint.shader = null; paint.color = materialColor
             canvas.drawRoundRect(bounds, radius, radius, paint)
             return
         }
-        getLocationOnScreen(location)
-        val x = location[0] - viewport.screenX
-        val y = location[1] - viewport.screenY
+        val x = screenX - viewport.screenX
+        val y = screenY - viewport.screenY
         var usedAgsl = false
         if (Build.VERSION.SDK_INT >= 33 && canvas.isHardwareAccelerated && !appearance.reducedEffects && !shaderFailed) {
             try {
                 if (runtime == null) runtime = Agsl.create(context)
                 align(sharp!!, f.sharp); align(frosted!!, f.frosted)
                 Agsl.configure(runtime!!, sharp!!, frosted!!, width.toFloat(), height.toFloat(), x, y, radius,
-                    appearance.refraction * if (regular) .45f else 1f,
-                    if (regular) max(.9f, appearance.frost) else appearance.frost, opacity, materialDark,
+                    appearance.refraction * if (regular) .32f else 1f,
+                    if (regular) max(.94f, appearance.frost) else appearance.frost, opacity, materialDark,
                     touchX, touchY, pressed)
                 paint.shader = runtime; paint.color = Color.WHITE
                 canvas.drawRoundRect(bounds, radius, radius, paint)
@@ -140,8 +108,11 @@ class GlassView(context: Context) : View(context) {
                 paint.shader = null
             }
         }
-        border.shader = LinearGradient(0f, 0f, width.toFloat(), height.toFloat(),
-            intArrayOf(0x85ffffff.toInt(), 0x12ffffff, 0x30ffffff, 0x68ffffff), null, Shader.TileMode.CLAMP)
+        if (width != borderWidth || height != borderHeight) {
+            borderWidth = width; borderHeight = height
+            border.shader = LinearGradient(0f, 0f, width.toFloat(), height.toFloat(),
+                intArrayOf(0x9cffffff.toInt(), 0x16ffffff, 0x09ffffff, 0x60ffffff), null, Shader.TileMode.CLAMP)
+        }
         border.strokeWidth = density * .65f
         bounds.inset(border.strokeWidth * .5f, border.strokeWidth * .5f)
         canvas.drawRoundRect(bounds, max(0f, radius - .4f * density), max(0f, radius - .4f * density), border)
@@ -150,7 +121,11 @@ class GlassView(context: Context) : View(context) {
 
 @RequiresApi(33)
 private object Agsl {
-    fun create(context: Context): RuntimeShader = RuntimeShader(context.assets.open("glass.agsl").bufferedReader().use { it.readText() })
+    private var source: String? = null
+    fun create(context: Context): RuntimeShader {
+        val code = source ?: context.assets.open("glass.agsl").bufferedReader().use { it.readText() }.also { source = it }
+        return RuntimeShader(code)
+    }
     fun configure(shader: Shader, sharp: Shader, frosted: Shader, width: Float, height: Float,
                   x: Float, y: Float, radius: Float, strength: Float, frost: Float, tint: Float, dark: Boolean,
                   touchX: Float, touchY: Float, pressed: Float) {

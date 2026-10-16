@@ -4,6 +4,11 @@ package dev.vitreo.launcher.ui
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.saveable.rememberSaveable
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -16,6 +21,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
@@ -31,13 +39,14 @@ import dev.vitreo.launcher.data.AppRecord
 
 @Composable
 fun Spotlight(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestions: List<AppRecord>,
-    onClose: () -> Unit, onLaunch: (String) -> Unit, onActions: (String) -> Unit) {
-    var query by remember { mutableStateOf("") }
+    onClose: () -> Unit, onLaunch: (String, Rect?) -> Unit, onActions: (String, Rect?) -> Unit, alphabetical: Boolean = false) {
+    var query by rememberSaveable { mutableStateOf("") }
     val focus = remember { FocusRequester() }
-    val results = remember(query, records, suggestions) {
+    val results = remember(query, records, suggestions, alphabetical) {
         val key = searchKey(query)
-        if (key.isEmpty()) suggestions.take(8)
-        else records.filter { key in searchKey(it.label) || key in searchKey(it.packageName) }
+        val source = if (alphabetical) records.sortedBy { searchKey(it.label) } else suggestions.take(8)
+        if (key.isEmpty()) source
+        else records.filter { key in searchKey(it.label) || key in searchKey(it.packageName) }.sortedBy { searchKey(it.label) }
     }
     Column(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .32f)).safeDrawingPadding()
         .imePadding().padding(horizontal = 18.dp).testTag("library_title")) {
@@ -49,7 +58,7 @@ fun Spotlight(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestion
                         .focusRequester(focus).testTag("search_field"), singleLine = true,
                         textStyle = TextStyle(color = Color.White, fontSize = 18.sp), cursorBrush = SolidColor(Color.White),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        keyboardActions = KeyboardActions(onSearch = { results.firstOrNull()?.let { onLaunch(it.id) } }),
+                        keyboardActions = KeyboardActions(onSearch = { results.firstOrNull()?.let { onLaunch(it.id, null) } }),
                         decorationBox = { inner ->
                             if (query.isEmpty()) Text("Search", color = Color.White.copy(alpha = .6f), fontSize = 18.sp)
                             inner()
@@ -61,28 +70,68 @@ fun Spotlight(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestion
             Text("Cancel", color = Color.White, fontSize = 17.sp,
                 modifier = Modifier.clickable(onClick = onClose).padding(start = 13.dp, top = 12.dp, bottom = 12.dp))
         }
-        Text(if (query.isBlank()) "Suggestions" else "Apps", color = Color.White.copy(alpha = .7f),
+        Text(if (query.isBlank() && !alphabetical) "Suggestions" else "Apps", color = Color.White.copy(alpha = .7f),
             fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 9.dp, bottom = 10.dp))
         if (results.isEmpty()) Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.TopCenter) {
             Text("No Results", color = Color.White.copy(alpha = .7f), modifier = Modifier.padding(top = 40.dp))
-        } else GlassPanel(Modifier.fillMaxWidth().heightIn(max = 370.dp), radius = 27f, material = GlassMaterial.Regular) {
+        } else if (alphabetical) AlphabeticalApps(results, apps, onLaunch, onActions)
+        else GlassPanel(Modifier.fillMaxWidth().heightIn(max = 370.dp), radius = 27f, material = GlassMaterial.Regular) {
             LazyVerticalGrid(GridCells.Fixed(4), Modifier.fillMaxWidth().padding(10.dp),
                 verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 items(results, key = { it.id }) { app ->
-                    LauncherTile(HomeEntry.App(app.id), apps, 53.dp, true, Modifier.height(92.dp),
-                        onClick = { onLaunch(app.id) }, onActions = { onActions(app.id) })
+                    LauncherTile(HomeEntry.App(app.id), apps, 53.dp, true, Modifier.height(92.dp).testTag("search_entry:${app.id}"),
+                        onClick = { onLaunch(app.id, it) }, onActions = { onActions(app.id, it) })
                 }
             }
         }
-        Spacer(Modifier.weight(1f))
+        if (!alphabetical || results.isEmpty()) Spacer(Modifier.weight(1f))
     }
     LaunchedEffect(Unit) { focus.requestFocus() }
 }
 
 @Composable
+private fun ColumnScope.AlphabeticalApps(records: List<AppRecord>, apps: Map<String, AppRecord>,
+    onLaunch: (String, Rect?) -> Unit, onActions: (String, Rect?) -> Unit) {
+    val groups = remember(records) { records.groupBy { searchKey(it.label).firstOrNull()?.uppercaseChar()?.takeIf { it in 'A'..'Z' }?.toString() ?: "#" }.toSortedMap() }
+    val list = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    GlassPanel(Modifier.fillMaxWidth().weight(1f).testTag("alphabetical_apps"), radius = 27f, material = GlassMaterial.Regular) {
+        Row(Modifier.fillMaxSize()) {
+            LazyColumn(Modifier.weight(1f), state = list, contentPadding = PaddingValues(12.dp)) {
+                groups.forEach { (letter, group) ->
+                    item(key = "header:$letter") {
+                        Text(letter, Modifier.padding(start = 10.dp, top = 12.dp, bottom = 7.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+                    }
+                    items(group, key = { it.id }) { app ->
+                        var bounds by remember { mutableStateOf<Rect?>(null) }
+                        Row(Modifier.fillMaxWidth().heightIn(min = 62.dp).testTag("alphabetical_entry:${app.id}")
+                            .combinedClickable(onClick = { onLaunch(app.id, bounds) }, onLongClick = { onActions(app.id, bounds) })
+                            .padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            EntryIcon(HomeEntry.App(app.id), apps, 43.dp, Modifier.onGloballyPositioned { bounds = it.boundsInRoot() })
+                            Text(app.label, Modifier.padding(start = 13.dp), fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+                }
+            }
+            Column(Modifier.width(29.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                groups.keys.forEach { letter ->
+                    Text(letter, Modifier.clickable {
+                        val index = groups.entries.takeWhile { it.key != letter }.sumOf { it.value.size + 1 }
+                        scope.launch { list.animateScrollToItem(index) }
+                    }.padding(vertical = 2.dp, horizontal = 7.dp), color = MaterialTheme.colorScheme.primary,
+                        fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun AppLibrary(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestions: List<AppRecord>,
-    onSearch: () -> Unit, onLaunch: (String) -> Unit, onActions: (String) -> Unit,
-    onCategory: (String, List<AppRecord>) -> Unit) {
+    onSearch: () -> Unit, onLaunch: (String, Rect?) -> Unit, onActions: (String, Rect?) -> Unit,
+    onCategory: (String, List<AppRecord>, Rect?) -> Unit) {
     val groups = remember(records, suggestions) {
         listOf("Suggestions" to suggestions.take(8)) + records.groupBy { appGroup(it.label, it.packageName, it.category) }
             .toSortedMap().toList()
@@ -97,9 +146,10 @@ fun AppLibrary(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestio
         LazyVerticalGrid(GridCells.Fixed(2), Modifier.weight(1f).fillMaxWidth().padding(top = 22.dp),
             horizontalArrangement = Arrangement.spacedBy(18.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             items(groups, key = { it.first }) { (title, group) ->
+                var cardBounds by remember { mutableStateOf<Rect?>(null) }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    GlassPanel(Modifier.fillMaxWidth().aspectRatio(1f).testTag("library_category:$title")
-                        .clickable { onCategory(title, group) }, radius = 29f, tint = .26f) {
+                    GlassPanel(Modifier.fillMaxWidth().aspectRatio(1f).onGloballyPositioned { cardBounds = it.boundsInRoot() }.testTag("library_category:$title")
+                        .clickable { onCategory(title, group, cardBounds) }, radius = 29f, tint = .26f) {
                         Column(Modifier.fillMaxSize().padding(11.dp), verticalArrangement = Arrangement.SpaceEvenly) {
                             repeat(2) { row ->
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -108,7 +158,7 @@ fun AppLibrary(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestio
                                         val app = group.getOrNull(index)
                                         if (app == null) Spacer(Modifier.size(53.dp))
                                         else if (index == 3 && group.size > 4) {
-                                            Column(Modifier.size(53.dp).clickable { onCategory(title, group) }, verticalArrangement = Arrangement.SpaceEvenly) {
+                                            Column(Modifier.size(53.dp).clickable { onCategory(title, group, cardBounds) }, verticalArrangement = Arrangement.SpaceEvenly) {
                                                 repeat(2) { miniRow ->
                                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                                                         repeat(2) { miniColumn -> group.getOrNull(3 + miniRow * 2 + miniColumn)?.let {
@@ -117,8 +167,8 @@ fun AppLibrary(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestio
                                                     }
                                                 }
                                             }
-                                        } else EntryIcon(HomeEntry.App(app.id), apps, 53.dp,
-                                            Modifier.combinedClickable(onClick = { onLaunch(app.id) }, onLongClick = { onActions(app.id) }))
+                                        } else LauncherTile(HomeEntry.App(app.id), apps, 53.dp, false, Modifier.size(53.dp, 65.dp),
+                                            onClick = { onLaunch(app.id, it) }, onActions = { onActions(app.id, it) })
                                     }
                                 }
                             }
@@ -134,11 +184,11 @@ fun AppLibrary(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestio
 
 @Composable
 fun CategoryScreen(title: String, records: List<AppRecord>, apps: Map<String, AppRecord>,
-    onClose: () -> Unit, onLaunch: (String) -> Unit, onActions: (String) -> Unit) {
+    onClose: () -> Unit, onLaunch: (String, Rect?) -> Unit, onActions: (String, Rect?) -> Unit) {
     val columns = ((LocalConfiguration.current.screenWidthDp - 68) / 76).coerceAtLeast(1)
     val rows = (records.size + columns - 1) / columns
     val panelHeight = rows * (60f + 20f * LocalDensity.current.fontScale + 12f) + (rows - 1).coerceAtLeast(0) * 12f + 40f
-    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(20.dp)) {
+    Column(Modifier.fillMaxSize().clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null, onClick = onClose).safeDrawingPadding().padding(20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(title, Modifier.weight(1f), color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
             IconButton(onClick = onClose) { Icon(Icons.Outlined.Close, "Close", tint = Color.White) }
@@ -151,7 +201,7 @@ fun CategoryScreen(title: String, records: List<AppRecord>, apps: Map<String, Ap
                 verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 6.dp)) {
                 items(records, key = { it.id }) { app ->
                     LauncherTile(HomeEntry.App(app.id), apps, 60.dp, true, Modifier.testTag("category_entry:${app.id}"),
-                        onClick = { onLaunch(app.id) }, onActions = { onActions(app.id) })
+                        onClick = { onLaunch(app.id, it) }, onActions = { onActions(app.id, it) })
                 }
             }
         }

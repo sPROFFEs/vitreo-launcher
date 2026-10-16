@@ -1,5 +1,17 @@
 # Cambios
 
+## 0.4.0 — Continuidad, biblioteca y menús — 2026-10-16
+
+- Apertura desde los límites reales del icono en inicio, dock, Hoy, búsqueda, carpetas y biblioteca, con LauncherApps y sourceBounds de pantalla.
+- Al volver de una app con Atrás o HOME se conserva la carpeta, categoría o búsqueda y su consulta; un segundo HOME vuelve al inicio.
+- Animación coordinada del escritorio al abrir y regresar; prevención de dobles aperturas y recuperación si Android rechaza el cambio de tarea.
+- Menús contextuales junto al icono, elevación del icono original y colocación arriba/abajo según el espacio; acciones principales, More y accesos rápidos reales de la app cuando Android concede al launcher acceso a ellos.
+- La categoría, carpeta o búsqueda permanece debajo del menú; cerrar y cancelar una selección de carpeta recupera su contexto.
+- Cierre de paneles hacia el origen y gesto vertical desde la cabecera con cancelación; mismo progreso para superficie, desenfoque y scrim.
+- Búsqueda de biblioteca en lista alfabética con índice lateral, distinta de las sugerencias de Spotlight.
+- Cristal dibujado directamente en Compose sin AndroidView ni listeners por panel; normales analíticas del shader, borde curvo, doble reflejo y brillo que sigue la pulsación. Alternativa esmerilada en Android 12 y opciones de movimiento/transparencia conservadas.
+- Pruebas de regresión de menús anclados, navegación, gesto de cierre, lista alfabética y apertura/retorno de una app real con animaciones activadas.
+
 ## 0.3.0 — Glass, movimiento y personalización — 2026-10-15
 
 - Interfaz, mensajes, fechas y categorías en inglés por defecto.

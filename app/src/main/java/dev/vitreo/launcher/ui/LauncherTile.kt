@@ -81,7 +81,7 @@ fun EntryIcon(entry: HomeEntry, apps: Map<String, AppRecord>, size: Dp, modifier
 @Composable
 fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, labels: Boolean,
     modifier: Modifier = Modifier, editing: Boolean = false, dragging: Boolean = false,
-    onClick: () -> Unit, onActions: () -> Unit, onBounds: (Rect) -> Unit = {}, onRemove: (() -> Unit)? = null) {
+    onClick: (Rect?) -> Unit, onActions: (Rect?) -> Unit, onBounds: (Rect) -> Unit = {}, onRemove: (() -> Unit)? = null) {
     val appearance = LocalGlass.current.appearance
     val angle = if (editing && !appearance.reducedEffects) {
         val transition = rememberInfiniteTransition(label = "jiggle")
@@ -92,6 +92,7 @@ fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, l
     val label = entryLabel(entry, apps)
     val interactions = remember { MutableInteractionSource() }
     val pressed by interactions.collectIsPressedAsState()
+    var iconBounds by remember { mutableStateOf<Rect?>(null) }
     val scale by animateFloatAsState(if (pressed && !editing && !appearance.reducedEffects) .91f else 1f,
         if (appearance.reducedEffects) tween(0) else spring(dampingRatio = .72f, stiffness = 650f), label = "icon press")
     val contentColor = LocalGlassContentColor.current
@@ -99,11 +100,11 @@ fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, l
         .semantics {
             if (!labels) contentDescription = label
             if (entry is HomeEntry.App && apps[entry.id] == null) stateDescription = "Unavailable"
-        }.combinedClickable(interactionSource = interactions, indication = null, role = Role.Button, onClick = onClick,
-            onLongClickLabel = "Actions for $label", onLongClick = if (editing) null else onActions)
+        }.combinedClickable(interactionSource = interactions, indication = null, role = Role.Button, onClick = { onClick(iconBounds) },
+            onLongClickLabel = "Actions for $label", onLongClick = if (editing) null else ({ onActions(iconBounds) }))
         .alpha(if (dragging) .2f else if (entry is HomeEntry.App && apps[entry.id] == null) .5f else 1f)
         .padding(top = 7.dp, bottom = 5.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.rotate(angle).scale(scale)) {
+        Box(Modifier.onGloballyPositioned { iconBounds = it.boundsInRoot() }.rotate(angle).scale(scale)) {
             EntryIcon(entry, apps, iconSize)
             if (editing && onRemove != null) Box(Modifier.offset((-5).dp, (-5).dp).size(23.dp)
                 .background(Color(0xffd5d7db), CircleShape).clickable(onClick = onRemove), contentAlignment = Alignment.Center) {

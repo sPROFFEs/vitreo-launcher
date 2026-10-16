@@ -25,7 +25,7 @@ import java.util.Date
 @Composable
 fun TodayPage(now: Long, widgets: WidgetController, suggestions: List<AppRecord>, apps: Map<String, AppRecord>,
     onSearch: () -> Unit, onSettings: () -> Unit, onWidgets: () -> Unit, onClock: () -> Unit,
-    onCalendar: () -> Unit, onLaunch: (String) -> Unit) {
+    onCalendar: () -> Unit, onLaunch: (String, androidx.compose.ui.geometry.Rect?) -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 21.dp).testTag("today_page")) {
         Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Today", Modifier.weight(1f), fontSize = 34.sp, fontWeight = FontWeight.Bold, color = LocalGlassContentColor.current)
@@ -45,7 +45,7 @@ fun TodayPage(now: Long, widgets: WidgetController, suggestions: List<AppRecord>
                 Text("Suggestions", color = Color.White.copy(alpha = .8f), fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 6.dp, bottom = 6.dp))
                 Row(Modifier.fillMaxWidth()) {
                     suggestions.take(4).forEach { app ->
-                        LauncherTile(HomeEntry.App(app.id), apps, 53.dp, true, Modifier.weight(1f), onClick = { onLaunch(app.id) }, onActions = {})
+                        LauncherTile(HomeEntry.App(app.id), apps, 53.dp, true, Modifier.weight(1f), onClick = { onLaunch(app.id, it) }, onActions = {})
                     }
                 }
             }

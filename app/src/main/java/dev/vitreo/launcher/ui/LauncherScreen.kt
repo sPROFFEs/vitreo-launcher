@@ -4,12 +4,14 @@ package dev.vitreo.launcher.ui
 import android.app.Activity
 import android.appwidget.AppWidgetHost
 import android.content.Intent
+import android.content.pm.ShortcutInfo
 import android.provider.AlarmClock
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -27,7 +29,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
@@ -64,16 +66,18 @@ import kotlin.math.roundToInt
 import kotlin.math.abs
 
 val LauncherReadyKey = SemanticsPropertyKey<Boolean>("LauncherReady")
+val AppReturnSerialKey = SemanticsPropertyKey<Int>("AppReturnSerial")
+val AppOpeningKey = SemanticsPropertyKey<Boolean>("AppOpening")
 val HomeRowsKey = SemanticsPropertyKey<Int>("HomeRows")
 private sealed interface Sheet {
     data object Search : Sheet
+    data object LibrarySearch : Sheet
     data object Settings : Sheet
     data object Licenses : Sheet
     data object Widgets : Sheet
     data object Controls : Sheet
     data object Wallpaper : Sheet
     data class Folder(val id: String) : Sheet
-    data class Actions(val entry: HomeEntry) : Sheet
     data class Category(val title: String, val apps: List<AppRecord>) : Sheet
     data class PairWith(val app: String) : Sheet
     data class AddToFolder(val app: String) : Sheet
@@ -81,8 +85,8 @@ private sealed interface Sheet {
 private data class DragSession(val entry: HomeEntry, val position: Offset)
 
 @Composable
-fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boolean,
-    onSetHome: () -> Unit, onLaunch: (String, Rect?) -> Unit, onAppInfo: (String) -> Unit,
+fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: Int, defaultHome: Boolean,
+    onSetHome: () -> Unit, onLaunch: (String, Rect?) -> Boolean, onShortcut: (ShortcutInfo, Rect?) -> Boolean, onAppInfo: (String) -> Unit,
     onConfigureWidget: (AppWidgetHost, Int, (Boolean) -> Unit) -> Unit) {
     val ui by model.ui.collectAsStateWithLifecycle()
     val frame by model.wallpaper.collectAsStateWithLifecycle()
@@ -94,6 +98,13 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
     }
     val appearance = ui.layout.appearance.copy(reducedEffects = ui.layout.appearance.reducedEffects || ui.powerSaver)
     var sheet by remember { mutableStateOf<Sheet?>(null) }
+    var actionTarget by remember { mutableStateOf<AppActionTarget?>(null) }
+    var choiceSheet by remember { mutableStateOf<Sheet?>(null) }
+    var actionReturn by remember { mutableStateOf<AppActionTarget?>(null) }
+    var launching by remember { mutableStateOf(false) }
+    val departure = remember { Animatable(0f) }
+    var surfaceProgress by remember { mutableFloatStateOf(0f) }
+    val modalPresent = sheet != null || actionTarget != null || choiceSheet != null
     var editing by remember { mutableStateOf(false) }
     var viewport by remember { mutableStateOf(Viewport()) }
     var rootPosition by remember { mutableStateOf(Offset.Zero) }
@@ -164,10 +175,46 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
         try { context.startActivity(Intent(action)); sheet = null }
         catch (_: Exception) { model.message("No app is available for this action.") }
     }
-    fun launch(id: String) { val source = cellBounds[id]; sheet = null; onLaunch(id, source) }
+    fun launch(id: String, source: Rect? = null) {
+        if (launching) return
+        focusManager.clearFocus(); keyboard?.hide()
+        if (onLaunch(id, source)) {
+            launching = true; actionTarget = null; editing = false
+            scope.launch { departure.animateTo(1f, if (appearance.reducedEffects) tween(0) else tween(240)) }
+        }
+    }
+    fun actions(id: String, source: Rect?) {
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        actionTarget = AppActionTarget(HomeEntry.App(id), source)
+    }
+    fun origin(bounds: Rect?) = bounds?.center?.let {
+        TransformOrigin(((it.x - rootPosition.x) / viewport.width).coerceIn(0f, 1f),
+            ((it.y - rootPosition.y) / viewport.height).coerceIn(0f, 1f))
+    } ?: TransformOrigin.Center
+    fun closeSurface() {
+        when {
+            choiceSheet != null -> { choiceSheet = null; actionTarget = actionReturn; actionReturn = null }
+            actionTarget != null -> actionTarget = null
+            sheet == Sheet.Wallpaper -> if (!photoBusy) { model.discardPhoto(); sheet = Sheet.Settings }
+            else -> sheet = null
+        }
+    }
+    LaunchedEffect(appReturnSerial) {
+        launching = false
+        departure.animateTo(0f, if (appearance.reducedEffects) tween(0) else LauncherMotion.panel())
+    }
+    LaunchedEffect(launching) {
+        if (launching) {
+            delay(1_500)
+            // Recover if an OEM refused the task switch without throwing an exception.
+            if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                launching = false; departure.animateTo(0f, LauncherMotion.close())
+            }
+        }
+    }
     fun openCalendar() {
         val app = ui.apps.firstOrNull { "calendar" in it.packageName || "calendario" in searchKey(it.label) }
-        if (app != null) launch(app.id) else model.message("No calendar app is installed.")
+        if (app != null) launch(app.id, null) else model.message("No calendar app is installed.")
     }
     val opaqueScreen = sheet == Sheet.Settings || sheet == Sheet.Widgets || sheet == Sheet.Licenses || sheet == Sheet.Wallpaper ||
         sheet is Sheet.PairWith || sheet is Sheet.AddToFolder
@@ -180,10 +227,10 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
         } }
     }
     LaunchedEffect(Unit) { model.messages.collect { snackbar.showSnackbar(it) } }
-    LaunchedEffect(sheet) {
-        if (sheet != Sheet.Search) { focusManager.clearFocus(); keyboard?.hide() }
+    LaunchedEffect(sheet, actionTarget) {
+        if (sheet != Sheet.Search && sheet != Sheet.LibrarySearch || actionTarget != null) { focusManager.clearFocus(); keyboard?.hide() }
     }
-    LaunchedEffect(homeSerial) { sheet = null; model.discardPhoto(); editing = false; drag = null; focusManager.clearFocus(); keyboard?.hide(); pager.scrollToPage(1) }
+    LaunchedEffect(homeSerial) { sheet = null; actionTarget = null; choiceSheet = null; actionReturn = null; model.discardPhoto(); editing = false; drag = null; focusManager.clearFocus(); keyboard?.hide(); pager.scrollToPage(1) }
     var previousHomePages by remember { mutableIntStateOf(homePages) }
     LaunchedEffect(pager.currentPage, homePages, editing) {
         val shrank = homePages < previousHomePages
@@ -193,21 +240,17 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
     }
     BackHandler {
         when {
-            sheet == Sheet.Wallpaper -> { if (!photoBusy) { model.discardPhoto(); sheet = Sheet.Settings } }
-            sheet != null -> sheet = null
+            modalPresent -> closeSurface()
             editing -> { editing = false; drag = null }
             pager.currentPage != 1 -> scope.launch { pager.animateScrollToPage(1) }
         }
     }
-    val openEntry: (HomeEntry) -> Unit = { entry ->
-        if (editing) sheet = Sheet.Actions(entry)
+    val openEntry: (HomeEntry, Rect?) -> Unit = { entry, source ->
+        if (editing) actionTarget = AppActionTarget(entry, source)
         else when (entry) {
-            is HomeEntry.App -> launch(entry.id)
+            is HomeEntry.App -> launch(entry.id, source)
             is HomeEntry.Folder -> {
-                folderAnchor = cellBounds[entry.id]?.center?.let {
-                    TransformOrigin(((it.x - rootPosition.x) / viewport.width).coerceIn(0f, 1f),
-                        ((it.y - rootPosition.y) / viewport.height).coerceIn(0f, 1f))
-                } ?: TransformOrigin.Center
+                folderAnchor = origin(source)
                 sheet = Sheet.Folder(entry.id)
             }
         }
@@ -265,7 +308,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
     val currentPage by rememberUpdatedState(pager.currentPage)
     val currentHomePages by rememberUpdatedState(homePages)
     val currentSheet by rememberUpdatedState(sheet)
-    val gestureModifier = if (sheet != null || !onHomePage) Modifier else if (editing) Modifier.pointerInput(editing) {
+    val gestureModifier = if (modalPresent || launching || !onHomePage) Modifier else if (editing) Modifier.pointerInput(editing) {
         detectDragGesturesAfterLongPress(onDragStart = { startDrag(it) },
             onDrag = { change, amount -> if (drag != null) { change.consume(); drag = drag?.let { it.copy(position = it.position + amount) } } },
             onDragEnd = { drop() }, onDragCancel = { drag = null; folderTarget = null })
@@ -288,16 +331,23 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
             }
         }
     }
-    val modalProgress = animateFloatAsState(if (sheet != null && !opaqueScreen) 1f else 0f,
-        if (appearance.reducedEffects) tween(0) else tween(250), label = "backdrop")
+    val menuBlur = animateFloatAsState(if (actionTarget != null) 1f else 0f,
+        if (appearance.reducedEffects) tween(0) else LauncherMotion.close(), label = "menu backdrop")
     val wallpaperText = if (lightWallpaper) Color(0xff151518) else Color.White
     CompositionLocalProvider(LocalGlass provides GlassEnvironment(frame, viewport, appearance), LocalHomeClock provides now,
         LocalGlassContentColor provides wallpaperText) {
         Box(Modifier.fillMaxSize().testTag("launcher_root").semantics {
             this[LauncherReadyKey] = ui.ready && frame != null
             this[HomeRowsKey] = geometry.rows
+            this[AppReturnSerialKey] = appReturnSerial
+            this[AppOpeningKey] = launching
         }
-            .background(Color(0xff142f68)).then(gestureModifier).onGloballyPositioned { coordinates ->
+            .background(Color(0xff142f68)).graphicsLayer {
+                if (!appearance.reducedEffects) {
+                    scaleX = 1f - departure.value * .045f; scaleY = scaleX
+                    alpha = 1f - departure.value * .18f
+                }
+            }.then(gestureModifier).onGloballyPositioned { coordinates ->
                 val screen = IntArray(2); val window = IntArray(2)
                 localView.getLocationOnScreen(screen); localView.getLocationInWindow(window)
                 val origin = coordinates.positionInWindow()
@@ -310,16 +360,17 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = appearance.wallpaperDim)))
             Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.displayCutout))
                 .padding(top = if (editing) 42.dp else 9.dp)
-                .then(if (sheet != null) Modifier.clearAndSetSemantics {} else Modifier)
+                .then(if (modalPresent) Modifier.clearAndSetSemantics {} else Modifier)
                 .graphicsLayer {
                     // Read the animation in the drawing phase. Rebuilding the entire
                     // workspace for every blur frame causes avoidable layout/recomposition.
-                    val blurRadius = if (appearance.reducedEffects) 0f else modalProgress.value * 22.dp.toPx()
+                    alpha = if (opaqueScreen && surfaceProgress >= .999f) 0f else 1f
+                    val blurRadius = if (appearance.reducedEffects || opaqueScreen) 0f else maxOf(surfaceProgress, menuBlur.value) * 20.dp.toPx()
                     renderEffect = if (blurRadius > .05f) BlurEffect(blurRadius, blurRadius, TileMode.Clamp) else null
                 }) {
                 Box(Modifier.weight(1f).fillMaxWidth().testTag("home_workspace")
-                    .pointerInput(onHomePage, sheet) {
-                        detectTapGestures(onLongPress = { if (sheet == null && onHomePage) {
+                    .pointerInput(onHomePage, modalPresent) {
+                        detectTapGestures(onLongPress = { if (!modalPresent && onHomePage) {
                             editing = true; haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         } })
                     }
@@ -328,7 +379,8 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                     .onSizeChanged { if (onHomePage) { workspaceSize = it; workspaceWasEditing = editing } }
                     .onGloballyPositioned { workspaceBounds = it.boundsInRoot() }) {
                     if (!ui.ready) CircularProgressIndicator(Modifier.align(Alignment.Center), color = Color.White)
-                    else HorizontalPager(pager, Modifier.fillMaxSize(), userScrollEnabled = drag == null,
+                    else HorizontalPager(pager, Modifier.fillMaxSize(), userScrollEnabled = drag == null && !modalPresent && !launching,
+                        flingBehavior = PagerDefaults.flingBehavior(pager, snapAnimationSpec = LauncherMotion.panel()),
                         key = { page -> when (page) { 0 -> "today"; homePages + 1 -> "library"; else -> "home:$page" } },
                         beyondViewportPageCount = 0) { page ->
                         when (page) {
@@ -336,8 +388,8 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                                 onSettings = { sheet = Sheet.Settings }, onWidgets = { sheet = Sheet.Widgets },
                                 onClock = { system(AlarmClock.ACTION_SHOW_ALARMS) },
                                 onCalendar = ::openCalendar, onLaunch = ::launch)
-                            homePages + 1 -> AppLibrary(ui.apps, apps, suggestions, ::openSearch, ::launch,
-                                { sheet = Sheet.Actions(HomeEntry.App(it)) }, { title, records -> sheet = Sheet.Category(title, records) })
+                            homePages + 1 -> AppLibrary(ui.apps, apps, suggestions, { sheet = Sheet.LibrarySearch }, ::launch,
+                                ::actions, { title, records, bounds -> folderAnchor = origin(bounds); sheet = Sheet.Category(title, records) })
                             else -> {
                                 val index = page - 1
                                 val capacity = if (index == 0) firstCapacity else geometry.pageSize
@@ -354,7 +406,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                                                 else key(entry.id) {
                                                     LauncherTile(entry, apps, geometry.iconSize.dp, appearance.showLabels,
                                                         Modifier.weight(1f).fillMaxHeight().testTag("home_entry:${entry.id}"), editing, drag?.entry?.id == entry.id,
-                                                        onClick = { openEntry(entry) }, onActions = { sheet = Sheet.Actions(entry) },
+                                                        onClick = { openEntry(entry, it) }, onActions = { actionTarget = AppActionTarget(entry, it) },
                                                         onBounds = { cellBounds[entry.id] = it }, onRemove = {
                                                             if (entry is HomeEntry.App) model.removeApp(entry.id) else model.dissolve(entry.id)
                                                         })
@@ -395,7 +447,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                                 } else key(id) {
                                     LauncherTile(HomeEntry.App(id), apps, minOf(geometry.iconSize, 62f).dp, false,
                                         Modifier.weight(1f).fillMaxHeight(), editing, drag?.entry?.id == id,
-                                        onClick = { openEntry(HomeEntry.App(id)) }, onActions = { sheet = Sheet.Actions(HomeEntry.App(id)) },
+                                        onClick = { openEntry(HomeEntry.App(id), it) }, onActions = { actions(id, it) },
                                         onBounds = { cellBounds[id] = it }, onRemove = { model.addHome(id) })
                                     DisposableEffect(id) { onDispose { cellBounds.remove(id) } }
                                 }
@@ -405,7 +457,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                     Spacer(Modifier.height(5.dp))
                 }
             }
-            if (editing && sheet == null) Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 18.dp),
+            if (editing && !modalPresent) Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 18.dp),
                 horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 GlassPanel(radius = 20f) { Text("Add Widgets", color = Color.White, fontSize = 13.sp,
                     modifier = Modifier.clickable { sheet = Sheet.Widgets }.padding(horizontal = 14.dp, vertical = 10.dp)) }
@@ -420,27 +472,32 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                 EntryIcon(session.entry, apps, geometry.iconSize.dp, Modifier.offset {
                     IntOffset((session.position.x - rootPosition.x - px / 2).roundToInt(), (session.position.y - rootPosition.y - px / 2).roundToInt()) })
             }
-            AnimatedContent(sheet, transitionSpec = {
-                if (appearance.reducedEffects) EnterTransition.None togetherWith ExitTransition.None
-                else {
-                    val enter = when (targetState) {
-                        is Sheet.Folder -> scaleIn(spring(dampingRatio = .88f, stiffness = 420f), initialScale = .35f, transformOrigin = folderAnchor)
-                        is Sheet.Category -> scaleIn(spring(dampingRatio = .9f, stiffness = 420f), initialScale = .86f)
-                        Sheet.Search -> slideInVertically(spring(dampingRatio = .95f, stiffness = 550f)) { -it / 14 }
-                        Sheet.Controls -> slideInVertically(spring(dampingRatio = .92f, stiffness = 400f)) { -it / 5 }
-                        else -> slideInVertically(spring(dampingRatio = .96f, stiffness = 420f)) { it / 8 }
-                    }
-                    (fadeIn(tween(200)) + enter).togetherWith(fadeOut(tween(160)) + scaleOut(tween(200), targetScale = .98f))
+            // Scrim stays in screen space while the panel grows from its icon.
+            Box(Modifier.fillMaxSize().then(if (sheet != null && !opaqueScreen) Modifier.pointerInput(sheet) {
+                detectTapGestures(onTap = { closeSurface() })
+            } else Modifier).drawBehind {
+                if (!opaqueScreen) drawRect(Color.Black.copy(alpha = surfaceProgress * if (lightWallpaper) .58f else .28f))
+            })
+            SurfaceHost(sheet, kind = {
+                when (it) {
+                    is Sheet.Folder -> SurfaceKind.Folder
+                    is Sheet.Category -> SurfaceKind.Category
+                    Sheet.Search, Sheet.LibrarySearch -> SurfaceKind.Search
+                    Sheet.Controls -> SurfaceKind.Controls
+                    else -> SurfaceKind.Page
                 }
-            }, modifier = Modifier.fillMaxSize(), label = "surface") { current ->
-                if (current != null) {
+            }, origin = folderAnchor, onClose = ::closeSurface, progressChanged = { surfaceProgress = it }) { current ->
+                Box(Modifier.fillMaxSize().then(if (actionTarget != null || choiceSheet != null) Modifier.clearAndSetSemantics {} else Modifier)
+                    .graphicsLayer {
+                        val r = if (appearance.reducedEffects) 0f else menuBlur.value * 9.dp.toPx()
+                        renderEffect = if (r > .05f) BlurEffect(r, r, TileMode.Clamp) else null
+                    }) {
                     // Consume taps in modal gaps as well as on its controls.
                     // A transparent/blurred background must never launch an app.
-                    Box(Modifier.fillMaxSize().pointerInput(current) { detectTapGestures(onTap = {}) }
-                        .background(if (current == Sheet.Settings || current == Sheet.Widgets || current == Sheet.Wallpaper || current == Sheet.Licenses)
-                            Color.Transparent else Color.Black.copy(alpha = if (lightWallpaper) .62f else .32f)))
+                    Box(Modifier.fillMaxSize().pointerInput(current) { detectTapGestures(onTap = { closeSurface() }) })
                     when (current) {
-                        Sheet.Search -> Spotlight(ui.apps, apps, suggestions, { focusManager.clearFocus(); keyboard?.hide(); sheet = null }, ::launch, { sheet = Sheet.Actions(HomeEntry.App(it)) })
+                        Sheet.Search, Sheet.LibrarySearch -> Spotlight(ui.apps, apps, suggestions,
+                            { focusManager.clearFocus(); keyboard?.hide(); sheet = null }, ::launch, ::actions, current == Sheet.LibrarySearch)
                         Sheet.Settings -> SettingsSheet(ui, defaultHome, { sheet = null }, model::appearance, onSetHome,
                             { photoPicker.launch(arrayOf("image/*")) }, { model.preparePhoto() }, photoBusy,
                             { backupExport.launch("vitreo-layout-${BuildConfig.VERSION_NAME}.json") },
@@ -455,21 +512,39 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, defaultHome: Boole
                         Sheet.Controls -> ControlCenter(MaterialTheme.colorScheme.background.luminance() < .5f, { sheet = null }, ::system,
                             { model.appearance(ui.layout.appearance.copy(interfaceStyle = if (it) 2 else 1)) }, { sheet = Sheet.Settings }, { sheet = Sheet.Widgets })
                         is Sheet.Folder -> {
-                            val folder = ui.layout.home.filterIsInstance<HomeEntry.Folder>().find { it.id == current.id }
-                            if (folder != null) FolderSheet(folder, apps, { sheet = null }, ::launch, { sheet = Sheet.Actions(HomeEntry.App(it)) }, { model.renameFolder(folder.id, it) })
+                            val live = ui.layout.home.filterIsInstance<HomeEntry.Folder>().find { it.id == current.id }
+                            var snapshot by remember(current.id) { mutableStateOf(live) }
+                            SideEffect { if (live != null) snapshot = live }
+                            LaunchedEffect(live) { if (live == null && sheet == current) sheet = null }
+                            val folder = live ?: snapshot
+                            if (folder != null) FolderSheet(folder, apps, { sheet = null }, ::launch, ::actions, { model.renameFolder(folder.id, it) })
                         }
-                        is Sheet.Category -> CategoryScreen(current.title, current.apps, apps, { sheet = null }, ::launch, { sheet = Sheet.Actions(HomeEntry.App(it)) })
-                        is Sheet.Actions -> ActionsSheet(current.entry, ui.layout, apps, { sheet = null },
-                            { model.addHome(it); sheet = null }, { model.pinDock(it); sheet = null }, { model.removeApp(it); sheet = null }, model::move,
-                            { sheet = null; onAppInfo(it) }, { sheet = Sheet.PairWith(it) }, { sheet = Sheet.AddToFolder(it) },
-                            { id, title -> model.renameFolder(id, title); sheet = null }, { model.dissolve(it); sheet = null }, {
-                                scope.launch { pager.scrollToPage(pager.currentPage.coerceIn(1, homePages)); editing = true; sheet = null }
-                            })
-                        is Sheet.PairWith -> ChoiceSheet("Create Folder", ui.layout.home.filterIsInstance<HomeEntry.App>().filter { it.id != current.app }
-                            .map { it.id to entryLabel(it, apps) }, { sheet = null }) { model.folder(current.app, it); sheet = null }
-                        is Sheet.AddToFolder -> ChoiceSheet("Move to Folder", ui.layout.home.filterIsInstance<HomeEntry.Folder>().filter { current.app !in it.apps && it.apps.size < MAX_FOLDER_APPS }
-                            .map { it.id to it.title }, { sheet = null }) { model.addToFolder(current.app, it); sheet = null }
+                        is Sheet.Category -> CategoryScreen(current.title, current.apps, apps, { sheet = null }, ::launch, ::actions)
+                        is Sheet.PairWith, is Sheet.AddToFolder -> Unit
                     }
+                }
+            }
+            AppContextMenu(actionTarget, ui.layout, apps, { actionTarget = null }, ::launch,
+                { shortcut, bounds ->
+                    if (!launching && onShortcut(shortcut, bounds)) {
+                        launching = true; actionTarget = null
+                        scope.launch { departure.animateTo(1f, if (appearance.reducedEffects) tween(0) else tween(240)) }
+                    }
+                },
+                { model.addHome(it); actionTarget = null }, { model.pinDock(it); actionTarget = null },
+                { model.removeApp(it); actionTarget = null }, { actionTarget = null; onAppInfo(it) },
+                { actionReturn = actionTarget; actionTarget = null; choiceSheet = Sheet.PairWith(it) },
+                { actionReturn = actionTarget; actionTarget = null; choiceSheet = Sheet.AddToFolder(it) },
+                { actionTarget = null; sheet = Sheet.Folder(it) }, { model.dissolve(it); actionTarget = null }, {
+                    scope.launch { pager.scrollToPage(pager.currentPage.coerceIn(1, homePages)); editing = true; sheet = null; actionTarget = null }
+                })
+            SurfaceHost(choiceSheet, { SurfaceKind.Page }, TransformOrigin.Center, ::closeSurface) { choice ->
+                when (choice) {
+                    is Sheet.PairWith -> ChoiceSheet("Create Folder", ui.layout.home.filterIsInstance<HomeEntry.App>().filter { it.id != choice.app }
+                        .map { it.id to entryLabel(it, apps) }, ::closeSurface) { model.folder(choice.app, it); choiceSheet = null; actionReturn = null }
+                    is Sheet.AddToFolder -> ChoiceSheet("Move to Folder", ui.layout.home.filterIsInstance<HomeEntry.Folder>().filter { choice.app !in it.apps && it.apps.size < MAX_FOLDER_APPS }
+                        .map { it.id to it.title }, ::closeSurface) { model.addToFolder(choice.app, it); choiceSheet = null; actionReturn = null }
+                    else -> Unit
                 }
             }
             SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 110.dp))

@@ -92,7 +92,7 @@ def main() -> None:
     result_path.unlink(missing_ok=True)
     try:
         count = run_instrumentation()
-        native_screens = ["category-light", "category-dark", "settings-dark", "wallpaper-fit"]
+        native_screens = ["category-light", "category-dark", "settings-dark", "wallpaper-fit", "app-menu", "app-menu-more", "alphabetical-library"]
         collect_native_screens(output, native_screens)
         apks = list((ROOT / "app/build/outputs/apk/preview").glob("*.apk"))
         if len(apks) != 1:
@@ -171,9 +171,26 @@ def main() -> None:
         bounds = list(map(int, re.findall(r"\d+", label.get("bounds", ""))))
         density_values = re.findall(r"density: (\d+)", adb("shell", "wm", "density"))
         density = int(density_values[-1]) / 160
-        adb("shell", "input", "tap", str((bounds[0] + bounds[2]) // 2), str(int(bounds[1] - 85 * density)))
+        category_x, category_y = (bounds[0] + bounds[2]) // 2, int(bounds[1] - 85 * density)
+        adb("shell", "input", "tap", str(category_x), str(category_y))
         time.sleep(.7)
-        capture_screen(output, "category", "Suggestions")
+        category = capture_screen(output, "category", "Suggestions")
+        # Open the actual first category icon; preserve the category under its menu.
+        app_nodes = [node for node in category.iter("node") if node.get("clickable") == "true" and
+            node.get("long-clickable") == "true" and node.get("bounds")]
+        if not app_nodes:
+            raise RuntimeError("No app in the expanded library category.")
+        bounds = list(map(int, re.findall(r"\d+", app_nodes[0].get("bounds", ""))))
+        icon_x, icon_y = (bounds[0] + bounds[2]) // 2, (bounds[1] + bounds[3]) // 2
+        adb("shell", "input", "swipe", str(icon_x), str(icon_y), str(icon_x), str(icon_y), "700")
+        time.sleep(.7)
+        menu = capture_screen(output, "app-menu", "Edit Home Screen")
+        tap_node(menu, "text", "More")
+        time.sleep(.7)
+        capture_screen(output, "app-menu-more", "App Info")
+        adb("shell", "input", "keyevent", "KEYCODE_BACK")
+        time.sleep(.7)
+        capture_screen(output, "category-return", "Suggestions")
         adb("shell", "input", "keyevent", "KEYCODE_HOME")
         time.sleep(.7)
         adb("shell", "input", "swipe", str(int(width * .85)), str(int(height * .09)),
@@ -185,16 +202,41 @@ def main() -> None:
         for setting in ("window_animation_scale", "transition_animation_scale", "animator_duration_scale"):
             adb("shell", "settings", "put", "global", setting, "1")
         adb("shell", "dumpsys", "gfxinfo", PACKAGE, "reset")
-        recording = subprocess.Popen(["adb", "shell", "screenrecord", "--time-limit", "12", "--bit-rate", "4000000", "/sdcard/vitreo-motion.mp4"],
+        recording = subprocess.Popen(["adb", "shell", "screenrecord", "--time-limit", "40", "--size", "540x1200", "--bit-rate", "2000000", "/sdcard/vitreo-motion.mp4"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
             time.sleep(1)
-            for _ in range(2):
-                adb("shell", "input", "swipe", str(width // 2), str(int(height * .35)), str(width // 2), str(int(height * .65)), "350")
-                time.sleep(.7)
-                adb("shell", "input", "keyevent", "KEYCODE_HOME")
-                time.sleep(.7)
-            recording.wait(timeout=20)
+            # Spotlight open/close, actual app switch/return, then Library's anchored menu.
+            adb("shell", "input", "swipe", str(width // 2), str(int(height * .35)), str(width // 2), str(int(height * .65)), "450")
+            time.sleep(1)
+            adb("shell", "input", "text", "Settings")
+            time.sleep(1)
+            search = capture_screen(output, "motion-app-search", "Apps")
+            app = next((node for node in search.iter("node") if node.get("text") == "Settings" and node.get("long-clickable") == "true"), None)
+            if app is None:
+                raise RuntimeError("Settings app missing from optimized Spotlight results.")
+            app_bounds = list(map(int, re.findall(r"\d+", app.get("bounds", ""))))
+            adb("shell", "input", "tap", str((app_bounds[0] + app_bounds[2]) // 2), str((app_bounds[1] + app_bounds[3]) // 2))
+            time.sleep(1.5)
+            adb("shell", "input", "keyevent", "KEYCODE_HOME")
+            time.sleep(1)
+            capture_screen(output, "app-return", "Apps")
+            adb("shell", "input", "keyevent", "KEYCODE_HOME")
+            time.sleep(1)
+            for _ in range(10):
+                swipe(.8, .2)
+                adb("shell", "uiautomator", "dump", "/sdcard/vitreo-smoke.xml")
+                if "App Library" in adb("shell", "cat", "/sdcard/vitreo-smoke.xml"):
+                    break
+            # Reuse the same first category's centre, independently of icon bounds.
+            adb("shell", "input", "tap", str(category_x), str(category_y))
+            time.sleep(1)
+            adb("shell", "input", "swipe", str(icon_x), str(icon_y), str(icon_x), str(icon_y), "700")
+            time.sleep(1)
+            adb("shell", "input", "keyevent", "KEYCODE_BACK")
+            time.sleep(1)
+            adb("shell", "input", "keyevent", "KEYCODE_BACK")
+            recording.wait(timeout=50)
             adb("pull", "/sdcard/vitreo-motion.mp4", str(output / "optimized-motion.mp4"))
         finally:
             if recording.poll() is None:
@@ -208,7 +250,7 @@ def main() -> None:
             raise RuntimeError("A fatal crash occurred during optimized APK smoke testing.")
         result_path.write_text(json.dumps({"schema": 1, "commit": commit, "api": args.api,
             "status": "passed", "debugTestsPassed": count, "optimizedPreviewStarted": True,
-            "uiScreens": ["home", "today", "settings", "glass-settings", "wallpaper-settings", "widgets", "widget-previews", "spotlight", "library", "category", "controls"],
+            "uiScreens": ["home", "today", "settings", "glass-settings", "wallpaper-settings", "widgets", "widget-previews", "spotlight", "library", "category", "app-menu", "app-menu-more", "category-return", "controls", "motion-app-search", "app-return"],
             "motionRecordedWithAnimationsEnabled": True,
             "nativeScreens": native_screens,
             "physicalGrapheneOsTested": False}, indent=2) + "\n")

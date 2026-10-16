@@ -1,4 +1,4 @@
-# Vitreo Launcher 0.3.0
+# Vitreo Launcher 0.4.0
 
 Un inicio Android inspirado en la pantalla de inicio actual de iOS y en
 [Folio](https://github.com/McCal-Codes/folio), con una interfaz más pequeña y directa.
@@ -21,7 +21,9 @@ La interfaz está en inglés por defecto.
 - **Widgets de inicio:** reloj analógico y calendario con la fecha real, que puedes mostrar u ocultar.
 - **Hoy:** desliza a la derecha. Sugerencias basadas en las apps que abres desde Vitreo y widgets reales de tus apps Android.
 - **Spotlight:** toca Search o desliza hacia abajo. Búsqueda local por nombre o paquete, con acceso inmediato al teclado.
-- **Biblioteca de apps:** después de la última página. Grupos automáticos y acceso a todas tus aplicaciones.
+- **Biblioteca de apps:** después de la última página. Grupos automáticos, categorías ampliables y búsqueda en lista alfabética con índice lateral.
+- **Apps y menús:** apertura desde el icono real en todas las vistas. Al regresar con Atrás o HOME se recupera la carpeta, categoría o búsqueda; otro HOME vuelve al inicio. Mantén pulsado un icono para levantarlo y ver un menú anclado, acciones adicionales y los accesos rápidos que publique esa app.
+- **Movimiento:** paneles con apertura y salida al origen; arrastra hacia abajo desde su cabecera para cerrar o suelta antes para cancelar. Los ajustes de movimiento reducido y ahorro de batería siguen activos.
 - **Carpetas:** panel central de cristal, cuadrícula de tres por tres, páginas y nombre editable.
 - **Edición:** mantén pulsado un espacio libre, o elige Edit Home Screen en el menú de un icono. Los iconos se mueven suavemente; puedes reordenarlos, moverlos entre páginas manteniéndolos junto al borde y cambiarlos con los del dock. Mantén una app sobre otra para crear una carpeta o añadirla a una existente.
 - **Personalización:** iconos claros, oscuros, tintados o de cristal; arte propio para las funciones comunes y opción de conservar los iconos de las apps; aspecto claro, oscuro o automático; cuatro fondos originales y fotos locales.
@@ -38,8 +40,8 @@ a esta instalación y no se incluyen en copias portables.
 ## Instalar y actualizar
 
 Descarga la APK firmada en [Releases](https://github.com/sPROFFEs/vitreo-launcher/releases).
-La identidad de release es `dev.vitreo.launcher`. La versión 0.3.0 conserva la firma
-anterior y sube el versionCode a 300: se puede actualizar sin desinstalar ni perder
+La identidad de release es `dev.vitreo.launcher`. La versión 0.4.0 conserva la firma
+anterior y sube el versionCode a 400: se puede actualizar sin desinstalar ni perder
 la distribución. Las copias de 0.1.0 siguen siendo compatibles.
 
 Preview (`dev.vitreo.launcher.preview`) y Debug (`dev.vitreo.launcher.debug`) son
@@ -66,7 +68,7 @@ de CI. Consulta [BUILDING.md](BUILDING.md) y
 Para la siguiente versión:
 
 ```bash
-python3 scripts/bump_version.py 0.3.1
+python3 scripts/bump_version.py 0.4.1
 git add app scripts version.properties README.md CHANGELOG.md
 git commit -m "Update Vitreo"
 git push origin main
@@ -79,10 +81,10 @@ Los assets publicados son inmutables: cada revisión utiliza una versión nueva.
 La referencia visual es [iOS 27](https://www.apple.com/os/ios/) y sus controles
 Liquid Glass ([UIKit](https://developer.apple.com/documentation/uikit/uiglasseffect) y [materiales](https://developer.apple.com/design/human-interface-guidelines/materials)), la referencia visual de [liquid-glass.pro](https://www.liquid-glass.pro/), junto con las interacciones de [Folio](https://github.com/McCal-Codes/folio).
 Vitreo dibuja sus propios fondos y materiales y utiliza el arte de las aplicaciones
-instaladas. La geometría adaptada de Folio conserva su licencia y atribución en
+instaladas. La geometría, los roles de movimiento y el anclaje de menús adaptados de Folio conservan su licencia y atribución en
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-El cristal es un renderer Android propio: no usa UIKit ni captura otras aplicaciones. Solo procesa el fondo propio del launcher. Los controles usan un acabado transparente y las carpetas/categorías un material más denso con texto adaptado al tema. Los reflejos de pulsación no crean un bucle de renderizado en reposo. Los datos se conservan en
+El cristal se dibuja directamente en Compose, con un shader Android propio y sin una vista Android adicional por panel: no usa UIKit ni captura otras aplicaciones. Solo procesa el fondo propio del launcher. Los controles usan un acabado transparente y las carpetas/categorías un material más denso con texto adaptado al tema. Los reflejos de pulsación no crean un bucle de renderizado en reposo. Android controla las transiciones entre tareas y Recientes; Vitreo coordina su escritorio y entrega el origen del icono al sistema. No sustituye el compositor de iOS ni ofrece control total de las ventanas de otras apps. Los datos se conservan en
 el dispositivo. El único permiso específico de esta versión es la vinculación
 opcional de widgets a través del diálogo de Android. Más detalles en
 [PRIVACY.md](PRIVACY.md). Licencia MIT.

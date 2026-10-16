@@ -1,4 +1,4 @@
-VITREO 0.1.0 - LICENSES AND PROVENANCE
+VITREO 0.4.0 - LICENSES AND PROVENANCE
 
 Vitreo is an independent experimental launcher, not affiliated with Apple,
 GrapheneOS or Folio. No Liquid Touch or Backdrop code/assets are included.
@@ -27,7 +27,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-FOLIO GEOMETRY ADAPTATIONS
+FOLIO GEOMETRY, MOTION AND MENU ADAPTATIONS
 
 MIT License
 
@@ -53,7 +53,10 @@ SOFTWARE.
 
 Adapted file: Folio LayoutModel.kt, consulted 2026-10-14 on main.
 Upstream: https://github.com/McCal-Codes/folio
-This is a small geometry adaptation, not a complete Folio fork.
+Motion roles and anchored menu placement/shortcut query adapted from Folio
+FolioTokens.kt and AppContextMenu.kt, commit be9f0a908ab620fbc5ddc391f434eb3e33ed2215,
+consulted 2026-10-16. Adapted files: SurfaceMotion.kt, AppContextMenu.kt.
+This is a limited adaptation, not a complete Folio fork.
 See the source repository's third_party/folio/PROVENANCE.md.
 
 ANDROIDX / COMPOSE / KOTLIN / KOTLINX.COROUTINES

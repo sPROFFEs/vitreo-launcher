@@ -6,10 +6,10 @@ MIT, Copyright (c) 2026 Vitreo contributors. Texto completo en `LICENSE`.
 El nombre, vector de icono, fondos procedurales y shader `glass.agsl` son propios.
 No se incluyen recursos de Apple. No existe afiliación con Apple, GrapheneOS o Folio.
 
-## Folio: fragmentos geométricos adaptados
+## Folio: geometría, movimiento y anclaje de menús adaptados
 
 MIT, Copyright (c) 2026 Duo Launcher contributors.
-Conservar `third_party/folio/LICENSE`, el encabezado de `FolioGeometry.kt` y
+Conservar `third_party/folio/LICENSE`, los encabezados de `FolioGeometry.kt`, `SurfaceMotion.kt`, `AppContextMenu.kt` y
 `third_party/folio/PROVENANCE.md` al redistribuir. La procedencia exacta y la
 limitación de la referencia upstream están documentadas allí.
 

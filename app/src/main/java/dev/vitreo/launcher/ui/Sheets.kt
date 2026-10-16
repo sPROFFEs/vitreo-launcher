@@ -38,7 +38,7 @@ fun SheetAction(text: String, enabled: Boolean = true, onClick: () -> Unit) = Io
 
 @Composable
 fun FolderSheet(folder: HomeEntry.Folder, apps: Map<String, AppRecord>, onClose: () -> Unit,
-    onLaunch: (String) -> Unit, onActions: (String) -> Unit, onRename: (String) -> Unit) {
+    onLaunch: (String, androidx.compose.ui.geometry.Rect?) -> Unit, onActions: (String, androidx.compose.ui.geometry.Rect?) -> Unit, onRename: (String) -> Unit) {
     val count = pageCount(folder.apps.size, 9)
     val pager = rememberPagerState(pageCount = { count })
     var name by remember(folder.id) { mutableStateOf(folder.title) }
@@ -58,7 +58,7 @@ fun FolderSheet(folder: HomeEntry.Folder, apps: Map<String, AppRecord>, onClose:
                                     val id = folder.apps.getOrNull(page * 9 + row * 3 + column)
                                     if (id == null) Spacer(Modifier.weight(1f).height(86.dp))
                                     else LauncherTile(HomeEntry.App(id), apps, 58.dp, true, Modifier.weight(1f),
-                                        onClick = { onLaunch(id) }, onActions = { onActions(id) })
+                                        onClick = { onLaunch(id, it) }, onActions = { onActions(id, it) })
                                 }
                             }
                         }
@@ -68,46 +68,6 @@ fun FolderSheet(folder: HomeEntry.Folder, apps: Map<String, AppRecord>, onClose:
             Row(Modifier.padding(top = 15.dp)) { if (count > 1) repeat(count) { page ->
                 Box(Modifier.padding(4.dp).size(6.dp).background(Color.White.copy(alpha = if (page == pager.currentPage) 1f else .35f), CircleShape))
             } }
-        }
-    }
-}
-
-@Composable
-fun ActionsSheet(entry: HomeEntry, state: LauncherState, apps: Map<String, AppRecord>, onClose: () -> Unit,
-    onHome: (String) -> Unit, onDock: (String) -> Unit, onRemove: (String) -> Unit,
-    onMove: (String, Int) -> Unit, onInfo: (String) -> Unit, onPair: (String) -> Unit,
-    onChooseFolder: (String) -> Unit, onRename: (String, String) -> Unit, onDissolve: (String) -> Unit,
-    onEdit: () -> Unit) {
-    Box(Modifier.fillMaxSize().clickable(onClick = onClose).safeDrawingPadding(), contentAlignment = Alignment.Center) {
-        Column(Modifier.widthIn(max = 350.dp).fillMaxWidth().padding(horizontal = 20.dp)
-            .verticalScroll(rememberScrollState()).clickable {}, horizontalAlignment = Alignment.CenterHorizontally) {
-            EntryIcon(entry, apps, 76.dp)
-            Text(entryLabel(entry, apps), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 10.dp, bottom = 18.dp))
-            IosGroup {
-                IosRow("Edit Home Screen", onClick = onEdit)
-                IosDivider()
-                when (entry) {
-                    is HomeEntry.App -> {
-                        if (state.home.none { it is HomeEntry.App && it.id == entry.id }) IosRow("Add to Home Screen") { onHome(entry.id) }
-                        if (entry.id !in state.dock) IosRow("Add to Dock", enabled = state.dock.size < DOCK_SLOTS) { onDock(entry.id) }
-                        if (state.home.any { it is HomeEntry.App && it.id != entry.id }) IosRow("Create Folder…") { onPair(entry.id) }
-                        if (state.home.any { it is HomeEntry.Folder && entry.id !in it.apps && it.apps.size < MAX_FOLDER_APPS }) IosRow("Move to Folder…") { onChooseFolder(entry.id) }
-                        IosRow("App Info", enabled = entry.id in apps) { onInfo(entry.id) }
-                        if (entry.id in state.placedApps()) {
-                            IosDivider(); IosRow("Remove from Home Screen", destructive = true) { onRemove(entry.id) }
-                        }
-                    }
-                    is HomeEntry.Folder -> {
-                        var title by remember(entry.id) { mutableStateOf(entry.title) }
-                        BasicTextField(title, { title = it.take(48) }, Modifier.fillMaxWidth().padding(17.dp),
-                            singleLine = true, cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 17.sp))
-                        IosRow("Save Name") { onRename(entry.id, title) }
-                        IosRow("Ungroup Folder", destructive = true) { onDissolve(entry.id) }
-                    }
-                }
-            }
         }
     }
 }

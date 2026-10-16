@@ -1,5 +1,12 @@
 package dev.vitreo.launcher.ui
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionOnScreen
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -16,9 +23,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.*
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import dev.vitreo.launcher.core.Appearance
-import dev.vitreo.launcher.graphics.GlassView
+import dev.vitreo.launcher.graphics.GlassRenderer
 import dev.vitreo.launcher.graphics.Viewport
 import dev.vitreo.launcher.graphics.WallpaperFrame
 
@@ -33,7 +39,7 @@ fun GlassPanel(modifier: Modifier = Modifier, radius: Float = 28f, tint: Float =
     val glass = LocalGlass.current
     var pressed by remember { mutableStateOf(false) }
     var touch by remember { mutableStateOf(Offset(.5f, .5f)) }
-    val light by animateFloatAsState(if (pressed && !glass.appearance.reducedEffects) 1f else 0f,
+    val light = animateFloatAsState(if (pressed && !glass.appearance.reducedEffects) 1f else 0f,
         if (glass.appearance.reducedEffects) tween(0) else spring(dampingRatio = .85f, stiffness = 500f), label = "glass touch")
     val color = if (material == GlassMaterial.Regular) MaterialTheme.colorScheme.onSurface else Color.White
     val gesture = if (!interactive) Modifier else Modifier.pointerInput(Unit) {
@@ -41,16 +47,33 @@ fun GlassPanel(modifier: Modifier = Modifier, radius: Float = 28f, tint: Float =
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
             touch = Offset(down.position.x / size.width.coerceAtLeast(1), down.position.y / size.height.coerceAtLeast(1))
             pressed = true
-            try { while (awaitPointerEvent(PointerEventPass.Final).changes.any { it.pressed }) { /* Observe without consuming. */ } }
-            finally { pressed = false }
+            try {
+                do {
+                    val event = awaitPointerEvent(PointerEventPass.Final)
+                    event.changes.firstOrNull { it.pressed }?.let {
+                        touch = Offset((it.position.x / size.width.coerceAtLeast(1)).coerceIn(0f, 1f),
+                            (it.position.y / size.height.coerceAtLeast(1)).coerceIn(0f, 1f))
+                    }
+                } while (event.changes.any { it.pressed })
+            } finally { pressed = false }
         }
     }
-    Box(modifier.then(gesture).graphicsLayer {
-        scaleX = 1f - light * .014f; scaleY = 1f - light * .014f
+    val context = LocalContext.current
+    val renderer = remember(context) { GlassRenderer(context) }
+    var position by remember { mutableStateOf(Offset.Zero) }
+    val shape = RoundedCornerShape(radius.dp)
+    Box(modifier.then(gesture).shadow(6.dp, shape, clip = false,
+        ambientColor = Color.Black.copy(alpha = .10f), spotColor = Color.Black.copy(alpha = .12f)).graphicsLayer {
+        scaleX = 1f + light.value * .012f; scaleY = scaleX
+        rotationX = (touch.y - .5f) * light.value * -2.5f
+        rotationY = (touch.x - .5f) * light.value * 2.5f
+        cameraDistance = 16 * density
     }.clip(RoundedCornerShape(radius.dp))) {
-        AndroidView(factory = { GlassView(it) }, modifier = Modifier.matchParentSize(),
-            update = { it.configure(glass.frame, glass.viewport, glass.appearance, radius, tint,
-                material == GlassMaterial.Regular, touch.x, touch.y, light) })
+        Canvas(Modifier.matchParentSize().onGloballyPositioned { it.positionOnScreen().let { point -> if (point.x.isFinite() && point.y.isFinite()) position = point } }) {
+            renderer.configure(glass.frame, glass.viewport, glass.appearance, radius, tint,
+                material == GlassMaterial.Regular, touch.x, touch.y, light.value)
+            drawIntoCanvas { renderer.draw(it.nativeCanvas, size.width.toInt(), size.height.toInt(), position.x, position.y) }
+        }
         CompositionLocalProvider(LocalGlassContentColor provides color, LocalContentColor provides color) { content() }
     }
 }
