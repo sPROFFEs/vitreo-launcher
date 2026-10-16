@@ -53,9 +53,11 @@ class LauncherSmokeTest {
         }
     )
     private fun awaitReady() {
+        val activity = compose.activity
         compose.waitUntil(timeoutMillis = 20_000) {
-            val nodes = compose.onAllNodesWithTag("launcher_root").fetchSemanticsNodes()
-            nodes.any { it.config.contains(LauncherReadyKey) && it.config[LauncherReadyKey] }
+            val nodes = compose.onAllNodesWithTag("launcher_root").fetchSemanticsNodes(atLeastOneRootRequired = false)
+            activity.hasWindowFocus() && compose.activityRule.scenario.state == Lifecycle.State.RESUMED &&
+                nodes.any { it.config.contains(LauncherReadyKey) && it.config[LauncherReadyKey] }
         }
         compose.waitForIdle()
     }
@@ -362,6 +364,33 @@ class LauncherSmokeTest {
             java.io.FileInputStream(descriptor.fileDescriptor).bufferedReader().use { it.readText() }
         }
 
+    private fun awaitFocusedWindow(packageName: String) {
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        compose.waitUntil(15_000) {
+            // RESUMED precedes the first drawn/focused window. Injecting Back at
+            // that point can hit the outgoing launcher/IME instead of this app.
+            automation.rootInActiveWindow?.packageName?.toString() == packageName &&
+                shell("dumpsys window windows").lineSequence().any { "mCurrentFocus=" in it && "$packageName/" in it }
+        }
+        automation.waitForIdle(200, 5_000)
+    }
+
+    private fun closeMenuWithBack() {
+        val activity = compose.activity
+        awaitFocusedWindow(activity.packageName)
+        compose.waitUntil(10_000) {
+            activity.hasWindowFocus() && androidx.core.view.ViewCompat.getRootWindowInsets(activity.window.decorView)
+                ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) != true
+        }
+        shell("input keyevent KEYCODE_BACK")
+        // Shell input injection returns before Android 15 dispatches onBackInvoked.
+        compose.waitUntil(10_000) {
+            activity.hasWindowFocus() &&
+                compose.onAllNodesWithTag("launcher_root").fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty() &&
+                compose.onAllNodesWithTag("context_menu").fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
+        }
+    }
+
     private fun openLibraryCategory() {
         repeat(10) {
             if (!compose.onNodeWithTag("app_library").isDisplayed())
@@ -392,7 +421,7 @@ class LauncherSmokeTest {
         captureEvidence("app-menu-more")
         compose.onNodeWithText("Back").performClick()
         compose.onNodeWithText("Edit Home Screen").assertIsDisplayed()
-        shell("input keyevent KEYCODE_BACK")
+        closeMenuWithBack()
         compose.onNodeWithTag("context_menu").assertDoesNotExist()
         compose.onNodeWithTag("category_panel").assertIsDisplayed()
         compose.onNodeWithTag(tag).assertIsDisplayed()
@@ -410,7 +439,7 @@ class LauncherSmokeTest {
         compose.onNodeWithText("Create Folder").assertIsDisplayed()
         compose.onNodeWithText("Done").performClick()
         compose.onNodeWithTag("context_menu").assertIsDisplayed()
-        shell("input keyevent KEYCODE_BACK")
+        closeMenuWithBack()
         compose.onNodeWithTag("search_field").assertTextEquals(app.label)
         compose.onNodeWithTag("search_entry:${app.id}").assertIsDisplayed()
     }
@@ -438,6 +467,7 @@ class LauncherSmokeTest {
                         ("mResumedActivity" in it || "topResumedActivity" in it) && "com.android.settings/" in it
                     }
                 }
+                awaitFocusedWindow("com.android.settings")
                 if (attempt == 0) shell("input keyevent KEYCODE_BACK")
                 else activity.runOnUiThread {
                     activity.startActivity(Intent(activity, MainActivity::class.java).setAction(Intent.ACTION_MAIN)
@@ -445,15 +475,25 @@ class LauncherSmokeTest {
                 }
                 compose.waitUntil(15_000) {
                     compose.onAllNodesWithTag("launcher_root").fetchSemanticsNodes(atLeastOneRootRequired = false).any {
-                        it.config[AppReturnSerialKey] > previous && !it.config[AppOpeningKey]
+                        activity.hasWindowFocus() && it.config[AppReturnSerialKey] > previous && !it.config[AppOpeningKey]
                     }
                 }
                 compose.onNodeWithTag("search_field").assertTextEquals(app.label)
                 compose.onNodeWithTag("search_entry:${app.id}").assertIsDisplayed()
             }
         } finally {
-            shell("cmd package set-home-activity $previousHome")
-            old.forEach { (key, value) -> shell("settings put global $key $value") }
+            // Restore the foreground even after a failed assertion. An external
+            // Settings task must not capture keys from subsequent test cases.
+            try {
+                InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                    activity.startActivity(Intent(activity, MainActivity::class.java).setAction(Intent.ACTION_MAIN)
+                        .addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                }
+                awaitFocusedWindow(activity.packageName)
+            } finally {
+                shell("cmd package set-home-activity $previousHome")
+                old.forEach { (key, value) -> shell("settings put global $key $value") }
+            }
         }
     }
 
