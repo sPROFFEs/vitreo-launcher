@@ -37,4 +37,18 @@ class DockAndGroupsTest {
         assertEquals("Social", appGroup("Mensajes", "com.android.messaging", -1))
         assertEquals("Utilities", appGroup("Unknown", "example.app", -1))
     }
+
+    @Test fun aliasChangesPreserveFolderOrderAndDoNotRestoreAppsRemovedFromHome() {
+        val replacement = "app0/AlternateIcon"
+        val folder = HomeEntry.Folder("folder:icons", "Messages", listOf(ids[0], ids[1], ids[2]))
+        val before = LauncherState(initialized = true, home = listOf(folder, HomeEntry.App(ids[3])),
+            knownApps = ids.take(5).toSet())
+        val after = LayoutOps.reconcile(LayoutOps.remapApps(before, mapOf(ids[0] to replacement)),
+            listOf(replacement) + ids.drop(1).take(4))
+        assertEquals(folder.copy(apps = listOf(replacement, ids[1], ids[2])), after.home.first())
+        assertEquals(before.home[1], after.home[1])
+        assertFalse(ids[4] in after.placedApps())
+        assertFalse(ids[0] in after.knownApps)
+        assertTrue(replacement in after.knownApps)
+    }
 }

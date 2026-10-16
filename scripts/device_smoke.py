@@ -135,6 +135,8 @@ def main() -> None:
     try:
         count = run_instrumentation()
         native_screens = ["category-light", "category-dark", "settings-dark", "wallpaper-fit", "app-menu", "app-menu-more", "alphabetical-library", "installed-icon"]
+        if args.api >= 33:
+            native_screens += [f"glass-{material}-{effect}" for material in ("clear", "regular") for effect in ("flat", "refracted")]
         collect_native_screens(output, native_screens)
         apks = list((ROOT / "app/build/outputs/apk/preview").glob("*.apk"))
         if len(apks) != 1:

@@ -1,4 +1,4 @@
-# Vitreo Launcher 0.4.0
+# Vitreo Launcher 0.4.1
 
 Un inicio Android inspirado en la pantalla de inicio actual de iOS y en
 [Folio](https://github.com/McCal-Codes/folio), con una interfaz más pequeña y directa.
@@ -25,6 +25,7 @@ La interfaz está en inglés por defecto.
 - **Hoy:** desliza a la derecha. Sugerencias basadas en las apps que abres desde Vitreo y widgets reales de tus apps Android.
 - **Spotlight:** toca Search o desliza hacia abajo. Búsqueda local por nombre o paquete, con acceso inmediato al teclado.
 - **Biblioteca de apps:** después de la última página. Grupos automáticos, categorías ampliables y búsqueda en lista alfabética con índice lateral.
+- **Catálogo:** accesos del usuario Android actual obtenidos mediante LauncherApps, incluidos iconos alternativos activados por las apps. Cambiar de icono conserva su posición cuando apunta a la misma actividad.
 - **Apps y menús:** apertura desde el icono real en todas las vistas. Al regresar con Atrás o HOME se recupera la carpeta, categoría o búsqueda; otro HOME vuelve al inicio. Mantén pulsado un icono para levantarlo y ver un menú anclado, acciones adicionales y los accesos rápidos que publique esa app.
 - **Movimiento:** paneles con apertura y salida al origen; arrastra hacia abajo desde su cabecera para cerrar o suelta antes para cancelar. Los ajustes de movimiento reducido y ahorro de batería siguen activos.
 - **Carpetas:** panel central de cristal, cuadrícula de tres por tres, páginas y nombre editable.
@@ -43,12 +44,19 @@ a esta instalación y no se incluyen en copias portables.
 ## Instalar y actualizar
 
 Descarga la APK firmada en [Releases](https://github.com/sPROFFEs/vitreo-launcher/releases).
-La identidad de release es `dev.vitreo.launcher`. La versión 0.4.0 conserva la firma
-anterior y sube el versionCode a 400: se puede actualizar sin desinstalar ni perder
+La identidad de release es `dev.vitreo.launcher`. La versión 0.4.1 conserva la firma
+anterior y sube el versionCode a 401: se puede actualizar sin desinstalar ni perder
 la distribución. Las copias de 0.1.0 siguen siendo compatibles.
 
 Preview (`dev.vitreo.launcher.preview`) y Debug (`dev.vitreo.launcher.debug`) son
 apps separadas. Preview usa una firma temporal del entorno de pruebas.
+
+Si falta una app, prueba Settings → Refresh apps y búscala por nombre o paquete
+en Search. La lista corresponde al usuario Android actual; todavía no combina
+perfiles de trabajo, Carpeta Segura ni Espacio Privado. Motion & Glass muestra
+cuándo el ahorro de batería, Reducir movimiento o Reducir transparencia limitan
+el efecto. El fondo aporta el detalle que se refracta: una foto con textura hace
+el borde más visible que un color uniforme.
 
 ## Compilar y publicar
 
@@ -71,7 +79,7 @@ de CI. Consulta [BUILDING.md](BUILDING.md) y
 Para la siguiente versión:
 
 ```bash
-python3 scripts/bump_version.py 0.4.1
+python3 scripts/bump_version.py 0.4.2
 git add app scripts version.properties README.md CHANGELOG.md
 git commit -m "Update Vitreo"
 git push origin main

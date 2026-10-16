@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <!-- Instrumentation-only fixture: the same runtime alias pattern used by icon pickers. -->
+    <activity android:name="dev.vitreo.launcher.CatalogFixtureActivity" android:exported="true" />
+    <activity-alias android:name="dev.vitreo.launcher.CatalogDefaultIcon"
+        android:targetActivity="dev.vitreo.launcher.CatalogFixtureActivity"
+        android:label="Catalog fixture" android:enabled="false" android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity-alias>
+    <activity-alias android:name="dev.vitreo.launcher.CatalogAlternateIcon"
+        android:targetActivity="dev.vitreo.launcher.CatalogFixtureActivity"
+        android:label="Catalog alternate icon" android:enabled="false" android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity-alias>
+  </application>
+</manifest>

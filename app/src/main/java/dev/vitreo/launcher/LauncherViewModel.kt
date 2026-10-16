@@ -5,9 +5,13 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.LauncherApps
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
+import android.os.Handler
+import android.os.Looper
+import android.os.UserHandle
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -57,6 +61,18 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private var catalogJob: Job? = null
     private var wallpaperJob: Job? = null
     private var loaded = false
+    private val launcherApps = app.getSystemService(LauncherApps::class.java)
+    private val appChanges = object : LauncherApps.Callback() {
+        private fun changed(packages: Array<out String>) {
+            packages.forEach(catalog::invalidate)
+            refresh()
+        }
+        override fun onPackageAdded(packageName: String, user: UserHandle) = changed(arrayOf(packageName))
+        override fun onPackageRemoved(packageName: String, user: UserHandle) = changed(arrayOf(packageName))
+        override fun onPackageChanged(packageName: String, user: UserHandle) = changed(arrayOf(packageName))
+        override fun onPackagesAvailable(packageNames: Array<out String>, user: UserHandle, replacing: Boolean) = changed(packageNames)
+        override fun onPackagesUnavailable(packageNames: Array<out String>, user: UserHandle, replacing: Boolean) = changed(packageNames)
+    }
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) { refresh() }
     }
@@ -92,6 +108,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             addDataScheme("package")
         }
         ContextCompat.registerReceiver(app, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        launcherApps.registerCallback(appChanges, Handler(Looper.getMainLooper()))
         ContextCompat.registerReceiver(app, powerReceiver, IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
@@ -100,14 +117,19 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         catalogJob?.cancel()
         catalogJob = viewModelScope.launch {
             try {
-                val apps = withContext(Dispatchers.IO) { catalog.load() }
+                val (apps, replacements) = withContext(Dispatchers.IO) {
+                    val records = catalog.load()
+                    records to catalog.aliasReplacements(_ui.value.layout.knownApps, records)
+                }
                 ensureActive()
                 val installed = if (_ui.value.layout.initialized) apps.map { it.id }
                     else catalog.preferredDock(apps) + apps.map { it.id }
-                val merged = LayoutOps.reconcile(_ui.value.layout, installed.distinct())
+                val merged = LayoutOps.reconcile(LayoutOps.remapApps(_ui.value.layout, replacements), installed.distinct())
                 val saving = app.getSystemService(PowerManager::class.java)?.isPowerSaveMode == true
                 val before = _ui.value
-                _ui.value = before.copy(layout = merged, apps = apps, ready = true, powerSaver = saving)
+                val recent = before.recentApps.map { replacements[it] ?: it }.distinct()
+                _ui.value = before.copy(layout = merged, apps = apps, ready = true, powerSaver = saving, recentApps = recent)
+                if (recent != before.recentApps) recentPreferences.edit().putString("apps", recent.joinToString("|")).apply()
                 if (merged != before.layout) saves.trySend(merged)
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
@@ -250,6 +272,13 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             put("model", Build.MODEL); put("powerSaver", _ui.value.powerSaver)
             put("agslPlatformAvailable", Build.VERSION.SDK_INT >= 33)
             put("agslFallbackReason", dev.vitreo.launcher.graphics.GlassDiagnostics.lastFailure)
+            put("agslRenderedThisProcess", dev.vitreo.launcher.graphics.GlassDiagnostics.hardwareRefractionDrawn)
+            put("reducedMotion", _ui.value.layout.appearance.reducedEffects)
+            put("reducedTransparency", _ui.value.layout.appearance.opaquePanels)
+            put("refraction", _ui.value.layout.appearance.refraction.toDouble())
+            put("frost", _ui.value.layout.appearance.frost.toDouble())
+            put("catalogSource", "LauncherApps; current Android user")
+            put("launchableActivityCount", _ui.value.apps.size)
             put("lastCrash", File(app.filesDir, "last-crash.txt").takeIf(File::exists)?.readText()?.take(32768) ?: "none")
             put("note", "No app inventory, images, tokens or layout included. Crash stack may contain technical context.")
         }.toString(2)
@@ -271,6 +300,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     override fun onCleared() {
         runCatching { app.unregisterReceiver(receiver) }
+        runCatching { launcherApps.unregisterCallback(appChanges) }
         runCatching { app.unregisterReceiver(powerReceiver) }
         saves.close()
         super.onCleared()

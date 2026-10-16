@@ -1,5 +1,13 @@
 # Cambios
 
+## 0.4.1 — Apps visibles y cristal más definido — 2026-10-16
+
+- Catálogo mediante LauncherApps: incluye alias activados en tiempo de ejecución, como los iconos alternativos de Telegram, sin descartarlos por el estado predeterminado del manifiesto.
+- Al cambiar de icono se conservan la posición en inicio, dock y carpetas y las sugerencias recientes cuando el alias apunta a la misma actividad. Los cambios de paquetes invalidan su arte en caché.
+- Refracción más visible en los bordes de controles y paneles, con centro difuso para los textos, reflejos proporcionales a la densidad de pantalla y filtrado bilineal explícito de las texturas AGSL.
+- Vista previa de cristal sobre el propio fondo; ajustes explican cuándo el modo opaco, movimiento reducido o ahorro sustituyen el efecto. Diagnóstico local incluye configuración gráfica y número de actividades disponibles, sin nombres de apps.
+- Regresión nativa de alias desactivados en el manifiesto y activados por Android, cambio de icono sin duplicar accesos y comparación de píxeles entre cristal plano y refractado en ambos materiales.
+
 ## 0.4.0 — Continuidad, biblioteca y menús — 2026-10-16
 
 - Icono adaptativo con fondo completo, marca sin recuadro interior, recurso roundIcon circular y soporte monocromático.

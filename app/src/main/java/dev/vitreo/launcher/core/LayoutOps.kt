@@ -1,6 +1,18 @@
 package dev.vitreo.launcher.core
 
 object LayoutOps {
+    fun remapApps(state: LauncherState, replacements: Map<String, String>): LauncherState {
+        if (replacements.isEmpty()) return state
+        val valid = replacements.filter { (from, to) -> isAppId(from) && isAppId(to) }
+        fun mapped(id: String) = valid[id] ?: id
+        return state.copy(dock = state.dock.map(::mapped), home = state.home.map {
+            when (it) {
+                is HomeEntry.App -> it.copy(id = mapped(it.id))
+                is HomeEntry.Folder -> it.copy(apps = it.apps.map(::mapped))
+            }
+        }, knownApps = state.knownApps.mapTo(mutableSetOf(), ::mapped)).sanitized()
+    }
+
     /** Reject additions at capacity before normalization could evict an existing app. */
     private fun canPlace(state: LauncherState, app: String): Boolean {
         val placed = state.placedApps()

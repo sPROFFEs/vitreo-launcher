@@ -19,6 +19,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionOnScreen
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
@@ -30,6 +32,8 @@ import dev.vitreo.launcher.LauncherViewModel
 import dev.vitreo.launcher.core.Appearance
 import dev.vitreo.launcher.core.HomeEntry
 import dev.vitreo.launcher.graphics.WallpaperStore
+import dev.vitreo.launcher.graphics.GlassDiagnostics
+import dev.vitreo.launcher.graphics.Viewport
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
@@ -97,7 +101,7 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                         IosGroup {
                             IosRow("Default launcher", if (defaultHome) "Vitreo" else "Choose", enabled = !defaultHome, onClick = onSetHome); IosDivider()
                             IosRow("Layout & Backup") { page = SettingsPage.Backup }; IosDivider()
-                            IosRow("Refresh apps", enabled = ui.ready, onClick = onRefresh)
+                            IosRow("Refresh apps", "${ui.apps.size} apps", enabled = ui.ready, onClick = onRefresh)
                         }
                         IosSectionLabel("Information")
                         IosGroup {
@@ -136,13 +140,15 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                         SettingsFootnote("Press and hold an app to rearrange Home, create folders or move apps to the dock.")
                     }
                     SettingsPage.Glass -> {
-                        GlassPanel(Modifier.fillMaxWidth().height(125.dp), radius = 30f, interactive = true) {
-                            Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Outlined.BlurOn, null, Modifier.size(32.dp), tint = Color.White)
-                                Text("Liquid Glass", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Medium)
-                                Text("Touch to catch the light", color = Color.White.copy(alpha = .8f), fontSize = 12.sp)
-                            }
-                        }
+                        GlassPreview()
+                        SettingsFootnote(when {
+                            a.opaquePanels -> "Solid panels are on. Turn off Reduce Transparency to see glass."
+                            ui.powerSaver -> "Frosted glass is active while Battery Saver is on."
+                            reduced -> "Frosted glass is active while Reduce Motion is on."
+                            android.os.Build.VERSION.SDK_INT < 33 -> "Frosted glass is active. Live edge refraction needs Android 13 or later."
+                            GlassDiagnostics.lastFailure != "none" -> "A graphics error was recorded. If glass looks flat, export diagnostics from About Vitreo."
+                            else -> "Live edge refraction is enabled. Details in the wallpaper make the curved edges easier to see."
+                        })
                         IosSectionLabel("Material")
                         IosGroup {
                             SettingsSlider("Frost", a.frost, "${(a.frost * 100).roundToInt()}%", enabled = !a.opaquePanels) { onAppearance(a.copy(frost = it)) }
@@ -151,7 +157,6 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                                 enabled = !a.opaquePanels && !reduced && android.os.Build.VERSION.SDK_INT >= 33) { onAppearance(a.copy(refraction = it)) }
                         }
                         SettingsFootnote("Controls catch light at their curved edges. Folders and app lists use a denser material to keep names easy to read.")
-                        if (android.os.Build.VERSION.SDK_INT < 33) SettingsFootnote("This device uses frosted glass. Edge refraction is available on Android 13 and later.")
                         IosSectionLabel("Accessibility")
                         IosGroup {
                             IosToggleRow("Reduce Motion", a.reducedEffects) { onAppearance(a.copy(reducedEffects = it)) }; IosDivider()
@@ -196,6 +201,27 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
             text = { Text("This replaces your current layout. Export a backup first if you want to keep it.") },
             confirmButton = { TextButton(onClick = { confirmation = null; if (action == "reset") onReset() else onImport() }) { Text("Continue") } },
             dismissButton = { TextButton(onClick = { confirmation = null }) { Text("Cancel") } })
+    }
+}
+
+@Composable
+private fun GlassPreview() {
+    val glass = LocalGlass.current
+    var viewport by remember { mutableStateOf(Viewport()) }
+    Box(Modifier.fillMaxWidth().height(168.dp).clip(RoundedCornerShape(28.dp)).onGloballyPositioned {
+        val position = it.positionOnScreen()
+        viewport = Viewport(it.size.width.toFloat(), it.size.height.toFloat(), position.x, position.y)
+    }, contentAlignment = Alignment.Center) {
+        glass.frame?.let { Image(it.sharp.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
+        CompositionLocalProvider(LocalGlass provides glass.copy(viewport = viewport)) {
+            GlassPanel(Modifier.width(210.dp).height(104.dp), radius = 30f, interactive = true) {
+                Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Outlined.BlurOn, null, Modifier.size(28.dp), tint = Color.White)
+                    Text("Liquid Glass", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Medium)
+                    Text("Touch to catch the light", color = Color.White.copy(alpha = .85f), fontSize = 12.sp)
+                }
+            }
+        }
     }
 }
 

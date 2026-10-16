@@ -1,8 +1,8 @@
-# Privacidad — Vitreo 0.4.0
+# Privacidad — Vitreo 0.4.1
 
 Vitreo no tiene conexión propia a Internet, cuentas, anuncios ni telemetría.
 La búsqueda y la clasificación de aplicaciones son locales y se limitan al usuario Android actual.
-La consulta de apps se restringe a actividades de inicio y proveedores de widgets.
+El catálogo usa LauncherApps para las actividades de inicio que Android pone a disposición del usuario actual; no consulta perfiles ocultos. Los proveedores de widgets se consultan por separado.
 Los menús pueden consultar accesos rápidos de las apps mediante LauncherApps cuando Android reconoce a Vitreo como launcher predeterminado. Se muestran localmente y no se incluyen en las copias exportadas.
 El arte de iconos se conserva en memoria y se invalida al cambiar la versión instalada o la configuración.
 
@@ -29,7 +29,7 @@ privado de Vitreo. No se lee toda la galería. La copia JSON conserva la distrib
 apariencia, pero no la foto, los IDs de widgets ni el historial de sugerencias.
 
 El diagnóstico se exporta únicamente cuando lo solicitas. Incluye versión, dispositivo,
-estado gráfico y el último stack de cierre inesperado; revísalo antes de compartirlo.
+estado y ajustes gráficos, número de actividades disponibles y el último stack de cierre inesperado; revísalo antes de compartirlo.
 No contiene un inventario de tus apps, fotografías o contraseñas.
 
 El cristal procesa exclusivamente el fondo propio del launcher. No captura otras apps ni

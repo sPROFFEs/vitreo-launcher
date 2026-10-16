@@ -4,10 +4,13 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.res.Configuration
 import android.content.Intent
+import android.content.pm.LauncherApps
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.net.Uri
+import android.os.Process
 import androidx.core.graphics.drawable.toBitmap
 import java.text.Collator
 import java.util.Locale
@@ -39,20 +42,27 @@ class AppCatalog(private val context: Context) {
         val collator = Collator.getInstance(Locale.ENGLISH)
         val packageUpdates = mutableMapOf<String, Long>()
         val live = mutableSetOf<String>()
-        val records = pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0).asSequence()
-            .filter { it.activityInfo.exported && it.activityInfo.enabled && it.activityInfo.packageName != context.packageName }
+        // LauncherApps supplies Android's effective component state, including icon aliases
+        // enabled at runtime (Telegram, for example). ActivityInfo.enabled only describes
+        // the manifest default: filtering it a second time hides those enabled aliases.
+        val launcher = context.getSystemService(LauncherApps::class.java)
+        val records = launcher.getActivityList(null, Process.myUserHandle()).asSequence()
+            .filter { it.activityInfo.exported && it.componentName.packageName != context.packageName }
             .map { info ->
-                val component = ComponentName(info.activityInfo.packageName, info.activityInfo.name)
+                val component = info.componentName
                 val id = component.flattenToString()
                 live.add(id)
                 val updated = packageUpdates.getOrPut(component.packageName) {
                     runCatching { pm.getPackageInfo(component.packageName, 0).lastUpdateTime }.getOrDefault(-1L)
                 }
-                val label = info.loadLabel(pm).toString()
-                artwork[id]?.takeIf { it.updated == updated && it.iconResource == info.iconResource &&
-                    it.labelResource == info.labelRes && it.label == label }?.let { return@map it.record }
+                // A disappearing resource during a package update must not hide every app.
+                val label = runCatching { info.label.toString().trim() }.getOrDefault("")
+                    .ifBlank { component.packageName }
+                val activity = info.activityInfo
+                artwork[id]?.takeIf { it.updated == updated && it.iconResource == activity.iconResource &&
+                    it.labelResource == activity.labelRes && it.label == label }?.let { return@map it.record }
                 val images = runCatching {
-                    val drawable = info.loadIcon(pm)
+                    val drawable = info.getIcon(0)
                     if (drawable is AdaptiveIconDrawable) {
                         val icon = Bitmap.createBitmap(128, 128, Bitmap.Config.ARGB_8888)
                         drawable.background?.apply { setBounds(0, 0, 128, 128); draw(Canvas(icon)) }
@@ -63,13 +73,33 @@ class AppCatalog(private val context: Context) {
                     } else drawable.toBitmap(128, 128, Bitmap.Config.ARGB_8888) to null
                 }.getOrNull()
                 AppRecord(id, label, component.packageName,
-                    images?.first, info.activityInfo.applicationInfo.category, images?.second).also {
-                    artwork[id] = Artwork(updated, info.iconResource, info.labelRes, label, it)
+                    images?.first, info.applicationInfo.category, images?.second).also {
+                    artwork[id] = Artwork(updated, activity.iconResource, activity.labelRes, label, it)
                 }
             }.distinctBy { it.id }.toList()
             .sortedWith { a, b -> collator.compare(a.label, b.label).takeIf { it != 0 } ?: a.id.compareTo(b.id) }
         artwork.keys.retainAll(live)
         return records
+    }
+
+    /** Preserve placement when an app swaps its launcher alias to change its icon. */
+    @Suppress("DEPRECATION")
+    fun aliasReplacements(known: Set<String>, apps: List<AppRecord>): Map<String, String> {
+        val live = apps.mapTo(mutableSetOf()) { it.id }
+        val byPackage = apps.groupBy { it.packageName }
+        val pm = context.packageManager
+        fun target(id: String): String? = runCatching {
+            val component = checkNotNull(ComponentName.unflattenFromString(id))
+            val info = pm.getActivityInfo(component, PackageManager.MATCH_DISABLED_COMPONENTS)
+            info.targetActivity ?: info.name
+        }.getOrNull()
+        return known.asSequence().filter { it !in live }.mapNotNull { old ->
+            val component = ComponentName.unflattenFromString(old) ?: return@mapNotNull null
+            val candidates = byPackage[component.packageName] ?: return@mapNotNull null
+            val oldTarget = target(old) ?: return@mapNotNull null
+            val matches = candidates.filter { target(it.id) == oldTarget }
+            matches.singleOrNull()?.let { old to it.id }
+        }.toMap()
     }
 
     @Suppress("DEPRECATION")

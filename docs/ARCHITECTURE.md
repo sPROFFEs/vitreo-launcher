@@ -1,8 +1,13 @@
-# Arquitectura de Vitreo 0.2.x
+# Arquitectura de Vitreo 0.4.x
 
 ## Flujo de datos
 
-`PackageManager → AppCatalog (IO) → LauncherViewModel → StateFlow → Compose`.
+`LauncherApps → AppCatalog (IO) → LauncherViewModel → StateFlow → Compose`.
+Se consulta el usuario Android actual y se respeta el estado efectivo de los
+componentes; no se vuelve a filtrar por `ActivityInfo.enabled`, que conserva el
+valor predeterminado del manifiesto. Los cambios de paquetes invalidan su caché
+de iconos. Si un componente desaparece y otro del mismo paquete apunta a la misma
+actividad, se remapea su acceso conservando el dock, carpeta o posición de inicio.
 El núcleo `LayoutOps` mantiene una lista ordenada de entradas, carpetas y cuatro
 plazas de dock. `LauncherState.sanitized()` limita tamaños, elimina duplicados y
 sanea la apariencia. Una app ausente conserva su acceso hasta que se quite.
@@ -47,10 +52,14 @@ desde Vitreo y no consultan el historial global de otras apps.
 
 `WallpaperStore` genera fondos propios o copia una foto con lado largo máximo de
 1600 px y precalcula una textura esmerilada. Carga e importación están serializadas.
-`GlassPanel` coloca un `GlassView` pasivo detrás de Compose. Android 13+ usa AGSL
+`GlassPanel` llama a `GlassRenderer` en el Canvas de Compose. Android 13+ usa AGSL
 para refracción, tinte y reflejo. API 31/32, ahorro, modo reducido, canvas sin
 hardware o error de shader usan la textura precalculada. El modo opaco evita la
-textura. El shader no captura otras apps ni desenfoca sus contenidos.
+textura. Los inputs de AGSL usan filtrado bilineal explícito. El centro del
+material regular mantiene escarcha y tinte; el borde curvo deja ver la lente.
+El shader no captura otras apps ni desenfoca sus contenidos. La prueba nativa
+compara imágenes con refracción desactivada y activada, exige cambios visibles en
+los bordes y estabilidad del centro y exporta las cuatro imágenes de comparación.
 
 ## Publicación y límites
 

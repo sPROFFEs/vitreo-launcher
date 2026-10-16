@@ -11,6 +11,7 @@ uniform float tint;
 uniform float3 tintColor;
 uniform float2 touchPoint;
 uniform float pressed;
+uniform float pixelDensity;
 
 float roundedDistance(float2 p, float2 halfSize, float r) {
     float2 q = abs(p) - halfSize + float2(r);
@@ -22,7 +23,7 @@ half4 main(float2 position) {
     float r = min(radius, min(halfSize.x, halfSize.y));
     float2 p = position - halfSize;
     float distance = roundedDistance(p, halfSize, r);
-    float rimWidth = max(r * 0.42, 1.0);
+    float rimWidth = max(r * 0.58, pixelDensity * 6.0);
     float edge = 1.0 - smoothstep(0.0, rimWidth, max(-distance, 0.0));
     // Analytic rounded-rect normal: one distance evaluation instead of five per pixel.
     float2 q = abs(p) - halfSize + float2(r);
@@ -32,23 +33,25 @@ half4 main(float2 position) {
         : (q.x > q.y ? float2(sign(p.x), 0.0) : float2(0.0, sign(p.y)));
     // Curved edge bends the background; the broad centre stays visually quiet.
     float bend = (1.0 - sqrt(max(1.0 - edge * edge, 0.0)));
-    float2 samplePoint = position + origin - normal * bend * strength * r * 0.48;
-    float2 dispersion = normal * bend * strength * 0.65;
+    float2 samplePoint = position + origin - normal * bend * strength * r * 0.95;
+    float2 dispersion = normal * bend * strength * pixelDensity * 0.55;
     half3 clear = half3(wallpaper.eval(samplePoint + dispersion).r,
                        wallpaper.eval(samplePoint).g,
                        wallpaper.eval(samplePoint - dispersion).b);
     half3 diffuse = frosted.eval(samplePoint).rgb;
-    half3 color = mix(clear, diffuse, half(clamp(frostAmount * (1.0 - bend * 0.25), 0.0, 1.0)));
-    color = mix(color, half3(tintColor), half(tint));
+    // Keep the text-bearing centre diffuse. The curved rim is clearer, so the
+    // lens remains visible on small high-density controls and regular panels.
+    half3 color = mix(clear, diffuse, half(clamp(frostAmount * (1.0 - bend * 0.72), 0.0, 1.0)));
+    color = mix(color, half3(tintColor), half(tint * (1.0 - bend * 0.68)));
     float2 lightDirection = normalize(mix(float2(-0.65, -0.76),
         (touchPoint - halfSize) / max(halfSize, float2(1.0)) + float2(-0.3, -0.4), pressed * 0.5));
     float lighting = dot(normal, lightDirection);
     float fresnel = pow(edge, 5.0);
-        float rim = exp(-abs(distance + 1.4) / 1.2);
-    float innerRim = exp(-abs(distance + rimWidth * 0.8) / 2.0) * strength;
-    float specular = pow(max(lighting, 0.0), 4.0) * (fresnel * 0.24 + rim * 0.18)
-        + max(-lighting, 0.0) * innerRim * 0.045;
-    float innerShade = max(-lighting, 0.0) * bend * 0.055;
+    float rim = exp(-abs(distance + pixelDensity * 0.9) / max(pixelDensity * 0.8, 1.0));
+    float innerRim = exp(-abs(distance + rimWidth * 0.8) / max(pixelDensity * 1.2, 1.0)) * strength;
+    float specular = pow(max(lighting, 0.0), 3.0) * (fresnel * 0.34 + rim * 0.22)
+        + max(-lighting, 0.0) * innerRim * 0.075;
+    float innerShade = max(-lighting, 0.0) * bend * 0.11;
     float touchGlow = exp(-length(position - touchPoint) / max(length(resolution) * 0.35, 1.0)) * pressed * 0.14;
     color = color + half3(specular - innerShade + touchGlow);
     return half4(clamp(color, half3(0.0), half3(1.0)), 1.0);
