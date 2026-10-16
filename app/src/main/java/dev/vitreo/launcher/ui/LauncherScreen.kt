@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -98,6 +99,8 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     }
     val appearance = ui.layout.appearance.copy(reducedEffects = ui.layout.appearance.reducedEffects || ui.powerSaver)
     var sheet by remember { mutableStateOf<Sheet?>(null) }
+    val pageHistory = remember { mutableStateListOf<Sheet>() }
+    val savedPages = rememberSaveableStateHolder()
     var actionTarget by remember { mutableStateOf<AppActionTarget?>(null) }
     var choiceSheet by remember { mutableStateOf<Sheet?>(null) }
     var actionReturn by remember { mutableStateOf<AppActionTarget?>(null) }
@@ -158,7 +161,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let { model.preparePhoto(it) } }
     LaunchedEffect(photoDraft) {
         if (photoDraft != null) sheet = Sheet.Wallpaper
-        else if (sheet == Sheet.Wallpaper) sheet = null
+        else if (sheet == Sheet.Wallpaper) sheet = Sheet.Settings
     }
     val backupExport = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { it?.let(model::exportLayout) }
     val backupImport = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let(model::importLayout) }
@@ -172,7 +175,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     }
     fun openSearch() { editing = false; sheet = Sheet.Search }
     fun system(action: String) {
-        try { context.startActivity(Intent(action)); sheet = null }
+        try { context.startActivity(Intent(action)) }
         catch (_: Exception) { model.message("No app is available for this action.") }
     }
     fun launch(id: String, source: Rect? = null) {
@@ -191,12 +194,19 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         TransformOrigin(((it.x - rootPosition.x) / viewport.width).coerceIn(0f, 1f),
             ((it.y - rootPosition.y) / viewport.height).coerceIn(0f, 1f))
     } ?: TransformOrigin.Center
+    fun pushPage(next: Sheet) {
+        sheet?.let { if (it != next) pageHistory.add(it) }
+        sheet = next
+    }
     fun closeSurface() {
         when {
             choiceSheet != null -> { choiceSheet = null; actionTarget = actionReturn; actionReturn = null }
             actionTarget != null -> actionTarget = null
             sheet == Sheet.Wallpaper -> if (!photoBusy) { model.discardPhoto(); sheet = Sheet.Settings }
-            else -> sheet = null
+            else -> {
+                if (sheet == Sheet.Settings) savedPages.removeState("settings")
+                sheet = if (pageHistory.isNotEmpty()) pageHistory.removeAt(pageHistory.lastIndex) else null
+            }
         }
     }
     LaunchedEffect(appReturnSerial) {
@@ -230,7 +240,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     LaunchedEffect(sheet, actionTarget) {
         if (sheet != Sheet.Search && sheet != Sheet.LibrarySearch || actionTarget != null) { focusManager.clearFocus(); keyboard?.hide() }
     }
-    LaunchedEffect(homeSerial) { sheet = null; actionTarget = null; choiceSheet = null; actionReturn = null; model.discardPhoto(); editing = false; drag = null; focusManager.clearFocus(); keyboard?.hide(); pager.scrollToPage(1) }
+    LaunchedEffect(homeSerial) { sheet = null; pageHistory.clear(); savedPages.removeState("settings"); actionTarget = null; choiceSheet = null; actionReturn = null; model.discardPhoto(); editing = false; drag = null; focusManager.clearFocus(); keyboard?.hide(); pager.scrollToPage(1) }
     var previousHomePages by remember { mutableIntStateOf(homePages) }
     LaunchedEffect(pager.currentPage, homePages, editing) {
         val shrank = homePages < previousHomePages
@@ -498,19 +508,25 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                     when (current) {
                         Sheet.Search, Sheet.LibrarySearch -> Spotlight(ui.apps, apps, suggestions,
                             { focusManager.clearFocus(); keyboard?.hide(); sheet = null }, ::launch, ::actions, current == Sheet.LibrarySearch)
-                        Sheet.Settings -> SettingsSheet(ui, defaultHome, { sheet = null }, model::appearance, onSetHome,
+                        Sheet.Settings -> savedPages.SaveableStateProvider("settings") {
+                            SettingsSheet(ui, defaultHome, ::closeSurface, model::appearance, onSetHome,
                             { photoPicker.launch(arrayOf("image/*")) }, { model.preparePhoto() }, photoBusy,
                             { backupExport.launch("vitreo-layout-${BuildConfig.VERSION_NAME}.json") },
                             { backupImport.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
                             { reportExport.launch("vitreo-diagnostics-${BuildConfig.VERSION_NAME}.json") }, model::refresh, model::resetLayout,
-                            { sheet = Sheet.Licenses }, { sheet = Sheet.Widgets })
-                        Sheet.Wallpaper -> photoDraft?.let { draft -> WallpaperEditor(draft, photoBusy,
-                            { model.discardPhoto(); sheet = Sheet.Settings }, model::savePhoto) }
+                            { pushPage(Sheet.Licenses) }, { pushPage(Sheet.Widgets) })
+                        }
+                        Sheet.Wallpaper -> {
+                            var cachedDraft by remember { mutableStateOf(photoDraft) }
+                            SideEffect { if (photoDraft != null) cachedDraft = photoDraft }
+                            (photoDraft ?: cachedDraft)?.let { draft -> WallpaperEditor(draft, photoBusy,
+                                { model.discardPhoto(); sheet = Sheet.Settings }, model::savePhoto) }
+                        }
                         Sheet.Widgets -> WidgetGallery(widgets, appearance.showWidgets, { model.appearance(ui.layout.appearance.copy(showWidgets = it)) },
-                            onConfigureWidget, { sheet = null }, model::message)
-                        Sheet.Licenses -> LicensesSheet { sheet = Sheet.Settings }
+                            onConfigureWidget, ::closeSurface, model::message)
+                        Sheet.Licenses -> LicensesSheet(::closeSurface)
                         Sheet.Controls -> ControlCenter(MaterialTheme.colorScheme.background.luminance() < .5f, { sheet = null }, ::system,
-                            { model.appearance(ui.layout.appearance.copy(interfaceStyle = if (it) 2 else 1)) }, { sheet = Sheet.Settings }, { sheet = Sheet.Widgets })
+                            { model.appearance(ui.layout.appearance.copy(interfaceStyle = if (it) 2 else 1)) }, { pushPage(Sheet.Settings) }, { pushPage(Sheet.Widgets) })
                         is Sheet.Folder -> {
                             val live = ui.layout.home.filterIsInstance<HomeEntry.Folder>().find { it.id == current.id }
                             var snapshot by remember(current.id) { mutableStateOf(live) }

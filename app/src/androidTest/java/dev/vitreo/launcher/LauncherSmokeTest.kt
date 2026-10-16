@@ -420,9 +420,13 @@ class LauncherSmokeTest {
         val settings = listOf("window_animation_scale", "transition_animation_scale", "animator_duration_scale")
         val old = settings.associateWith { shell("settings get global $it").trim() }
         val activity = compose.activity
+        val previousHome = shell("cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME")
+            .lineSequence().lastOrNull { it.matches(Regex("[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+")) }
+        checkNotNull(previousHome) { "Cannot preserve the default HOME for the app-return test" }
         val model = ViewModelProvider(activity)[LauncherViewModel::class.java]
         val app = model.ui.value.apps.first { it.packageName == "com.android.settings" }
         try {
+            shell("cmd package set-home-activity ${activity.packageName}/dev.vitreo.launcher.MainActivity")
             settings.forEach { shell("settings put global $it 1") }
             compose.onNodeWithTag("library_button").performClick()
             compose.onNodeWithTag("search_field").performTextInput(app.label)
@@ -447,7 +451,10 @@ class LauncherSmokeTest {
                 compose.onNodeWithTag("search_field").assertTextEquals(app.label)
                 compose.onNodeWithTag("search_entry:${app.id}").assertIsDisplayed()
             }
-        } finally { old.forEach { (key, value) -> shell("settings put global $key $value") } }
+        } finally {
+            shell("cmd package set-home-activity $previousHome")
+            old.forEach { (key, value) -> shell("settings put global $key $value") }
+        }
     }
 
     @Test fun librarySearchShowsAllAppsAndFiltersThem() {
@@ -458,11 +465,11 @@ class LauncherSmokeTest {
         }
         compose.onNodeWithText("App Library").performClick()
         compose.onNodeWithTag("alphabetical_apps").assertIsDisplayed()
+        captureEvidence("alphabetical-library")
         val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
         val app = model.ui.value.apps.first { it.packageName == "com.android.settings" }
         compose.onNodeWithTag("search_field").performTextInput(app.label)
         compose.onNodeWithTag("alphabetical_entry:${app.id}").assertIsDisplayed()
-        captureEvidence("alphabetical-library")
     }
 
     @Test fun categoryPullCanCancelAndThenDismiss() {
@@ -475,6 +482,32 @@ class LauncherSmokeTest {
         compose.onNodeWithTag("launcher_root").performTouchInput { swipe(start, start + Offset(0f, 130 * density), 350) }
         compose.onNodeWithTag("category_panel").assertDoesNotExist()
         compose.onNodeWithTag("app_library").assertIsDisplayed()
+    }
+
+    @Test fun widgetsOpenedFromSettingsReturnToSettings() {
+        awaitReady()
+        openSettings()
+        compose.onNodeWithText("Widgets").performClick()
+        compose.onNodeWithTag("widgets_title").assertIsDisplayed()
+        compose.onNodeWithText("Done").performClick()
+        compose.onNodeWithTag("settings_title").assertTextEquals("Settings")
+    }
+
+    @Test fun installedIconFillsTheRoundSystemMaskAndHasNoSquareForeground() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val icon = context.packageManager.getApplicationIcon(context.packageName)
+        assertTrue(icon is android.graphics.drawable.AdaptiveIconDrawable)
+        val bitmap = Bitmap.createBitmap(192, 192, Bitmap.Config.ARGB_8888)
+        icon.setBounds(0, 0, 192, 192); icon.draw(android.graphics.Canvas(bitmap))
+        assertEquals(0, AndroidColor.alpha(bitmap.getPixel(0, 0)))
+        assertTrue("The artwork must fill the system mask", AndroidColor.alpha(bitmap.getPixel(96, 5)) > 240)
+        val foreground = checkNotNull(context.getDrawable(R.drawable.ic_vitreo))
+        val mark = Bitmap.createBitmap(108, 108, Bitmap.Config.ARGB_8888)
+        foreground.setBounds(0, 0, 108, 108); foreground.draw(android.graphics.Canvas(mark))
+        assertEquals("No inset square behind the V", 0, AndroidColor.alpha(mark.getPixel(26, 54)))
+        val directory = checkNotNull(context.getExternalFilesDir("review"))
+        check(directory.isDirectory || directory.mkdirs())
+        File(directory, "installed-icon.png").outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
     }
 
 }

@@ -1,6 +1,6 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-  <path android:fillColor="#263C53" android:pathData="M30,25 L78,25 Q85,25 85,33 L85,76 Q85,84 77,84 L31,84 Q23,84 23,76 L23,33 Q23,25 30,25" />
-  <path android:fillColor="#A8F4DE" android:pathData="M34,36 L43,36 L54,65 L65,36 L74,36 L58,76 L50,76 Z" />
-  <path android:strokeColor="#C9FFF1" android:strokeWidth="1.5" android:strokeAlpha="0.8" android:fillColor="#00000000" android:pathData="M31,26 L77,26 Q84,26 84,33 L84,76" />
+  <!-- Only the mark belongs in the foreground. The launcher masks the full-bleed background. -->
+  <path android:fillColor="#A8F4DE" android:pathData="M32,31 H43 L54,61 L65,31 H76 L59,77 H49 Z" />
+  <path android:fillColor="#E4FFF6" android:fillAlpha="0.75" android:pathData="M32,31 H43 L54,61 L52,67 L41,34 H33 Z" />
 </vector>

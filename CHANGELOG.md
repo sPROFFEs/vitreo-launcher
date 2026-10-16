@@ -2,6 +2,9 @@
 
 ## 0.4.0 — Continuidad, biblioteca y menús — 2026-10-16
 
+- Icono adaptativo con fondo completo, marca sin recuadro interior, recurso roundIcon circular y soporte monocromático.
+- Widgets, licencias y editor de fotos recuperan la página de ajustes de origen.
+- Caché de arte por componente, versión instalada y configuración: volver de una app reutiliza los bitmaps y evita recomponer y guardar el escritorio sin cambios.
 - Apertura desde los límites reales del icono en inicio, dock, Hoy, búsqueda, carpetas y biblioteca, con LauncherApps y sourceBounds de pantalla.
 - Al volver de una app con Atrás o HOME se conserva la carpeta, categoría o búsqueda y su consulta; un segundo HOME vuelve al inicio.
 - Animación coordinada del escritorio al abrir y regresar; prevención de dobles aperturas y recuperación si Android rechaza el cambio de tarea.

@@ -92,7 +92,7 @@ def main() -> None:
     result_path.unlink(missing_ok=True)
     try:
         count = run_instrumentation()
-        native_screens = ["category-light", "category-dark", "settings-dark", "wallpaper-fit", "app-menu", "app-menu-more", "alphabetical-library"]
+        native_screens = ["category-light", "category-dark", "settings-dark", "wallpaper-fit", "app-menu", "app-menu-more", "alphabetical-library", "installed-icon"]
         collect_native_screens(output, native_screens)
         apks = list((ROOT / "app/build/outputs/apk/preview").glob("*.apk"))
         if len(apks) != 1:

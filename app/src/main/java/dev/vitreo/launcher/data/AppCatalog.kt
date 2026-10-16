@@ -2,6 +2,7 @@ package dev.vitreo.launcher.data
 
 import android.content.ComponentName
 import android.content.Context
+import android.content.res.Configuration
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -16,15 +17,41 @@ data class AppRecord(val id: String, val label: String, val packageName: String,
 
 /** Launchable activities in this Android user. Adaptive artwork is rendered before applying our mask. */
 class AppCatalog(private val context: Context) {
+    private data class Artwork(val updated: Long, val iconResource: Int, val labelResource: Int,
+        val label: String, val record: AppRecord)
+    private val artwork = mutableMapOf<String, Artwork>()
+    private var configuration: Configuration? = null
+
+    @Synchronized
+    fun invalidate(packageName: String? = null) {
+        if (packageName == null) artwork.clear()
+        else artwork.entries.removeAll { it.value.record.packageName == packageName }
+    }
+
+    @Synchronized
     @Suppress("DEPRECATION")
     fun load(): List<AppRecord> {
         val pm = context.packageManager
-        val collator = Collator.getInstance(Locale.getDefault())
-        return pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0).asSequence()
+        val currentConfiguration = context.resources.configuration
+        if (configuration != currentConfiguration) {
+            artwork.clear(); configuration = Configuration(currentConfiguration)
+        }
+        val collator = Collator.getInstance(Locale.ENGLISH)
+        val packageUpdates = mutableMapOf<String, Long>()
+        val live = mutableSetOf<String>()
+        val records = pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0).asSequence()
             .filter { it.activityInfo.exported && it.activityInfo.enabled && it.activityInfo.packageName != context.packageName }
             .map { info ->
                 val component = ComponentName(info.activityInfo.packageName, info.activityInfo.name)
-                val artwork = runCatching {
+                val id = component.flattenToString()
+                live.add(id)
+                val updated = packageUpdates.getOrPut(component.packageName) {
+                    runCatching { pm.getPackageInfo(component.packageName, 0).lastUpdateTime }.getOrDefault(-1L)
+                }
+                val label = info.loadLabel(pm).toString()
+                artwork[id]?.takeIf { it.updated == updated && it.iconResource == info.iconResource &&
+                    it.labelResource == info.labelRes && it.label == label }?.let { return@map it.record }
+                val images = runCatching {
                     val drawable = info.loadIcon(pm)
                     if (drawable is AdaptiveIconDrawable) {
                         val icon = Bitmap.createBitmap(128, 128, Bitmap.Config.ARGB_8888)
@@ -35,10 +62,14 @@ class AppCatalog(private val context: Context) {
                         icon to glyph
                     } else drawable.toBitmap(128, 128, Bitmap.Config.ARGB_8888) to null
                 }.getOrNull()
-                AppRecord(component.flattenToString(), info.loadLabel(pm).toString(), component.packageName,
-                    artwork?.first, info.activityInfo.applicationInfo.category, artwork?.second)
+                AppRecord(id, label, component.packageName,
+                    images?.first, info.activityInfo.applicationInfo.category, images?.second).also {
+                    artwork[id] = Artwork(updated, info.iconResource, info.labelRes, label, it)
+                }
             }.distinctBy { it.id }.toList()
             .sortedWith { a, b -> collator.compare(a.label, b.label).takeIf { it != 0 } ?: a.id.compareTo(b.id) }
+        artwork.keys.retainAll(live)
+        return records
     }
 
     @Suppress("DEPRECATION")

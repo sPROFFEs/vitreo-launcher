@@ -106,8 +106,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     else catalog.preferredDock(apps) + apps.map { it.id }
                 val merged = LayoutOps.reconcile(_ui.value.layout, installed.distinct())
                 val saving = app.getSystemService(PowerManager::class.java)?.isPowerSaveMode == true
-                _ui.value = _ui.value.copy(layout = merged, apps = apps, ready = true, powerSaver = saving)
-                saves.trySend(merged)
+                val before = _ui.value
+                _ui.value = before.copy(layout = merged, apps = apps, ready = true, powerSaver = saving)
+                if (merged != before.layout) saves.trySend(merged)
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 _ui.value = _ui.value.copy(ready = true)
