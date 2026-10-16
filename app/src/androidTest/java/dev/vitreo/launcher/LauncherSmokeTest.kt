@@ -366,11 +366,23 @@ class LauncherSmokeTest {
 
     private fun awaitFocusedWindow(packageName: String) {
         val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
-        compose.waitUntil(15_000) {
-            // RESUMED precedes the first drawn/focused window. Injecting Back at
-            // that point can hit the outgoing launcher/IME instead of this app.
-            automation.rootInActiveWindow?.packageName?.toString() == packageName &&
-                shell("dumpsys window windows").lineSequence().any { "mCurrentFocus=" in it && "$packageName/" in it }
+        val service = checkNotNull(automation.serviceInfo)
+        service.flags = service.flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+        automation.serviceInfo = service
+        try {
+            compose.waitUntil(15_000) {
+                // isFocused is Android's input-focus flag; RESUMED alone precedes
+                // the drawn window. UiAutomation.getWindows requires the flag above.
+                automation.windows.any { window ->
+                    window.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION &&
+                        window.isFocused && window.root?.packageName?.toString() == packageName
+                }
+            }
+        } catch (failure: Throwable) {
+            android.util.Log.e("VitreoWindowTest", "Expected focused $packageName; windows=" + automation.windows.joinToString {
+                "type=${it.type}, focused=${it.isFocused}, package=${it.root?.packageName}"
+            }, failure)
+            throw failure
         }
         automation.waitForIdle(200, 5_000)
     }
