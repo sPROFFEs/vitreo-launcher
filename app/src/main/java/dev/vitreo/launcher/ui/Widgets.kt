@@ -6,6 +6,11 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.Intent
 import android.os.Bundle
+import android.graphics.Outline
+import android.view.View
+import android.view.ViewOutlineProvider
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import android.widget.FrameLayout
 import android.text.format.DateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -79,14 +84,21 @@ fun HomeWidgets(now: Long, modifier: Modifier = Modifier, onClock: () -> Unit, o
             Text("Clock", color = LocalGlassContentColor.current, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
         }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            Column(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(Color(0xfff9f9f6))
-                .clickable(onClick = onCalendar).padding(15.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(Color(0xfff9f9f6))
+                .clickable(onClick = onCalendar).padding(15.dp).testTag("calendar_widget_card")) {
+                val fontScale = LocalDensity.current.fontScale
+                val captionSize = minOf(12f, maxHeight.value * .15f / fontScale)
+                val daySize = minOf(54f, maxHeight.value * .54f / fontScale)
+                Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
                 Text(SimpleDateFormat("EEEE", Locale.ENGLISH).format(Date(now)).uppercase(Locale.ENGLISH),
-                    fontSize = 12.sp, color = Color(0xffff453a), fontWeight = FontWeight.Medium, maxLines = 1)
-                Text(calendar.get(Calendar.DAY_OF_MONTH).toString(), fontSize = 54.sp,
-                    fontWeight = FontWeight.Light, color = Color(0xff171719))
-                Text(SimpleDateFormat("MMMM yyyy", Locale.ENGLISH).format(Date(now)), fontSize = 12.sp,
+                    fontSize = captionSize.sp, lineHeight = (captionSize * 1.2f).sp,
+                    color = Color(0xffff453a), fontWeight = FontWeight.Medium, maxLines = 1)
+                Text(calendar.get(Calendar.DAY_OF_MONTH).toString(), fontSize = daySize.sp, lineHeight = (daySize * 1.1f).sp,
+                    maxLines = 1, fontWeight = FontWeight.Light, color = Color(0xff171719))
+                Text(SimpleDateFormat("MMMM yyyy", Locale.ENGLISH).format(Date(now)), fontSize = captionSize.sp,
+                    lineHeight = (captionSize * 1.2f).sp,
                     color = Color(0xff757579), maxLines = 1)
+                }
             }
             Text("Calendar", color = LocalGlassContentColor.current, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
         }
@@ -98,16 +110,32 @@ fun NativeWidget(controller: WidgetController, id: Int) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val provider = controller.manager.getAppWidgetInfo(id) ?: return
-    val height = maxOf(140f, provider.minHeight / density.density).coerceAtMost(360f)
     Column(Modifier.fillMaxWidth()) {
-        BoxWithConstraints(Modifier.fillMaxWidth().height(height.dp).clip(RoundedCornerShape(26.dp))) {
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
             val width = maxWidth.value.toInt()
+            val fit = minOf(1f, width * density.density / provider.minWidth.coerceAtLeast(1))
+            // A tall provider needs its advertised minimum height; truncating it to
+            // 360dp lets its fixed-size RemoteViews overlap the next Today card.
+            val renderHeight = maxOf(140f / fit, provider.minHeight / density.density).coerceAtMost(1600f)
+            val height = renderHeight * fit
             AndroidView(factory = {
-                controller.host.createView(context, id, provider).apply { setPadding(0, 0, 0, 0) }
-            }, modifier = Modifier.fillMaxSize(), update = { view ->
+                WidgetHostContainer(context).apply {
+                    addView(controller.host.createView(context, id, provider).apply { setPadding(0, 0, 0, 0) },
+                        FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+                }
+            }, modifier = Modifier.fillMaxWidth().height(height.dp).testTag("native_widget:$id"), update = { container ->
+                val view = container.getChildAt(0) as android.appwidget.AppWidgetHostView
+                val renderWidth = width / fit
+                val pixelsWide = (renderWidth * density.density).roundToInt()
+                val pixelsHigh = (renderHeight * density.density).roundToInt()
+                if (view.layoutParams.width != pixelsWide || view.layoutParams.height != pixelsHigh) {
+                    view.layoutParams = FrameLayout.LayoutParams(pixelsWide, pixelsHigh)
+                }
+                view.pivotX = 0f; view.pivotY = 0f
+                view.scaleX = fit; view.scaleY = fit
                 view.updateAppWidgetSize(Bundle().apply {
                     putInt(AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY, AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN)
-                }, width, height.toInt(), width, height.toInt())
+                }, renderWidth.toInt(), renderHeight.toInt(), renderWidth.toInt(), renderHeight.toInt())
             })
         }
         Row(Modifier.fillMaxWidth().padding(start = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -116,6 +144,24 @@ fun NativeWidget(controller: WidgetController, id: Int) {
                 Icon(Icons.Outlined.RemoveCircleOutline, "Remove Widget", Modifier.size(19.dp), tint = LocalGlassContentColor.current.copy(alpha = .85f))
             }
         }
+    }
+}
+
+/** AndroidView children need a native clip as well as the Compose card's clip. */
+internal class WidgetHostContainer(context: android.content.Context) : FrameLayout(context) {
+    init {
+        clipChildren = true
+        clipToPadding = true
+        clipToOutline = true
+        outlineProvider = object : ViewOutlineProvider() {
+            override fun getOutline(view: View, outline: Outline) {
+                outline.setRoundRect(0, 0, view.width, view.height, 26f * resources.displayMetrics.density)
+            }
+        }
+    }
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        invalidateOutline()
     }
 }
 

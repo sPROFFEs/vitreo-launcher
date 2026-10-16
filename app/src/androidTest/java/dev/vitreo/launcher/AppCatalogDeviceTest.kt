@@ -2,16 +2,13 @@ package dev.vitreo.launcher
 
 import android.content.Context
 import android.content.ComponentName
-import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
-import android.os.Process
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.vitreo.launcher.data.AppCatalog
 import dev.vitreo.launcher.core.LauncherState
 import dev.vitreo.launcher.core.LayoutOps
 import androidx.test.platform.app.InstrumentationRegistry
-import java.io.FileInputStream
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -24,23 +21,26 @@ class AppCatalogDeviceTest {
         val packageName = instrumentation.context.packageName
         val defaultIcon = ComponentName(packageName, "dev.vitreo.launcher.CatalogDefaultIcon")
         val alternateIcon = ComponentName(packageName, "dev.vitreo.launcher.CatalogAlternateIcon")
-        fun setState(component: ComponentName, state: String) {
-            instrumentation.uiAutomation.executeShellCommand("pm $state --user current ${component.flattenToString()}").use {
-                FileInputStream(it.fileDescriptor).use { stream -> stream.readBytes() }
-            }
+        fun setState(component: ComponentName, state: Int) {
+            val automation = instrumentation.uiAutomation
+            automation.adoptShellPermissionIdentity("android.permission.CHANGE_COMPONENT_ENABLED_STATE")
+            try {
+                context.packageManager.setComponentEnabledSetting(component, state, PackageManager.DONT_KILL_APP)
+                assertEquals("The alias override must be installed before querying the catalog", state,
+                    context.packageManager.getComponentEnabledSetting(component))
+            } finally { automation.dropShellPermissionIdentity() }
         }
         try {
-            setState(defaultIcon, "enable")
+            setState(defaultIcon, PackageManager.COMPONENT_ENABLED_STATE_ENABLED)
             @Suppress("DEPRECATION")
             val info = context.packageManager.getActivityInfo(defaultIcon, PackageManager.MATCH_DISABLED_COMPONENTS)
             assertFalse("The fixture must reproduce a manifest-disabled alias", info.enabled)
-            assertTrue(context.getSystemService(LauncherApps::class.java).isActivityEnabled(defaultIcon, Process.myUserHandle()))
             val catalog = AppCatalog(context)
             val originalId = defaultIcon.flattenToString()
             assertTrue("A runtime-enabled icon must appear in the launcher", catalog.load().any { it.id == originalId })
 
-            setState(alternateIcon, "enable")
-            setState(defaultIcon, "disable")
+            setState(alternateIcon, PackageManager.COMPONENT_ENABLED_STATE_ENABLED)
+            setState(defaultIcon, PackageManager.COMPONENT_ENABLED_STATE_DISABLED)
             val apps = catalog.load()
             val alternateId = alternateIcon.flattenToString()
             assertTrue(apps.any { it.id == alternateId })
@@ -53,8 +53,8 @@ class AppCatalogDeviceTest {
             assertFalse(after.placedApps().contains(originalId))
             assertEquals(1, after.placedApps().count { it == alternateId })
         } finally {
-            setState(defaultIcon, "default-state")
-            setState(alternateIcon, "default-state")
+            setState(defaultIcon, PackageManager.COMPONENT_ENABLED_STATE_DEFAULT)
+            setState(alternateIcon, PackageManager.COMPONENT_ENABLED_STATE_DEFAULT)
         }
     }
 

@@ -1,8 +1,13 @@
 # Cambios
 
-## 0.4.1 — Apps visibles y cristal más definido — 2026-10-16
+## 0.4.1 — Iconos, widgets y catálogo — 2026-10-17
 
+- 23 recursos de iconos de SVG Stack, con fuentes, hashes y atribución CC BY 4.0 incluidos; reloj y calendario mantienen hora y fecha reales.
+- Tamaño de iconos de inicio y dock hasta 84 puntos, con límite según el ancho real de cada columna y altura del dock adaptada.
+- Widgets nativos con recorte redondeado en Android, altura mínima del proveedor y ajuste proporcional cuando no cabe su ancho. Las vistas previas se renderizan a su proporción y se muestran completas dentro de las tarjetas; calendario integrado adaptado a alturas pequeñas y fuentes grandes.
+- Preparación de la regresión de alias mediante la API de componentes con identidad de shell, comprobación explícita del override y sin depender de una segunda consulta de enabled.
 - Catálogo mediante LauncherApps: incluye alias activados en tiempo de ejecución, como los iconos alternativos de Telegram, sin descartarlos por el estado predeterminado del manifiesto.
+- Unión con MAIN/LAUNCHER para conservar actividades cuando una consulta omite entradas o falla; el diagnóstico registra contadores y errores, sin nombres de apps.
 - Al cambiar de icono se conservan la posición en inicio, dock y carpetas y las sugerencias recientes cuando el alias apunta a la misma actividad. Los cambios de paquetes invalidan su arte en caché.
 - Refracción más visible en los bordes de controles y paneles, con centro difuso para los textos, reflejos proporcionales a la densidad de pantalla y filtrado bilineal explícito de las texturas AGSL.
 - Vista previa de cristal sobre el propio fondo; ajustes explican cuándo el modo opaco, movimiento reducido o ahorro sustituyen el efecto. Diagnóstico local incluye configuración gráfica y número de actividades disponibles, sin nombres de apps.

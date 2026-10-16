@@ -4,7 +4,17 @@
 
 MIT, Copyright (c) 2026 Vitreo contributors. Texto completo en `LICENSE`.
 El nombre, vector de icono, fondos procedurales y shader `glass.agsl` son propios.
-No se incluyen recursos de Apple. No existe afiliación con Apple, GrapheneOS o Folio.
+No existe afiliación con Apple, GrapheneOS, SVG Stack o Folio.
+
+## Arte de iconos de SVG Stack
+
+23 imágenes WebP del conjunto [Apple IOS Icon Set](https://svgstack.com/collections/apple-ios-icon-set)
+y Contacts de [IOS 26 Liquid Glass Icon Set](https://svgstack.com/collections/ios-26-liquid-glass-icon-set),
+publicadas por [SVG Stack](https://svgstack.com), según su [política CC BY 4.0](https://svgstack.com/page/license).
+Se conservan sin modificar; el launcher aplica máscara, tamaño y tratamientos de
+color, y superpone hora y fecha actuales. Procedencia y hashes por recurso en
+`third_party/svgstack/assets.json`; licencia completa en `third_party/licenses/CC-BY-4.0.txt`.
+La atribución y las fuentes también se incluyen en los avisos de la APK.
 
 ## Folio: geometría, movimiento y anclaje de menús adaptados
 
@@ -40,5 +50,5 @@ por SHA; no se ha incluido su código dentro de Vitreo.
 ## Exclusiones deliberadas
 
 Liquid Touch no se incorpora. Backdrop tampoco es una dependencia. No hay
-iconos de iOS, fuentes comerciales, APKs upstream ni una clave privada de firma
+fuentes comerciales, APKs upstream ni una clave privada de firma
 compartida en el repositorio.

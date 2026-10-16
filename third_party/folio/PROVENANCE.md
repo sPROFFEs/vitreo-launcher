@@ -16,7 +16,7 @@ la licencia y las declaraciones geométricas del archivo en la referencia inmuta
  del modelo geométrico de Folio: `LayoutPreset`, saneamiento de medidas,
 `DEFAULT_COLUMN_GAP = 16f`, `MIN_LABELED_COLUMN = 64f`, cálculo de posiciones y
 altura mediante `HomeCellLayout`, y el límite de icono del 80% del ancho de columna
-utilizado por `homeGeometry`.
+utilizado por `homeGeometry` (ajustado al 90% sobre el ancho útil real en Vitreo 0.4.1).
 
 Se han eliminado las reglas del rail de estado, zonas de widgets y dispositivos
 plegables. Se han añadido límites finitos, cuatro columnas fijas, filas acotadas y

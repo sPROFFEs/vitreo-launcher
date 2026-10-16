@@ -38,6 +38,17 @@ class DockAndGroupsTest {
         assertEquals("Utilities", appGroup("Unknown", "example.app", -1))
     }
 
+    @Test fun largeIconsUseTheAvailableColumnsAndKeepEveryAppReachable() {
+        val large = workspaceGeometry(375f, 540f, LayoutPreset(iconSize = MAX_ICON_SIZE))
+        val narrow = workspaceGeometry(280f, 240f, LayoutPreset(iconSize = MAX_ICON_SIZE), 2f)
+        assertEquals(84f, large.iconSize, .01f)
+        assertTrue(narrow.iconSize < 84f)
+        assertTrue(narrow.iconSize < narrow.cells.cellWidth)
+        val pages = ids.chunked(narrow.pageSize)
+        assertEquals(ids, pages.flatten())
+        assertTrue(narrow.cells.rowHeight >= narrow.iconSize + 40f)
+    }
+
     @Test fun aliasChangesPreserveFolderOrderAndDoNotRestoreAppsRemovedFromHome() {
         val replacement = "app0/AlternateIcon"
         val folder = HomeEntry.Folder("folder:icons", "Messages", listOf(ids[0], ids[1], ids[2]))

@@ -23,7 +23,7 @@ data class LayoutPreset(
     val columnGap: Float = DEFAULT_COLUMN_GAP,
 ) {
     fun sanitized() = copy(
-        iconSize = iconSize.safe(40f, 68f, 60f),
+        iconSize = iconSize.safe(MIN_ICON_SIZE, MAX_ICON_SIZE, 60f),
         rowGap = rowGap.safe(4f, 28f, 12f),
         columnGap = columnGap.safe(8f, 40f, DEFAULT_COLUMN_GAP),
     )
@@ -52,8 +52,8 @@ fun workspaceGeometry(width: Float, height: Float, preset: LayoutPreset, fontSca
     val usableHeight = height.safe(48f, 4096f, 480f)
     val scale = fontScale.safe(0.8f, 3f, 1f)
     val cellWidth = usableWidth / GRID_COLUMNS
-    // The 80%-of-column cap and label allowance follow Folio's homeGeometry.
-    val icon = minOf(p.iconSize, cellWidth * .8f).coerceAtLeast(24f)
+    // Leave a gap between neighbouring icons even at the largest preference.
+    val icon = minOf(p.iconSize, cellWidth * .9f).coerceAtLeast(24f)
     val minRow = maxOf(48f, icon + 20f * scale) + p.rowGap
     val rows = floor(usableHeight / minRow).toInt().coerceIn(1, 6)
     val rowHeight = maxOf(minRow, usableHeight / rows).coerceAtMost(minRow + 22f)

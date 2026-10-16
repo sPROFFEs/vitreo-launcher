@@ -2,7 +2,7 @@
 
 ## Flujo de datos
 
-`LauncherApps → AppCatalog (IO) → LauncherViewModel → StateFlow → Compose`.
+`LauncherApps + MAIN/LAUNCHER → AppCatalog (IO) → LauncherViewModel → StateFlow → Compose`.
 Se consulta el usuario Android actual y se respeta el estado efectivo de los
 componentes; no se vuelve a filtrar por `ActivityInfo.enabled`, que conserva el
 valor predeterminado del manifiesto. Los cambios de paquetes invalidan su caché
@@ -47,6 +47,12 @@ El reloj y calendario integrados usan la hora y fecha locales. El ticker funcion
 solo mientras la actividad está visible, cada segundo o cada minuto en modo
 reducido/ahorro. Las sugerencias conservan localmente los últimos lanzamientos
 desde Vitreo y no consultan el historial global de otras apps.
+
+El host de cada widget tiene recorte nativo por outline y por sus límites; no
+depende solo del clip de Compose para encerrar RemoteViews. Respeta la altura
+mínima y escala proporcionalmente si el ancho mínimo supera el disponible.
+La galería renderiza el diseño a su proporción original y ajusta el bitmap dentro
+de la tarjeta; no asigna un ID para la previsualización.
 
 ## Material de cristal
 

@@ -141,7 +141,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val geometry = remember(workspaceSize, workspaceWasEditing, appearance.iconSize, density.density, density.fontScale) {
         // The edit toolbar uses 33dp more space. Keep the same rows/pages when
         // entering edit mode, and only tighten their spacing in that space.
-        workspaceGeometry(workspaceSize.width / density.density,
+        workspaceGeometry(workspaceSize.width / density.density - 36f,
             workspaceSize.height / density.density + if (workspaceWasEditing) 33f else 0f,
             LayoutPreset(iconSize = appearance.iconSize), density.fontScale)
     }
@@ -449,13 +449,13 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                     }
                     GlassPanel(Modifier.padding(horizontal = 11.dp).fillMaxWidth().testTag("dock")
                         .onGloballyPositioned { dockBounds = it.boundsInRoot() }, radius = 35f, tint = .16f) {
-                        Row(Modifier.fillMaxWidth().height(91.dp).padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.fillMaxWidth().height(maxOf(91f, geometry.iconSize + 28f).dp).padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                             repeat(DOCK_SLOTS) { slot ->
                                 val id = ui.layout.dock.getOrNull(slot)
                                 if (id == null) Box(Modifier.weight(1f).fillMaxHeight().clickable { openSearch() }, contentAlignment = Alignment.Center) {
                                     if (editing) Icon(Icons.Outlined.Add, "Add to Dock", tint = Color.White.copy(alpha = .6f))
                                 } else key(id) {
-                                    LauncherTile(HomeEntry.App(id), apps, minOf(geometry.iconSize, 62f).dp, false,
+                                    LauncherTile(HomeEntry.App(id), apps, geometry.iconSize.dp, false,
                                         Modifier.weight(1f).fillMaxHeight(), editing, drag?.entry?.id == id,
                                         onClick = { openEntry(HomeEntry.App(id), it) }, onActions = { actions(id, it) },
                                         onBounds = { cellBounds[id] = it }, onRemove = { model.addHome(id) })

@@ -1,0 +1,163 @@
+[
+  {
+    "key": "phone",
+    "source": "https://svgstack.com/icon/apple-phone-app-icon-598",
+    "image": "https://svgstack.com/media/img/apple-phone-app-icon_1732138984.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_phone.webp",
+    "sha256": "170d197bbc60f0b5060b466b8628daff348101d90101dd84df30c58f49108068"
+  },
+  {
+    "key": "messages",
+    "source": "https://svgstack.com/icon/ios-message-app-icon-580",
+    "image": "https://svgstack.com/media/img/ios-message-app-icon_1732132858.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_messages.webp",
+    "sha256": "289ac4cd899d3981ebce4392dc339dca304baf892201ee4ed09e16435811c44f"
+  },
+  {
+    "key": "browser",
+    "source": "https://svgstack.com/icon/ios-safari-app-icon-599",
+    "image": "https://svgstack.com/media/img/ios-safari-app-icon_1732139031.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_browser.webp",
+    "sha256": "3c48bb14fe2777aa14e3d78a09a7043996cd2801976df112856ad097a3aec3d3"
+  },
+  {
+    "key": "camera",
+    "source": "https://svgstack.com/icon/ios-camera-app-icon-583",
+    "image": "https://svgstack.com/media/img/ios-camera-app-icon_1732133104.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_camera.webp",
+    "sha256": "0aff86acff97e79dd9e11347aab3753302e53c5fce34d398f9ac815d08201af2"
+  },
+  {
+    "key": "photos",
+    "source": "https://svgstack.com/icon/ios-photos-app-icon-582",
+    "image": "https://svgstack.com/media/img/ios-photos-app-icon_1732133035.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_photos.webp",
+    "sha256": "5a62d8ff6542e011f25fd6c3cc9fc94ac5160a3137f346c2a5148fea97a2b8f9"
+  },
+  {
+    "key": "clock",
+    "source": "https://svgstack.com/icon/ios-clock-app-icon-585",
+    "image": "https://svgstack.com/media/img/ios-clock-app-icon_1732133562.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_clock.webp",
+    "sha256": "f0dc7de4b43f1c88f75ccc53e89d47679ed79f65ea32ee05639129958949b75e"
+  },
+  {
+    "key": "calendar",
+    "source": "https://svgstack.com/icon/ios-calendar-app-icon-581",
+    "image": "https://svgstack.com/media/img/ios-calendar-app-icon_1732132972.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_calendar.webp",
+    "sha256": "89c8e100f0381796d6d72a0e8ab09e46608b95503b2640dad823b471f11c1693"
+  },
+  {
+    "key": "settings",
+    "source": "https://svgstack.com/icon/ios-settings-app-icon-597",
+    "image": "https://svgstack.com/media/img/ios-settings-app-icon_1732138936.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_settings.webp",
+    "sha256": "78c1d5ceda6073d336193054eaadfc5fc8025395ef55006001ba49ec629d5a33"
+  },
+  {
+    "key": "music",
+    "source": "https://svgstack.com/icon/apple-music-app-icon-592",
+    "image": "https://svgstack.com/media/img/apple-music-app-icon_1732134718.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_music.webp",
+    "sha256": "2a7928c8e4710829d208823ddea1f748a8435cf0d3749c876c29a29b268e77ef"
+  },
+  {
+    "key": "files",
+    "source": "https://svgstack.com/icon/file-manager-ios-app-logo-7192",
+    "image": "https://svgstack.com/media/img/file-manager-ios-app-logo-S9Ua061468.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_files.webp",
+    "sha256": "bdb7ff3e251e0a4153dad18644a5c6fec7f4848c40184cd8a4acb5d0bac8031e"
+  },
+  {
+    "key": "calculator",
+    "source": "https://svgstack.com/icon/ios-calculator-app-icon-617",
+    "image": "https://svgstack.com/media/img/ios-calculator-app-icon_1732572805.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_calculator.webp",
+    "sha256": "d53bfc1658b2b9edcf50259ee3f721714dbdfca9d7fe63dd33d527bef970b11b"
+  },
+  {
+    "key": "store",
+    "source": "https://svgstack.com/icon/ios-app-store-icon-593",
+    "image": "https://svgstack.com/media/img/ios-app-store-icon_1732134767.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_store.webp",
+    "sha256": "bca978a683cfb040f013c5fb56beb55c5c096666c509c01faf9ce864ef3dd8db"
+  },
+  {
+    "key": "maps",
+    "source": "https://svgstack.com/icon/ios-maps-app-icon-586",
+    "image": "https://svgstack.com/media/img/ios-maps-app-icon_1732133657.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_maps.webp",
+    "sha256": "e951414bbaa3fad75fd78a0069077af392f2932901d7a346f944735efa47f88e"
+  },
+  {
+    "key": "mail",
+    "source": "https://svgstack.com/icon/ios-mail-app-icon-600",
+    "image": "https://svgstack.com/media/img/ios-mail-app-icon_1732200634.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_mail.webp",
+    "sha256": "92528726da0ca287b82c36e6a68f2dd6e3fe5256d68ec0418ae63c9c99dea800"
+  },
+  {
+    "key": "notes",
+    "source": "https://svgstack.com/icon/apple-notes-app-icon-589",
+    "image": "https://svgstack.com/media/img/apple-notes-app-icon_1732134363.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_notes.webp",
+    "sha256": "0d95355427c58cce9f7e5dbaa50b2f26e26a93cf3451eea5d7c0d399c0270a97"
+  },
+  {
+    "key": "weather",
+    "source": "https://svgstack.com/icon/ios-weather-app-icon-584",
+    "image": "https://svgstack.com/media/img/ios-weather-app-icon_1732133144.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_weather.webp",
+    "sha256": "a5f92604b0edae233f83eacf2d36e597a5c0c1dd22bfb37f3a8587dfcd9dcbfa"
+  },
+  {
+    "key": "telegram",
+    "source": "https://svgstack.com/icon/telegram-app-icon-3229",
+    "image": "https://svgstack.com/media/img/telegram-app-icon-KCR2934641.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_telegram.webp",
+    "sha256": "2da14dce9b598b3fd005a987830fb17b4913e5c488cbc77d0be95cdc1854db91"
+  },
+  {
+    "key": "whatsapp",
+    "source": "https://svgstack.com/icon/whatsapp-app-symbol-1546",
+    "image": "https://svgstack.com/media/img/whatsapp-app-symbol-zflu638349.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_whatsapp.webp",
+    "sha256": "0220115ba3ebd3482553b273e30517b840d243840147f38bc1efe66037b1a2d1"
+  },
+  {
+    "key": "signal",
+    "source": "https://svgstack.com/icon/signal-app-icon-1539",
+    "image": "https://svgstack.com/media/img/signal-app-icon-nyws638347.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_signal.webp",
+    "sha256": "162306406abde9ff73f14716b9e1ed7775d1669cd57f34979ca9ed56d8a11dc4"
+  },
+  {
+    "key": "youtube",
+    "source": "https://svgstack.com/icon/youtube-ios-app-logo-7153",
+    "image": "https://svgstack.com/media/img/youtube-ios-app-logo-1e6G915938.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_youtube.webp",
+    "sha256": "6da387fa2f3c826c0ed7d1d0b804b4a36e311ad9ed86e6e70fed09f5b386e958"
+  },
+  {
+    "key": "spotify",
+    "source": "https://svgstack.com/icon/spotify-ios-app-icon-7168",
+    "image": "https://svgstack.com/media/img/spotify-ios-app-icon-uw6p061459.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_spotify.webp",
+    "sha256": "17645e0835b8f86f6c820e5b089ea2d1518de631818064cff1bdac64c734a5f1"
+  },
+  {
+    "key": "youtube_music",
+    "source": "https://svgstack.com/icon/youtube-music-ios-app-icon-7165",
+    "image": "https://svgstack.com/media/img/youtube-music-ios-app-icon-EtUa061458.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_youtube_music.webp",
+    "sha256": "d8055346ca15003829aca0da587dd3da2bca25fc7c99dad0e8838d5b6ce46ab8"
+  },
+  {
+    "key": "contacts",
+    "source": "https://svgstack.com/icon/ios-26-contacts-icon-4044",
+    "image": "https://svgstack.com/media/img/ios-26-contacts-icon-CTe2169030.webp",
+    "file": "app/src/main/res/drawable-nodpi/ios_contacts.webp",
+    "sha256": "20a6758f4eb33a43b0e39fbd66b1e138fecb678909c68acbe19b2fd451ba9ccd"
+  }
+]

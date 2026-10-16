@@ -2,7 +2,7 @@
 
 Vitreo no tiene conexión propia a Internet, cuentas, anuncios ni telemetría.
 La búsqueda y la clasificación de aplicaciones son locales y se limitan al usuario Android actual.
-El catálogo usa LauncherApps para las actividades de inicio que Android pone a disposición del usuario actual; no consulta perfiles ocultos. Los proveedores de widgets se consultan por separado.
+El catálogo combina LauncherApps y la consulta MAIN/LAUNCHER para las actividades de inicio que Android pone a disposición del usuario actual; no consulta perfiles ocultos. Los proveedores de widgets se consultan por separado.
 Los menús pueden consultar accesos rápidos de las apps mediante LauncherApps cuando Android reconoce a Vitreo como launcher predeterminado. Se muestran localmente y no se incluyen en las copias exportadas.
 El arte de iconos se conserva en memoria y se invalida al cambiar la versión instalada o la configuración.
 
@@ -31,6 +31,8 @@ apariencia, pero no la foto, los IDs de widgets ni el historial de sugerencias.
 El diagnóstico se exporta únicamente cuando lo solicitas. Incluye versión, dispositivo,
 estado y ajustes gráficos, número de actividades disponibles y el último stack de cierre inesperado; revísalo antes de compartirlo.
 No contiene un inventario de tus apps, fotografías o contraseñas.
+
+Los iconos de SVG Stack se incluyen en la APK; no se descargan al utilizar el launcher.
 
 El cristal procesa exclusivamente el fondo propio del launcher. No captura otras apps ni
 sustituye las funciones de seguridad, notificaciones, bloqueo o Recientes de Android.

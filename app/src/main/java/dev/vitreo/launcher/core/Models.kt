@@ -7,6 +7,8 @@ const val STATE_SCHEMA = 1
 const val MAX_ITEMS = 2000
 const val MAX_FOLDER_APPS = 100
 const val MAX_FOLDER_ID_LENGTH = 128
+const val MIN_ICON_SIZE = 40f
+const val MAX_ICON_SIZE = 84f
 
 private val APP_ID_PATTERN = Regex("[A-Za-z][A-Za-z0-9_.]*/[A-Za-z_.$][A-Za-z0-9_.$]*")
 fun isFolderId(value: String): Boolean = value.startsWith("folder:") &&
@@ -39,7 +41,7 @@ data class Appearance(
     val wallpaperDim: Float = .12f,
 ) {
     fun sanitized() = copy(
-        iconSize = if (iconSize.isFinite()) iconSize.coerceIn(40f, 68f) else 60f,
+        iconSize = if (iconSize.isFinite()) iconSize.coerceIn(MIN_ICON_SIZE, MAX_ICON_SIZE) else 60f,
         refraction = if (refraction.isFinite()) refraction.coerceIn(0f, 1f) else .65f,
         frost = if (frost.isFinite()) frost.coerceIn(0f, 1f) else .38f,
         palette = palette.coerceIn(0, 3),

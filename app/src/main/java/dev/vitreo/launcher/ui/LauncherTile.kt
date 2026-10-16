@@ -20,6 +20,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -36,7 +37,7 @@ fun entryLabel(entry: HomeEntry, apps: Map<String, AppRecord>): String = when (e
 @Composable
 fun EntryIcon(entry: HomeEntry, apps: Map<String, AppRecord>, size: Dp, modifier: Modifier = Modifier) {
     val appearance = LocalGlass.current.appearance
-    Box(modifier.size(size).shadow(size * .05f, IconShape, ambientColor = Color.Black.copy(alpha = .2f),
+    Box(modifier.size(size).testTag("icon_art:${entry.id}").shadow(size * .05f, IconShape, ambientColor = Color.Black.copy(alpha = .2f),
         spotColor = Color.Black.copy(alpha = .22f)).clip(IconShape)) {
         if (entry is HomeEntry.Folder) {
             GlassPanel(Modifier.fillMaxSize(), radius = size.value * .25f, tint = .12f) {}

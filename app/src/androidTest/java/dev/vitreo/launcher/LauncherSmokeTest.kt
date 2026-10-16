@@ -145,6 +145,26 @@ class LauncherSmokeTest {
         openSettings()
         compose.onNodeWithTag("settings_title").assertExists()
     }
+    @Test fun largerIconsFitTheDockAndPreserveTheLayout() {
+        awaitReady()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val original = model.ui.value.layout.appearance
+        val placed = model.ui.value.layout.placedApps()
+        try {
+            compose.runOnUiThread { model.appearance(original.copy(iconSize = 84f)) }
+            compose.waitForIdle()
+            val dock = compose.onNodeWithTag("dock").fetchSemanticsNode().boundsInRoot
+            val id = model.ui.value.layout.dock.first()
+            val icon = compose.onNodeWithTag("icon_art:$id", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+            assertTrue("Large icons must exceed the old 68pt limit", icon.width / compose.activity.resources.displayMetrics.density > 68f)
+            assertTrue(icon.left >= dock.left && icon.right <= dock.right && icon.top >= dock.top && icon.bottom <= dock.bottom)
+            assertEquals(placed, model.ui.value.layout.placedApps())
+            captureEvidence("large-icons")
+        } finally {
+            compose.runOnUiThread { model.appearance(original) }
+            compose.waitForIdle()
+        }
+    }
     @Test fun librarySearchOpens() {
         awaitReady()
         compose.onNodeWithTag("library_button").performClick()

@@ -31,6 +31,8 @@ import dev.vitreo.launcher.BuildConfig
 import dev.vitreo.launcher.LauncherViewModel
 import dev.vitreo.launcher.core.Appearance
 import dev.vitreo.launcher.core.HomeEntry
+import dev.vitreo.launcher.core.MIN_ICON_SIZE
+import dev.vitreo.launcher.core.MAX_ICON_SIZE
 import dev.vitreo.launcher.graphics.WallpaperStore
 import dev.vitreo.launcher.graphics.GlassDiagnostics
 import dev.vitreo.launcher.graphics.Viewport
@@ -128,9 +130,9 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                             IosDivider()
                             IosToggleRow("Show app names", a.showLabels, modifier = Modifier.testTag("labels_switch")) { onAppearance(a.copy(showLabels = it)) }
                             IosDivider()
-                            SettingsSlider("Icon size", a.iconSize, "${a.iconSize.roundToInt()} pt", 40f..68f) { onAppearance(a.copy(iconSize = it)) }
+                            SettingsSlider("Icon size", a.iconSize, "${a.iconSize.roundToInt()} pt", MIN_ICON_SIZE..MAX_ICON_SIZE) { onAppearance(a.copy(iconSize = it)) }
                         }
-                        SettingsFootnote("Familiar icons for common apps. Other apps keep their own artwork.")
+                        SettingsFootnote("iOS app artwork from SVG Stack, with live Clock and Calendar. Other apps keep their own icons. Credits are in Open source licenses.")
                         IosSectionLabel("Interface")
                         IosGroup {
                             IosSegmented(listOf("System", "Light", "Dark"), a.interfaceStyle, Modifier.padding(12.dp)) { onAppearance(a.copy(interfaceStyle = it)) }

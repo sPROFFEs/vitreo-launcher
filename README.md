@@ -30,9 +30,9 @@ La interfaz está en inglés por defecto.
 - **Movimiento:** paneles con apertura y salida al origen; arrastra hacia abajo desde su cabecera para cerrar o suelta antes para cancelar. Los ajustes de movimiento reducido y ahorro de batería siguen activos.
 - **Carpetas:** panel central de cristal, cuadrícula de tres por tres, páginas y nombre editable.
 - **Edición:** mantén pulsado un espacio libre, o elige Edit Home Screen en el menú de un icono. Los iconos se mueven suavemente; puedes reordenarlos, moverlos entre páginas manteniéndolos junto al borde y cambiarlos con los del dock. Mantén una app sobre otra para crear una carpeta o añadirla a una existente.
-- **Personalización:** iconos claros, oscuros, tintados o de cristal; arte propio para las funciones comunes y opción de conservar los iconos de las apps; aspecto claro, oscuro o automático; cuatro fondos originales y fotos locales.
+- **Personalización:** 23 iconos de los conjuntos de SVG Stack, tratamientos claro/oscuro/tintado/cristal y opción de conservar el arte de las apps. Tamaño de inicio y dock hasta 84 puntos, limitado por el espacio de cada columna; aspecto claro, oscuro o automático; cuatro fondos originales y fotos locales.
 - **Fotos:** editor con pellizco y arrastre, Fit para ver la foto entera sobre una extensión desenfocada, Fill, Reset y guardar/cancelar. Conserva el original y permite reajustarlo.
-- **Widgets:** selector con búsqueda y previsualizaciones reales del proveedor (diseño o imagen); indica cuándo una app no suministra ninguna.
+- **Widgets:** selector con búsqueda y previsualizaciones completas ajustadas a la tarjeta, sin recortar proveedores altos o anchos. Hoy respeta la altura mínima del widget y recorta sus vistas nativas a los bordes redondeados.
 - **Ajustes:** listas agrupadas, vistas previas, navegación animada, controles segmentados e interruptores al estilo iOS. Motion & Glass permite ajustar escarcha, refracción y accesibilidad; Wallpaper permite oscurecer el fondo. Se abren desde la rueda de Hoy o desde el modo edición.
 - **Centro de control:** desliza hacia abajo desde la zona superior derecha del inicio. Accesos funcionales a Internet, Bluetooth, sonido y pantalla, además del aspecto y widgets de Vitreo.
 
@@ -92,7 +92,7 @@ Los assets publicados son inmutables: cada revisión utiliza una versión nueva.
 La referencia visual es [iOS](https://www.apple.com/os/ios/) y sus controles
 Liquid Glass ([UIKit](https://developer.apple.com/documentation/uikit/uiglasseffect) y [materiales](https://developer.apple.com/design/human-interface-guidelines/materials)), la referencia visual de [liquid-glass.pro](https://www.liquid-glass.pro/), junto con las interacciones de [Folio](https://github.com/McCal-Codes/folio).
 Vitreo dibuja sus propios fondos y materiales y utiliza el arte de las aplicaciones
-instaladas. La geometría, los roles de movimiento y el anclaje de menús adaptados de Folio conservan su licencia y atribución en
+instaladas y de [SVG Stack](https://svgstack.com/collections/apple-ios-icon-set), con atribución CC BY 4.0 conservada. La geometría, los roles de movimiento y el anclaje de menús adaptados de Folio conservan su licencia y atribución en
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 El cristal se dibuja directamente en Compose, con un shader Android propio y sin una vista Android adicional por panel: no usa UIKit ni captura otras aplicaciones. Solo procesa el fondo propio del launcher. Los controles usan un acabado transparente y las carpetas/categorías un material más denso con texto adaptado al tema. Los reflejos de pulsación no crean un bucle de renderizado en reposo. Android controla las transiciones entre tareas y Recientes; Vitreo coordina su escritorio y entrega el origen del icono al sistema. No sustituye el compositor de iOS ni ofrece control total de las ventanas de otras apps. Los datos se conservan en

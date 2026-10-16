@@ -73,14 +73,18 @@ fun WidgetPreview(info: AppWidgetProviderInfo) {
     val dark = MaterialTheme.colorScheme.background.luminance() < .5f
     BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 14.dp).clip(RoundedCornerShape(22.dp))
         .background(MaterialTheme.colorScheme.background)) {
-        val height = (info.minHeight / density.density).coerceIn(120f, 210f).dp
+        // Render to the provider's aspect ratio, then fit the passive bitmap inside
+        // the card. Tall / wide provider layouts keep all their content visible.
+        val ratio = if (info.minWidth > 0 && info.minHeight > 0) info.minHeight.toFloat() / info.minWidth else .5f
+        val height = (maxWidth.value * ratio).coerceIn(120f, 240f).dp
         val widthPx = with(density) { maxWidth.roundToPx() }
-        val heightPx = with(density) { height.roundToPx() }
-        val preview by produceState<Bitmap?>(null, info.provider, widthPx, heightPx, dark) {
+        val renderWidth = maxOf(widthPx, info.minWidth).coerceIn(1, 2048)
+        val renderHeight = maxOf((renderWidth * ratio).toInt(), info.minHeight).coerceIn(1, 2048)
+        val preview by produceState<Bitmap?>(null, info.provider, renderWidth, renderHeight, dark) {
             // Inflate/draw Android Views on Main. The result is a passive bitmap: preview taps cannot launch an app.
-            value = withContext(Dispatchers.Main.immediate) { renderWidgetPreview(context, info, widthPx, heightPx, dark) }
+            value = withContext(Dispatchers.Main.immediate) { renderWidgetPreview(context, info, renderWidth, renderHeight, dark) }
         }
-        Box(Modifier.fillMaxWidth().height(height).padding(10.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxWidth().height(height).clip(RoundedCornerShape(22.dp)).padding(10.dp), contentAlignment = Alignment.Center) {
             if (preview != null) Image(checkNotNull(preview).asImageBitmap(), "${info.loadLabel(context.packageManager)} widget preview",
                 Modifier.fillMaxSize().testTag("widget_preview:${info.provider.flattenToString()}"), contentScale = ContentScale.Fit)
             else Column(horizontalAlignment = Alignment.CenterHorizontally) {

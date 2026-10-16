@@ -5,10 +5,12 @@ import android.content.Context
 import android.content.res.Configuration
 import android.content.Intent
 import android.content.pm.LauncherApps
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.AdaptiveIconDrawable
+import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Process
 import androidx.core.graphics.drawable.toBitmap
@@ -20,6 +22,11 @@ data class AppRecord(val id: String, val label: String, val packageName: String,
 
 /** Launchable activities in this Android user. Adaptive artwork is rendered before applying our mask. */
 class AppCatalog(private val context: Context) {
+    private data class Launchable(val component: ComponentName, val activity: ActivityInfo,
+        val label: () -> CharSequence, val icon: () -> Drawable)
+    data class QueryStats(val launcherActivities: Int = 0, val intentActivities: Int = 0, val queryFailure: String = "none")
+    @Volatile var queryStats = QueryStats()
+        private set
     private data class Artwork(val updated: Long, val iconResource: Int, val labelResource: Int,
         val label: String, val record: AppRecord)
     private val artwork = mutableMapOf<String, Artwork>()
@@ -46,23 +53,36 @@ class AppCatalog(private val context: Context) {
         // enabled at runtime (Telegram, for example). ActivityInfo.enabled only describes
         // the manifest default: filtering it a second time hides those enabled aliases.
         val launcher = context.getSystemService(LauncherApps::class.java)
-        val records = launcher.getActivityList(null, Process.myUserHandle()).asSequence()
-            .filter { it.activityInfo.exported && it.componentName.packageName != context.packageName }
+        val native = runCatching { launcher.getActivityList(null, Process.myUserHandle()).map { info ->
+            Launchable(info.componentName, info.activityInfo, { info.label }, { info.getIcon(0) })
+        } }
+        val intents = runCatching { pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0).map { info ->
+            Launchable(ComponentName(info.activityInfo.packageName, info.activityInfo.name), info.activityInfo,
+                { info.loadLabel(pm) }, { info.loadIcon(pm) })
+        } }
+        if (native.isFailure && intents.isFailure) throw checkNotNull(native.exceptionOrNull())
+        queryStats = QueryStats(native.getOrNull()?.size ?: 0, intents.getOrNull()?.size ?: 0,
+            listOfNotNull(native.exceptionOrNull(), intents.exceptionOrNull()).joinToString { it.javaClass.simpleName }.ifEmpty { "none" })
+        // Union the two public launcher queries. A vendor-specific omission or one
+        // failed service must not silently discard otherwise launchable activities.
+        val records = (native.getOrDefault(emptyList()) + intents.getOrDefault(emptyList())).asSequence()
+            .distinctBy { it.component }
+            .filter { it.activity.exported && it.component.packageName != context.packageName }
             .map { info ->
-                val component = info.componentName
+                val component = info.component
                 val id = component.flattenToString()
                 live.add(id)
                 val updated = packageUpdates.getOrPut(component.packageName) {
                     runCatching { pm.getPackageInfo(component.packageName, 0).lastUpdateTime }.getOrDefault(-1L)
                 }
                 // A disappearing resource during a package update must not hide every app.
-                val label = runCatching { info.label.toString().trim() }.getOrDefault("")
+                val label = runCatching { info.label().toString().trim() }.getOrDefault("")
                     .ifBlank { component.packageName }
-                val activity = info.activityInfo
+                val activity = info.activity
                 artwork[id]?.takeIf { it.updated == updated && it.iconResource == activity.iconResource &&
                     it.labelResource == activity.labelRes && it.label == label }?.let { return@map it.record }
                 val images = runCatching {
-                    val drawable = info.getIcon(0)
+                    val drawable = info.icon()
                     if (drawable is AdaptiveIconDrawable) {
                         val icon = Bitmap.createBitmap(128, 128, Bitmap.Config.ARGB_8888)
                         drawable.background?.apply { setBounds(0, 0, 128, 128); draw(Canvas(icon)) }
@@ -73,7 +93,7 @@ class AppCatalog(private val context: Context) {
                     } else drawable.toBitmap(128, 128, Bitmap.Config.ARGB_8888) to null
                 }.getOrNull()
                 AppRecord(id, label, component.packageName,
-                    images?.first, info.applicationInfo.category, images?.second).also {
+                    images?.first, activity.applicationInfo.category, images?.second).also {
                     artwork[id] = Artwork(updated, activity.iconResource, activity.labelRes, label, it)
                 }
             }.distinctBy { it.id }.toList()

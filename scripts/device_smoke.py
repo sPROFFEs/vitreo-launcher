@@ -134,7 +134,7 @@ def main() -> None:
     result_path.unlink(missing_ok=True)
     try:
         count = run_instrumentation()
-        native_screens = ["category-light", "category-dark", "settings-dark", "wallpaper-fit", "app-menu", "app-menu-more", "alphabetical-library", "installed-icon"]
+        native_screens = ["category-light", "category-dark", "settings-dark", "wallpaper-fit", "app-menu", "app-menu-more", "alphabetical-library", "installed-icon", "large-icons"]
         if args.api >= 33:
             native_screens += [f"glass-{material}-{effect}" for material in ("clear", "regular") for effect in ("flat", "refracted")]
         collect_native_screens(output, native_screens)
