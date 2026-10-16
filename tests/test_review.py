@@ -10,7 +10,8 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from release_validation import device_evidence, validate_assets
-from device_smoke import passed_tests, collect_native_screens, run_instrumentation
+from device_smoke import passed_tests, collect_native_screens, run_instrumentation, app_node, navigate_page, PACKAGE
+import xml.etree.ElementTree as ET
 import test_release
 from test_release import FakeGitHub
 import prepare_signing
@@ -181,6 +182,30 @@ class NativeScreenshotTests(unittest.TestCase):
             with patch("device_smoke.adb", side_effect=pull):
                 with self.assertRaisesRegex(RuntimeError, "Invalid native screenshot category-light"):
                     collect_native_screens(Path(directory), ["category-light"])
+
+class OptimizedNavigationTests(unittest.TestCase):
+    def test_app_name_in_editable_search_is_not_the_app(self):
+        root = ET.fromstring(f'''<hierarchy>
+            <node package="{PACKAGE}" class="android.widget.EditText" text="Settings" clickable="true" long-clickable="true" bounds="[10,20][200,60]" />
+            <node package="{PACKAGE}" class="android.view.View" clickable="true" long-clickable="true" bounds="[10,100][80,200]">
+                <node text="Settings" class="android.widget.TextView" />
+            </node></hierarchy>''')
+        self.assertEqual(app_node(root, "Settings").get("bounds"), "[10,100][80,200]")
+
+    def test_editable_search_alone_does_not_prove_app_result(self):
+        root = ET.fromstring(f'<hierarchy><node package="{PACKAGE}" class="android.widget.EditText" text="Settings" clickable="true" long-clickable="true" /></hierarchy>')
+        with self.assertRaisesRegex(RuntimeError, "missing from optimized results"):
+            app_node(root, "Settings")
+
+    def test_navigation_observes_the_page_before_advancing(self):
+        home = ET.fromstring(f'<hierarchy><node package="{PACKAGE}" text="Search" /></hierarchy>')
+        today = ET.fromstring(f'<hierarchy><node package="{PACKAGE}" text="Today" /></hierarchy>')
+        with patch("device_smoke.read_ui", side_effect=[home, home, today]), patch("device_smoke.capture_screen", return_value=today) as capture:
+            from unittest.mock import Mock
+            swipe = Mock()
+            self.assertIs(navigate_page(Path("unused"), "today", "Today", swipe, 3), today)
+            self.assertEqual(swipe.call_count, 2)
+            capture.assert_called_once_with(Path("unused"), "today", "Today")
 
 class StrictSigningTests(unittest.TestCase):
     def test_release_never_silently_falls_back_to_preview(self):

@@ -8,10 +8,12 @@ Android 12 o posterior, sin root, cuentas, anuncios ni telemetría.
   <img src="docs/screenshots/home.png" width="240" alt="Inicio de Vitreo con widgets y dock de cristal">
   <img src="docs/screenshots/settings.png" width="240" alt="Ajustes agrupados de Vitreo">
   <img src="docs/screenshots/category.png" width="240" alt="Categoría de la biblioteca con material legible">
+  <img src="docs/screenshots/app-menu.png" width="240" alt="Menú contextual anclado al icono, con acceso rápido real de la app">
   <img src="docs/screenshots/widget-previews.png" width="240" alt="Previsualizaciones suministradas por las apps">
 </p>
 
-Capturas reales del APK Preview en Android 12 (inicio/ajustes) y Android 15 (biblioteca/widgets).
+Capturas reales del APK Preview en Android 12 (inicio/ajustes) y Android 15 (biblioteca/menús/widgets).
+El [icono instalado](docs/screenshots/app-icon.png) llena la máscara circular sin un recuadro interior.
 
 ## La experiencia
 

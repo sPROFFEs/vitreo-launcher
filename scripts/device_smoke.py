@@ -36,18 +36,60 @@ def passed_tests(directory: Path) -> int:
         raise RuntimeError("Instrumentation ran no passing tests.")
     return total
 
-def capture_screen(output: Path, name: str, expected: str) -> ET.Element:
+def read_ui(output: Path, name: str) -> ET.Element:
     adb("shell", "uiautomator", "dump", "/sdcard/vitreo-smoke.xml")
     path = output / f"{name}.xml"
     adb("pull", "/sdcard/vitreo-smoke.xml", str(path))
-    root = ET.parse(path).getroot()
-    if not any(node.get("package") == PACKAGE and node.get("text") == expected for node in root.iter("node")):
-        raise RuntimeError(f"Expected {expected!r} on optimized {name} screen.")
+    return ET.parse(path).getroot()
+
+def has_launcher_text(root: ET.Element, expected: str) -> bool:
+    return any(node.get("package") == PACKAGE and node.get("text") == expected for node in root.iter("node"))
+
+def capture_screen(output: Path, name: str, expected: str) -> ET.Element:
+    deadline = time.monotonic() + 15
+    while True:
+        root = read_ui(output, name)
+        if has_launcher_text(root, expected):
+            break
+        if time.monotonic() >= deadline:
+            raise RuntimeError(f"Expected {expected!r} on optimized {name} screen.")
+        time.sleep(.3)
     image = subprocess.check_output(["adb", "exec-out", "screencap", "-p"], timeout=60)
     if not image.startswith(bytes([137, 80, 78, 71, 13, 10, 26, 10])):
         raise RuntimeError("Invalid emulator screenshot.")
     (output / f"optimized-{name}.png").write_bytes(image)
     return root
+
+def navigate_page(output: Path, name: str, expected: str, swipe, max_pages: int = 10) -> ET.Element:
+    # Navigate from observed state: a delayed HOME/recreated window can swallow
+    # an injected gesture. The target is still mandatory; no failed test is retried.
+    for _ in range(max_pages):
+        if has_launcher_text(read_ui(output, name), expected):
+            return capture_screen(output, name, expected)
+        swipe()
+    return capture_screen(output, name, expected)
+
+def app_node(root: ET.Element, label: str) -> ET.Element:
+    # Editable fields can be long-clickable and contain exactly the app's name.
+    # App labels may instead be children of their clickable tile in UIAutomator.
+    node = next((node for node in root.iter("node") if node.get("package") == PACKAGE and
+        node.get("class") != "android.widget.EditText" and node.get("clickable") == "true" and
+        node.get("long-clickable") == "true" and
+        any(child.get("text") == label or child.get("content-desc") == label for child in node.iter("node"))), None)
+    if node is None:
+        raise RuntimeError(f"App {label!r} missing from optimized results.")
+    return node
+
+def wait_for_app(package: str) -> None:
+    deadline = time.monotonic() + 20
+    while True:
+        activities = adb("shell", "dumpsys", "activity", "activities")
+        if any(("mResumedActivity" in line or "topResumedActivity" in line) and f"{package}/" in line
+               for line in activities.splitlines()):
+            return
+        if time.monotonic() >= deadline:
+            raise RuntimeError(f"The app {package} did not become resumed.")
+        time.sleep(.2)
 
 def tap_node(root: ET.Element, attribute: str, value: str) -> None:
     node = next((node for node in root.iter("node") if node.get(attribute) == value), None)
@@ -128,8 +170,7 @@ def main() -> None:
             adb("shell", "input", "swipe", str(int(width * start)), str(int(height * .48)),
                 str(int(width * end)), str(int(height * .48)), "350")
             time.sleep(.7)
-        swipe(.2, .8)
-        today = capture_screen(output, "today", "Today")
+        today = navigate_page(output, "today", "Today", lambda: swipe(.2, .8), max_pages=3)
         tap_node(today, "content-desc", "Settings")
         time.sleep(.7)
         settings = capture_screen(output, "settings", "Settings")
@@ -159,13 +200,7 @@ def main() -> None:
         capture_screen(output, "spotlight", "Cancel")
         adb("shell", "input", "keyevent", "KEYCODE_HOME")
         time.sleep(.7)
-        for _ in range(10):
-            swipe(.8, .2)
-            adb("shell", "uiautomator", "dump", "/sdcard/vitreo-smoke.xml")
-            xml = adb("shell", "cat", "/sdcard/vitreo-smoke.xml")
-            if "App Library" in xml:
-                break
-        library = capture_screen(output, "library", "App Library")
+        library = navigate_page(output, "library", "App Library", lambda: swipe(.8, .2))
         # Tap the gap in the first category card, avoiding its individual app buttons.
         label = next(node for node in library.iter("node") if node.get("text") == "Suggestions")
         bounds = list(map(int, re.findall(r"\d+", label.get("bounds", ""))))
@@ -212,22 +247,17 @@ def main() -> None:
             adb("shell", "input", "text", "Settings")
             time.sleep(1)
             search = capture_screen(output, "motion-app-search", "Apps")
-            app = next((node for node in search.iter("node") if node.get("text") == "Settings" and node.get("long-clickable") == "true"), None)
-            if app is None:
-                raise RuntimeError("Settings app missing from optimized Spotlight results.")
+            app = app_node(search, "Settings")
             app_bounds = list(map(int, re.findall(r"\d+", app.get("bounds", ""))))
             adb("shell", "input", "tap", str((app_bounds[0] + app_bounds[2]) // 2), str((app_bounds[1] + app_bounds[3]) // 2))
-            time.sleep(1.5)
+            wait_for_app("com.android.settings")
+            time.sleep(.5)
             adb("shell", "input", "keyevent", "KEYCODE_HOME")
             time.sleep(1)
             capture_screen(output, "app-return", "Apps")
             adb("shell", "input", "keyevent", "KEYCODE_HOME")
             time.sleep(1)
-            for _ in range(10):
-                swipe(.8, .2)
-                adb("shell", "uiautomator", "dump", "/sdcard/vitreo-smoke.xml")
-                if "App Library" in adb("shell", "cat", "/sdcard/vitreo-smoke.xml"):
-                    break
+            navigate_page(output, "motion-library", "App Library", lambda: swipe(.8, .2))
             # Reuse the same first category's centre, independently of icon bounds.
             adb("shell", "input", "tap", str(category_x), str(category_y))
             time.sleep(1)
