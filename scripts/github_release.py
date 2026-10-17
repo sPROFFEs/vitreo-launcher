@@ -70,8 +70,10 @@ def release_body(info: dict) -> str:
 - Signer SHA-256: `{info['signingCertificateSha256']}`.
 
 ## Scope and verification
-iOS-inspired four-column home, glass dock, paged folders, Spotlight, categorized App Library, Today widgets, icon styles and layout backups.
-Glass samples this launcher's wallpaper only. Native Android widgets are hosted in Today with system authorization. Android retains its keyboard, notifications, Recents and lock screen.
+iOS-inspired Home and optional Cyberpunk HUD theme, four-column grid, Dock, paged folders, Spotlight, categorized App Library, Home/Today widgets and layout backups.
+Themes & Icons supports installed ADW/Nova static icon packs and per-app icon selection. Cyberpunk includes attributed line artwork, native HUD controls and bounded motion effects.
+Home icons arrive inward from screen edges after Recents. Wallpaper sync (enabled by default when Vitreo is the default launcher, configurable in Wallpaper) shares the composed background with Android Home using SET_WALLPAPER.
+Glass samples this launcher's wallpaper only. Native Android widgets are hosted on Home pages and in Today with system authorization. Android retains its keyboard, notifications, Recents and lock screen.
 JVM tests, Android lint, build and APK signature/identity/permission checks ran in this workflow.
 Publication is gated on Android API 31 and 35 instrumentation plus optimized Preview launch tests at this commit.
 The signed release APK has been verified statically, not run on a device. No physical GrapheneOS testing is claimed.

@@ -1,7 +1,7 @@
 # Vitreo Launcher
 
 An Android home screen inspired by iOS, with glass surfaces, a four-column grid,
-App Library and native Android widgets. Android 12 or newer. English by default;
+App Library, an optional Cyberpunk HUD theme and native Android widgets. Android 12 or newer. English by default;
 no accounts, ads, analytics, root or accessibility service.
 
 [Download the signed APK](https://github.com/sPROFFEs/vitreo-launcher/releases/latest)
@@ -23,6 +23,12 @@ Install the release APK and select **Vitreo** as your default Home app in Androi
 Settings. Keep your system launcher installed so you can switch back at any time.
 Updates use the same app ID and signing key; install the newer APK over the old one.
 Debug and Preview are separate apps with separate data and test signatures.
+
+When Vitreo is the default launcher, **Wallpaper → Sync with Android Home** keeps
+the system Home wallpaper and Vitreo's backdrop aligned, including dimming and
+Cyberpunk styling. This is enabled by default and can be turned off. Returning
+from Recents brings Home icons inward from the screen edges while the wallpaper
+stays on Android's own surface; Reduce Motion removes the icon arrival effect.
 
 - **Home:** swipe between pages. Four app columns, folders and a four-slot glass dock.
 - **Today:** swipe right from the first Home page for widgets and recent suggestions.
@@ -54,6 +60,17 @@ Widget IDs belong to this installation and are excluded from portable backups.
 
 The built-in Clock & Calendar pair can be toggled separately. Native widgets come
 from installed Android apps; their content and network use belong to their providers.
+
+## Themes and icon packs
+
+Open **Settings → Themes & Icons** for **iOS** or **Cyberpunk**. Cyberpunk uses
+dark angular panels, red/cyan HUD details, line icons, digital Clock & Calendar,
+and brief panel sweeps. iOS remains the default; changing theme keeps your layout.
+
+Select an installed ADW/Nova-compatible icon pack from the same page. To choose an
+alternate for one app, hold it and use **More → Change Icon**. Missing artwork
+falls back to the theme/native icon. See [Cyberpunk & icon packs](docs/CYBERPUNK.md)
+for coverage, supported formats, credits and motion controls.
 
 ## Motion and glass
 

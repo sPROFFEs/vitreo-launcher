@@ -42,7 +42,7 @@ import kotlin.math.roundToInt
 
 private enum class SettingsPage(val title: String) {
     Root("Settings"), Home("Home Screen"), Wallpaper("Wallpaper"), Glass("Motion & Glass"),
-    Backup("Layout & Backup"), About("About Vitreo")
+    Backup("Layout & Backup"), About("About Vitreo"), Themes("Themes & Icons")
 }
 
 @Composable
@@ -64,7 +64,7 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).safeDrawingPadding()) {
         Row(Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 9.dp), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { if (page == SettingsPage.Root) onClose() else page = SettingsPage.Root }) {
-                Icon(Icons.Outlined.ChevronLeft, null, Modifier.size(22.dp))
+                LauncherSymbol(Icons.Outlined.ChevronLeft, null, Modifier.size(22.dp))
                 Text(if (page == SettingsPage.Root) "Home" else "Settings")
             }
             Spacer(Modifier.weight(1f))
@@ -83,8 +83,10 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                     SettingsPage.Root -> {
                         IosGroup {
                             Row(Modifier.padding(17.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.size(58.dp).clip(IconShape).background(Brush.linearGradient(listOf(Color(0xff6cb9ff), Color(0xff2862df)))), contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Outlined.Layers, null, Modifier.size(34.dp), tint = Color.White)
+                                Box(Modifier.size(58.dp).clip(if (LocalCyber.current) CyberShape else IconShape)
+                                    .background(Brush.linearGradient(if (LocalCyber.current) listOf(CyberColors.Red, CyberColors.Panel)
+                                        else listOf(Color(0xff6cb9ff), Color(0xff2862df)))), contentAlignment = Alignment.Center) {
+                                    LauncherSymbol(Icons.Outlined.Layers, null, Modifier.size(34.dp), tint = Color.White)
                                 }
                                 Column(Modifier.padding(start = 15.dp)) {
                                     Text("Vitreo", fontSize = 24.sp, fontWeight = FontWeight.Medium)
@@ -94,6 +96,7 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                         }
                         IosSectionLabel("Personalization")
                         IosGroup {
+                            IosRow("Themes & Icons", if (a.themePreset == 1) "Cyberpunk" else "iOS") { page = SettingsPage.Themes }; IosDivider()
                             IosRow("Home Screen", "Icons & appearance") { page = SettingsPage.Home }; IosDivider()
                             IosRow("Wallpaper", if (a.usePhoto) "Photo" else "Collection") { page = SettingsPage.Wallpaper }; IosDivider()
                             IosRow("Motion & Glass") { page = SettingsPage.Glass }; IosDivider()
@@ -116,6 +119,7 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                         HomeAppearancePreview(ui)
                         IosSectionLabel("App icons")
                         IosGroup {
+                            if (a.themePreset == 0) {
                             IosSegmented(listOf("Light", "Dark", "Tinted", "Clear"), a.iconStyle, Modifier.padding(12.dp)) { onAppearance(a.copy(iconStyle = it)) }
                             IosToggleRow("iOS-style icons", a.iosIcons) { onAppearance(a.copy(iosIcons = it)) }
                             if (a.iconStyle == 2) Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -123,16 +127,18 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                                     Box(Modifier.size(40.dp).background(Color(color), CircleShape)
                                         .semantics { contentDescription = listOf("Blue", "Purple", "Gold", "Green", "Pink")[index] + " tint"; selected = a.tintColor == color.toInt() }
                                         .clickable { onAppearance(a.copy(tintColor = color.toInt())) }, contentAlignment = Alignment.Center) {
-                                        if (a.tintColor == color.toInt()) Icon(Icons.Outlined.Check, "Selected tint ${index + 1}", Modifier.size(21.dp), tint = Color(0xff2d3440))
+                                        if (a.tintColor == color.toInt()) LauncherSymbol(Icons.Outlined.Check, "Selected tint ${index + 1}", Modifier.size(21.dp), tint = Color(0xff2d3440))
                                     }
                                 }
                             }
                             IosDivider()
+                            }
                             IosToggleRow("Show app names", a.showLabels, modifier = Modifier.testTag("labels_switch")) { onAppearance(a.copy(showLabels = it)) }
                             IosDivider()
                             SettingsSlider("Icon size", a.iconSize, "${a.iconSize.roundToInt()} pt", MIN_ICON_SIZE..MAX_ICON_SIZE) { onAppearance(a.copy(iconSize = it)) }
                         }
-                        SettingsFootnote("iOS app artwork from SVG Stack, with live Clock and Calendar. Other apps keep their own icons. Credits are in Open source licenses.")
+                        SettingsFootnote(if (a.themePreset == 1) "Cyberpunk uses Arcticons line artwork and HUD frames. Choose an installed icon pack in Themes & Icons. Credits are in Open source licenses."
+                            else "iOS app artwork from SVG Stack, with live Clock and Calendar. Other apps keep their own icons. Credits are in Open source licenses.")
                         IosSectionLabel("Interface")
                         IosGroup {
                             IosSegmented(listOf("System", "Light", "Dark"), a.interfaceStyle, Modifier.padding(12.dp)) { onAppearance(a.copy(interfaceStyle = it)) }
@@ -142,6 +148,9 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                         SettingsFootnote("Press and hold an app to rearrange Home, create folders or move apps to the dock.")
                     }
                     SettingsPage.Glass -> {
+                        if (a.themePreset == 1) {
+                            SettingsFootnote("Cyberpunk uses dark HUD panels. Liquid Glass controls apply to the iOS theme.")
+                        } else {
                         GlassPreview()
                         SettingsFootnote(when {
                             a.opaquePanels -> "Solid panels are on. Turn off Reduce Transparency to see glass."
@@ -159,6 +168,7 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                                 enabled = !a.opaquePanels && !reduced && android.os.Build.VERSION.SDK_INT >= 33) { onAppearance(a.copy(refraction = it)) }
                         }
                         SettingsFootnote("Controls catch light at their curved edges. Folders and app lists use a denser material to keep names easy to read.")
+                        }
                         IosSectionLabel("Accessibility")
                         IosGroup {
                             IosToggleRow("Reduce Motion", a.reducedEffects) { onAppearance(a.copy(reducedEffects = it)) }; IosDivider()
@@ -180,6 +190,13 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                             SettingsSlider("Dim wallpaper", a.wallpaperDim, "${(a.wallpaperDim * 100).roundToInt()}%", 0f.. .6f) { onAppearance(a.copy(wallpaperDim = it)) }
                         }
                         SettingsFootnote("A little dimming helps white Home Screen labels stand out on bright photos.")
+                        IosSectionLabel("System integration")
+                        IosGroup {
+                            IosToggleRow("Sync with Android Home", a.syncWallpaper, modifier = Modifier.testTag("wallpaper_sync")) {
+                                onAppearance(a.copy(syncWallpaper = it))
+                            }
+                        }
+                        SettingsFootnote("When Vitreo is your default launcher, use the same wallpaper on Android Home and behind Recents. Includes your photo position, dimming and Cyberpunk background.")
                     }
                     SettingsPage.Backup -> {
                         IosGroup {
@@ -193,6 +210,7 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                         IosGroup { IosRow("Version", BuildConfig.VERSION_NAME); IosDivider(); IosRow("Language", "English"); IosDivider(); IosRow("Export Diagnostics", onClick = onDiagnostics) }
                         SettingsFootnote("An iOS-inspired home for your Android apps, with original artwork and a native glass renderer. No accounts, ads or telemetry. Interface language: English.")
                     }
+                    SettingsPage.Themes -> ThemeSettings(ui, onAppearance)
                 }
                 Spacer(Modifier.height(28.dp))
             }
@@ -218,7 +236,7 @@ private fun GlassPreview() {
         CompositionLocalProvider(LocalGlass provides glass.copy(viewport = viewport)) {
             GlassPanel(Modifier.width(210.dp).height(104.dp), radius = 30f, interactive = true) {
                 Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Outlined.BlurOn, null, Modifier.size(28.dp), tint = Color.White)
+                    LauncherSymbol(Icons.Outlined.BlurOn, null, Modifier.size(28.dp), tint = Color.White)
                     Text("Liquid Glass", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Medium)
                     Text("Touch to catch the light", color = Color.White.copy(alpha = .85f), fontSize = 12.sp)
                 }
@@ -243,6 +261,7 @@ private fun HomeAppearancePreview(ui: LauncherViewModel.UiState) {
     Box(Modifier.fillMaxWidth().height(125.dp).clip(RoundedCornerShape(26.dp))) {
         frame?.let { Image(it.sharp.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
         Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .2f)))
+        if (LocalCyber.current) CyberBackdrop(ui.layout.appearance.usePhoto, Modifier.fillMaxSize())
         Row(Modifier.fillMaxSize().padding(horizontal = 14.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
             ui.apps.take(4).forEach { app ->
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -270,7 +289,7 @@ private fun WallpaperCollection(a: Appearance, onAppearance: (Appearance) -> Uni
                     previews.getOrNull(index)?.let { Image(it.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
                     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .5f)))))
                     Text(title, color = Color.White, modifier = Modifier.align(Alignment.BottomStart).padding(14.dp))
-                    if (!a.usePhoto && a.palette == index) Icon(Icons.Outlined.CheckCircle, "Selected", Modifier.align(Alignment.TopEnd).padding(12.dp), tint = Color.White)
+                    if (!a.usePhoto && a.palette == index) LauncherSymbol(Icons.Outlined.CheckCircle, "Selected", Modifier.align(Alignment.TopEnd).padding(12.dp), tint = Color.White)
                 }
             }
         }

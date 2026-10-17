@@ -52,6 +52,7 @@ import kotlin.math.*
 
 @Composable
 fun HomeWidgets(now: Long, modifier: Modifier = Modifier, onClock: () -> Unit, onCalendar: () -> Unit) {
+    if (LocalCyber.current) { CyberHomeWidgets(now, modifier, onClock, onCalendar); return }
     val calendar = remember(now) { Calendar.getInstance().apply { timeInMillis = now } }
     val secondsVisible = !LocalGlass.current.appearance.reducedEffects
     val timeLabel = DateFormat.getTimeFormat(LocalContext.current).format(Date(now))
@@ -121,7 +122,7 @@ internal fun WidgetCaption(controller: WidgetController, id: Int, onEdit: () -> 
         Text(label, Modifier.weight(1f), fontSize = 12.sp, maxLines = 1,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, color = LocalGlassContentColor.current)
         IconButton(onClick = onEdit, modifier = Modifier.size(30.dp).testTag("edit_widget:$id")) {
-            Icon(Icons.Outlined.MoreHoriz, "Edit $label widget", Modifier.size(19.dp), tint = LocalGlassContentColor.current)
+            LauncherSymbol(Icons.Outlined.MoreHoriz, "Edit $label widget", Modifier.size(19.dp), tint = LocalGlassContentColor.current)
         }
     }
 }
@@ -245,7 +246,7 @@ fun WidgetGallery(controller: WidgetController, showHomeWidgets: Boolean, onTogg
                     color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 17.dp, bottom = 8.dp))
                 IosGroup {
                     Row(Modifier.padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        LauncherSymbol(Icons.Outlined.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         BasicTextField(query, { query = it.take(100) }, Modifier.weight(1f).padding(start = 10.dp).testTag("widget_search"),
                             singleLine = true, cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                             textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp),

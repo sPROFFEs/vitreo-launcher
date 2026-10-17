@@ -1,0 +1,5 @@
+<resources>
+  <item component="ComponentInfo{dev.vitreo.fixture.uninstall/.MainActivity}" drawable="fixture_cyan" />
+  <item component="ComponentInfo{dev.vitreo.fixture.uninstall/.HomeAlias}" drawable="fixture_red" />
+  <item component="ComponentInfo{dev.vitreo.fixture.uninstall/.FolderAlias}" drawable="fixture_missing" />
+</resources>

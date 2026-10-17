@@ -1,5 +1,20 @@
 # Licencias y atribuciones
 
+## Cyberpunk: iconos y tipografía
+
+- 23 WebP de Arcticons, CC BY-SA 4.0, Arcticons contributors. Fuentes y hashes en
+  `third_party/arcticons/assets.json`; bytes sin modificar, tinte y marcos en runtime.
+  Las adaptaciones del arte conservan CC BY-SA 4.0. No se copia código de su aplicación GPL.
+- 13 glyphs de CYBERCORE CSS, MIT, Copyright (c) 2026 sebyx07. Geometría SVG convertida
+  a VectorDrawable; originales, licencia y procedencia en `third_party/cybercore`.
+- Rajdhani Medium/Semibold, SIL Open Font License 1.1, Copyright (c) 2014 Indian
+  Type Foundry. Fuentes/hashes en `third_party/fonts/assets.json`; licencia íntegra incluida.
+
+Estas atribuciones y licencias también están en los assets de la APK. El HUD es
+código y geometría propios; las capturas del videojuego y las fuentes Blender/Cyberpunk
+de las referencias CSS no se incorporan. Los packs externos se leen desde la instalación
+del usuario y no se redistribuyen con Vitreo.
+
 ## Código propio de Vitreo
 
 MIT, Copyright (c) 2026 Vitreo contributors. Texto completo en `LICENSE`.

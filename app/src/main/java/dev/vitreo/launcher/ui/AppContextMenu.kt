@@ -46,17 +46,18 @@ fun AppContextMenu(target: AppActionTarget?, state: LauncherState, apps: Map<Str
     onClose: () -> Unit, onLaunch: (String, Rect?) -> Unit, onShortcut: (ShortcutInfo, Rect?) -> Unit,
     onHome: (String) -> Unit, onDock: (String) -> Unit, onRemove: (String) -> Unit,
     onInfo: (String) -> Unit, onPair: (String) -> Unit, onChooseFolder: (String) -> Unit,
-    onRename: (String) -> Unit, onDissolve: (String) -> Unit, onEdit: () -> Unit) {
+    onRename: (String) -> Unit, onDissolve: (String) -> Unit, onEdit: () -> Unit, onIcon: (String) -> Unit = {}) {
     var retained by remember { mutableStateOf(target) }
     val current = target ?: retained
     val progress = remember { Animatable(0f) }
     val reduced = LocalGlass.current.appearance.reducedEffects
+    val cyber = LocalCyber.current
     val context = LocalContext.current
     val density = LocalDensity.current
     LaunchedEffect(target, reduced) {
         if (target != null) retained = target
         progress.animateTo(if (target == null) 0f else 1f,
-            if (reduced) tween(120) else if (target == null) LauncherMotion.close() else LauncherMotion.menu())
+            if (reduced) tween(120) else if (target == null) LauncherMotion.close() else LauncherMotion.menu(cyber))
         if (target == null) retained = null
     }
     if (current == null) return
@@ -109,7 +110,8 @@ fun AppContextMenu(target: AppActionTarget?, state: LauncherState, apps: Map<Str
             .width(with(density) { menuW.toDp() }).heightIn(max = with(density) { available.toDp() })
             .onSizeChanged { menuHeight = it.height }.graphicsLayer {
                 transformOrigin = TransformOrigin(((iconLeft + iconSize / 2 - left) / menuW).coerceIn(0f, 1f), if (below) 0f else 1f)
-                val scale = if (reduced) 1f else .65f + .35f * progress.value
+                val start = if (cyber) .96f else .65f
+                val scale = if (reduced) 1f else start + (1f - start) * progress.value
                 scaleX = scale; scaleY = scale
             }.clickable(remember { MutableInteractionSource() }, null) {}, radius = 24f, material = GlassMaterial.Regular) {
             Column(Modifier.verticalScroll(rememberScrollState())) {
@@ -127,6 +129,7 @@ fun AppContextMenu(target: AppActionTarget?, state: LauncherState, apps: Map<Str
                             IosDivider()
                             when (entry) {
                                 is HomeEntry.App -> {
+                                    ContextRow("Change Icon", Icons.Outlined.Palette, entry.id in apps) { onIcon(entry.id) }
                                     if (entry.id !in state.dock) ContextRow("Add to Dock", Icons.Outlined.Dock, state.dock.size < DOCK_SLOTS) { onDock(entry.id) }
                                     if (state.home.any { it is HomeEntry.App && it.id != entry.id }) ContextRow("Create Folder…", Icons.Outlined.CreateNewFolder) { onPair(entry.id) }
                                     if (state.home.any { it is HomeEntry.Folder && entry.id !in it.apps && it.apps.size < MAX_FOLDER_APPS }) ContextRow("Move to Folder…", Icons.Outlined.FolderOpen) { onChooseFolder(entry.id) }
@@ -166,6 +169,6 @@ private fun ContextRow(title: String, icon: ImageVector, enabled: Boolean = true
         .padding(horizontal = 17.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         val color = if (destructive) Color(0xffff453a) else MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else .4f)
         Text(title, Modifier.weight(1f).padding(end = 16.dp), fontSize = 16.sp, color = color)
-        Icon(icon, null, Modifier.size(20.dp), tint = color)
+        LauncherSymbol(icon, null, Modifier.size(20.dp), tint = color)
     }
 }

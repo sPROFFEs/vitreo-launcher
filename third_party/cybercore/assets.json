@@ -1,0 +1,80 @@
+[
+  {
+    "file": "app/src/main/res/drawable/cyber_ui_search.xml",
+    "source": "https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/actions/search.ts",
+    "sha256": "322a413dc7066e6a2880809c4b38d92fde0e154f9c7bdc9c9d93f4e299b95e9e",
+    "changes": "Outline SVG geometry converted to Android VectorDrawable; currentColor uses tintable white."
+  },
+  {
+    "file": "app/src/main/res/drawable/cyber_ui_settings.xml",
+    "source": "https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/tech/settings.ts",
+    "sha256": "448bacc38e697f03f4fb9b6cf856133907e2901640d89d78a16b385f9ea134f0",
+    "changes": "Outline SVG geometry converted to Android VectorDrawable; currentColor uses tintable white."
+  },
+  {
+    "file": "app/src/main/res/drawable/cyber_ui_chevron_left.xml",
+    "source": "https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/navigation/chevron-left.ts",
+    "sha256": "ee1c947630518fffe9cf2040586d763ecba448841a6c5639a36c653891e1c3f3",
+    "changes": "Outline SVG geometry converted to Android VectorDrawable; currentColor uses tintable white."
+  },
+  {
+    "file": "app/src/main/res/drawable/cyber_ui_chevron_right.xml",
+    "source": "https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/navigation/chevron-right.ts",
+    "sha256": "bf4c66b0c910ccb1bc5c9de7f3928774ac28f766f79436780c4fda74865f4bec",
+    "changes": "Outline SVG geometry converted to Android VectorDrawable; currentColor uses tintable white."
+  },
+  {
+    "file": "app/src/main/res/drawable/cyber_ui_wifi.xml",
+    "source": "https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/tech/wifi.ts",
+    "sha256": "8d5eba0da413f24f830370eded9e2d0e72ff4b4fe9f1bee08728c17fa97e867f",
+    "changes": "Outline SVG geometry converted to Android VectorDrawable; currentColor uses tintable white."
+  },
+  {
+    "file": "app/src/main/res/drawable/cyber_ui_bluetooth.xml",
+    "source": "https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/tech/bluetooth.ts",
+    "sha256": "9be950ab61d2d7b3172a1bcd560c750c8d5b16c83af47cc6d374b5ac115f0aa6",
+    "changes": "Outline SVG geometry converted to Android VectorDrawable; currentColor uses tintable white."
+  },
+  {
+    "file": "app/src/main/res/drawable/cyber_ui_plus.xml",
+    "source": "https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/actions/plus.ts",
+    "sha256": "b8503e3ea8be5f5c6c58a8b0758ce6c9903b7e26eda1b3deb0b3e9512a9a6923",
+    "changes": "Outline SVG geometry converted to Android VectorDrawable; currentColor uses tintable white."
+  },
+  {
+    "file": "app/src/main/res/drawable/cyber_ui_minus.xml",
+    "source": "https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/actions/minus.ts",
+    "sha256": "6b3a79361f653be86ef16c430060cd7a02ae679614075332a53c995eb610ad2e",
+    "changes": "Outline SVG geometry converted to Android VectorDrawable; currentColor uses tintable white."
+  },
+  {
+    "file": "app/src/main/res/drawable/cyber_ui_menu_dots.xml",
+    "source": "https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/navigation/menu-dots.ts",
+    "sha256": "a469401b46e634534d9df255d26d4d2e244bb77000c80e9a8b1f50a4c61556e3",
+    "changes": "Outline SVG geometry converted to Android VectorDrawable; currentColor uses tintable white."
+  },
+  {
+    "file": "app/src/main/res/drawable/cyber_ui_volume_high.xml",
+    "source": "https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/media/volume-high.ts",
+    "sha256": "150222404480d7dfaa49dfbb231219ecb96a1869236fbc2c52d8288772205b83",
+    "changes": "Outline SVG geometry converted to Android VectorDrawable; currentColor uses tintable white."
+  },
+  {
+    "file": "app/src/main/res/drawable/cyber_ui_home.xml",
+    "source": "https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/navigation/home.ts",
+    "sha256": "d0e7450a0760d647dc13fa0cc1abbc4c0b26e30a350aad27a5a05618b604acdd",
+    "changes": "Outline SVG geometry converted to Android VectorDrawable; currentColor uses tintable white."
+  },
+  {
+    "file": "app/src/main/res/drawable/cyber_ui_sliders.xml",
+    "source": "https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/tech/sliders.ts",
+    "sha256": "ef4508edb80667dd3a8d3b5b872d3124e49927f33dfd7bfe35f87ed69d9c9d96",
+    "changes": "Outline SVG geometry converted to Android VectorDrawable; currentColor uses tintable white."
+  },
+  {
+    "file": "app/src/main/res/drawable/cyber_ui_check.xml",
+    "source": "https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/actions/check.ts",
+    "sha256": "323eab4752689a0b4d6609c1d875dc5ee86867fb8745827f68c304dd1147fe7f",
+    "changes": "Outline SVG geometry converted to Android VectorDrawable; currentColor uses tintable white."
+  }
+]

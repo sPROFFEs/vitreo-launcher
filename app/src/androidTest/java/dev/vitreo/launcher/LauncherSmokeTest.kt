@@ -89,6 +89,151 @@ class LauncherSmokeTest {
     }).fetchSemanticsNodes().sortedWith(compareBy({ it.boundsInRoot.top }, { it.boundsInRoot.left }))
         .map { it.config[SemanticsProperties.TestTag] }
 
+    @Test fun recentsReturnUsesSharedSystemWallpaperAndRevealsHomeWithoutChangingItsLayout() {
+        awaitReady()
+        check(shell("getprop ro.kernel.qemu").trim() == "1") { "Wallpaper test requires a disposable emulator." }
+        val activity = compose.activity
+        val model = ViewModelProvider(activity)[LauncherViewModel::class.java]
+        val original = model.ui.value.layout.appearance
+        val placed = model.ui.value.layout.placedApps()
+        val previousHome = checkNotNull(shell("cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME")
+            .lineSequence().lastOrNull { it.matches(Regex("[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+")) })
+        val manager = android.app.WallpaperManager.getInstance(activity)
+        try {
+            shell("cmd package set-home-activity ${activity.packageName}/dev.vitreo.launcher.MainActivity")
+            compose.runOnUiThread {
+                model.homeRole(true)
+                model.appearance(original.copy(syncWallpaper = true, wallpaperDim = .23f))
+            }
+            compose.waitUntil(20_000) { model.systemBackgroundVisible.value }
+            val wallpaperId = manager.getWallpaperId(android.app.WallpaperManager.FLAG_SYSTEM)
+            assertTrue(wallpaperId > 0)
+            repeat(2) {
+                val before = compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[dev.vitreo.launcher.ui.HomeRevealSerialKey]
+                shell("input keyevent KEYCODE_APP_SWITCH")
+                compose.waitUntil(10_000) { !activity.hasWindowFocus() }
+                shell("input keyevent KEYCODE_HOME")
+                awaitReady()
+                compose.waitUntil(10_000) { compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[dev.vitreo.launcher.ui.HomeRevealSerialKey] > before }
+                assertEquals(placed, model.ui.value.layout.placedApps())
+                assertEquals("Returning must not rewrite Android's wallpaper", wallpaperId, manager.getWallpaperId(android.app.WallpaperManager.FLAG_SYSTEM))
+            }
+            // PixelCopy is the current-frame barrier; screen capture includes the separate wallpaper surface.
+            compose.onRoot().captureToImage()
+            val screenshot = checkNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot())
+            val directory = checkNotNull(activity.getExternalFilesDir("review"))
+            File(directory, "recents-return.png").outputStream().use { screenshot.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            compose.runOnUiThread { model.appearance(model.ui.value.layout.appearance.copy(syncWallpaper = false)) }
+            compose.waitUntil(10_000) { !model.systemBackgroundVisible.value }
+        } finally {
+            shell("cmd package set-home-activity $previousHome")
+            compose.runOnUiThread { model.homeRole(false); model.appearance(original) }
+        }
+    }
+
+    @Test fun cyberpunkThemeAppliesAcrossHomeLibraryAndMenusWithoutChangingLayout() {
+        awaitReady()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val original = model.ui.value.layout.appearance
+        val placed = model.ui.value.layout.placedApps()
+        compose.runOnUiThread { model.appearance(original.copy(themePreset = 0, showWidgets = true, iconSize = 60f)) }
+        fun home() {
+            compose.runOnUiThread { compose.activity.startActivity(Intent(compose.activity, MainActivity::class.java)
+                .setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            compose.waitForIdle()
+        }
+        try {
+            openSettings()
+            compose.onNodeWithText("Themes & Icons").performClick()
+            compose.onNodeWithTag("theme_1").performClick()
+            compose.waitUntil(10_000) { model.ui.value.layout.appearance.themePreset == 1 }
+            captureEvidence("cyber-settings")
+            compose.onNodeWithText("Done").performClick()
+            home()
+            compose.onNodeWithTag("cyber_backdrop", useUnmergedTree = true).assertExists()
+            compose.onNodeWithTag("clock_widget_card").assertExists()
+            assertEquals(placed, model.ui.value.layout.placedApps())
+            captureEvidence("cyber-home")
+            val first = homeIconTags().first { !it.startsWith("home_entry:folder:") }
+            compose.onNodeWithTag(first).performTouchInput { longClick() }
+            compose.onNodeWithText("More").performClick()
+            compose.onNodeWithText("Change Icon").assertIsDisplayed()
+            captureEvidence("cyber-menu")
+            home()
+            repeat(10) {
+                if (compose.onAllNodesWithTag("app_library").fetchSemanticsNodes().isEmpty())
+                    compose.onNodeWithTag("home_workspace").performTouchInput { swipeLeft() }
+            }
+            compose.onNodeWithTag("app_library").assertIsDisplayed()
+            captureEvidence("cyber-library")
+            val category = compose.onAllNodes(SemanticsMatcher("category") {
+                it.config.getOrNull(SemanticsProperties.TestTag)?.startsWith("library_category:") == true
+            }).fetchSemanticsNodes().first().config[SemanticsProperties.TestTag]
+            compose.onNodeWithTag(category).performClick()
+            compose.onNodeWithTag("category_panel").assertIsDisplayed()
+            captureEvidence("cyber-category")
+            home()
+            compose.activityRule.scenario.recreate()
+            awaitReady()
+            assertEquals(1, model.ui.value.layout.appearance.themePreset)
+            assertEquals(placed, model.ui.value.layout.placedApps())
+            compose.runOnUiThread { model.appearance(model.ui.value.layout.appearance.copy(reducedEffects = true)) }
+            compose.onNodeWithTag("library_button").performClick()
+            compose.onNodeWithTag("search_field").performTextInput("camera")
+            compose.onNodeWithTag("library_title").assertIsDisplayed()
+            home()
+            compose.runOnUiThread { model.appearance(original) }
+            compose.onNodeWithTag("cyber_backdrop", useUnmergedTree = true).assertDoesNotExist()
+        } finally { compose.runOnUiThread { model.appearance(original) } }
+    }
+
+    @Test fun iconPackSelectionAndPerAppPickerSurviveRecreationAndPackRemoval() {
+        awaitReady()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val original = model.ui.value.layout.appearance
+        val pack = "dev.vitreo.fixture.uninstall"
+        val id = "$pack/$pack.MainActivity"
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        fun shell(command: String): String = automation.executeShellCommand(command).use { fd ->
+            java.io.FileInputStream(fd.fileDescriptor).bufferedReader().use { it.readText() }
+        }
+        check(shell("getprop ro.kernel.qemu").trim() == "1")
+        try {
+            check(shell("pm install -r -t /data/local/tmp/vitreo-uninstall-fixture.apk").contains("Success"))
+            compose.waitUntil(20_000) { model.ui.value.apps.any { it.id == id } && model.ui.value.iconPacks.any { it.packageName == pack } }
+            val placed = model.ui.value.layout.placedApps()
+            openSettings()
+            compose.onNodeWithText("Themes & Icons").performClick()
+            compose.onNodeWithTag("pack:$pack").performScrollTo().performClick()
+            compose.waitUntil(10_000) { model.ui.value.layout.appearance.iconPack == pack }
+            assertEquals(placed, model.ui.value.layout.placedApps())
+            compose.onNodeWithText("Done").performClick()
+            compose.runOnUiThread { compose.activity.startActivity(Intent(compose.activity, MainActivity::class.java)
+                .setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            compose.onNodeWithTag("library_button").performClick()
+            compose.onNodeWithTag("search_field").performTextInput("Uninstall fixture")
+            compose.waitUntil(10_000) { compose.onAllNodesWithTag("external_icon:$id", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithTag("search_entry:$id").performTouchInput { longClick() }
+            compose.onNodeWithText("More").performClick()
+            compose.onNodeWithText("Change Icon").performClick()
+            compose.onNodeWithTag("icon_search").performTextInput("fixture red")
+            compose.waitUntil(10_000) { compose.onAllNodesWithTag("pick_icon:fixture_red").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithTag("pick_icon:fixture_red").performClick()
+            compose.waitUntil(10_000) { model.ui.value.layout.appearance.iconOverrides[id]?.drawable == "fixture_red" }
+            compose.activityRule.scenario.recreate()
+            awaitReady()
+            assertEquals("fixture_red", model.ui.value.layout.appearance.iconOverrides[id]?.drawable)
+            check(shell("pm uninstall $pack").contains("Success"))
+            compose.waitUntil(20_000) { model.ui.value.apps.none { it.packageName == pack } && model.ui.value.iconPacks.none { it.packageName == pack } }
+            assertTrue(model.ui.value.layout.appearance.iconOverrides[id] == null)
+            assertEquals(placed.filterNot { it.startsWith("$pack/") }, model.ui.value.layout.placedApps())
+            assertEquals("Missing pack reference remains portable", pack, model.ui.value.layout.appearance.iconPack)
+        } finally {
+            shell("pm uninstall $pack")
+            compose.runOnUiThread { model.appearance(original) }
+        }
+    }
+
     @Test fun nativeWidgetCanBeAddedResizedMovedAcrossPagesAndReturnedToToday() {
         awaitReady()
         val instrumentation = InstrumentationRegistry.getInstrumentation()

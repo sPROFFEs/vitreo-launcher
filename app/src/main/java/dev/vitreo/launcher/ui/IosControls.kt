@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
+import androidx.compose.ui.platform.LocalLayoutDirection
 import kotlin.math.*
 
 /** Keep Material's keyboard, accessibility and drag handling, with an iOS-sized track and thumb. */
@@ -42,14 +43,16 @@ import kotlin.math.*
 @Composable
 fun IosSlider(value: Float, onChange: (Float) -> Unit, modifier: Modifier = Modifier,
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f, enabled: Boolean = true, onDark: Boolean = false) {
+    val cyber = LocalCyber.current
+    val thumbShape = if (cyber) CyberShape else CircleShape
     val active = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = .25f)
     val inactive = if (onDark) Color.White.copy(alpha = .22f) else MaterialTheme.colorScheme.onSurface.copy(alpha = .13f)
     val fraction = ((value - valueRange.start) / (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
     Slider(value, onChange, modifier.heightIn(min = 44.dp), enabled = enabled, valueRange = valueRange,
         thumb = {
-            Box(Modifier.size(27.dp).shadow(if (enabled) 3.dp else 0.dp, CircleShape)
-                .background(if (enabled) Color.White else Color(0xffdedee3), CircleShape)
-                .border(.5.dp, Color.Black.copy(alpha = .08f), CircleShape))
+            Box(Modifier.size(27.dp).shadow(if (enabled && !cyber) 3.dp else 0.dp, thumbShape)
+                .background(if (cyber) active else if (enabled) Color.White else Color(0xffdedee3), thumbShape)
+                .border(.5.dp, Color.Black.copy(alpha = .08f), thumbShape))
         }, track = {
             Canvas(Modifier.fillMaxWidth().height(4.dp)) {
                 val y = size.height / 2f
@@ -77,19 +80,22 @@ object IconShape : Shape {
 
 @Composable
 fun IosSwitch(checked: Boolean, enabled: Boolean = true) {
+    val cyber = LocalCyber.current
+    val shape = if (cyber) CyberShape else CircleShape
     val reduced = LocalGlass.current.appearance.reducedEffects
     val x by animateDpAsState(if (checked) 22.dp else 2.dp,
         if (reduced) tween(0) else spring(dampingRatio = .85f, stiffness = 650f), label = "switch")
-    Box(Modifier.size(51.dp, 31.dp).clip(CircleShape).background(
-        if (checked) Color(0xff34c759).copy(alpha = if (enabled) 1f else .45f)
+    Box(Modifier.size(51.dp, 31.dp).clip(shape).background(
+        if (checked) (if (cyber) CyberColors.Red else Color(0xff34c759)).copy(alpha = if (enabled) 1f else .45f)
         else MaterialTheme.colorScheme.onSurface.copy(alpha = .15f))) {
-        Box(Modifier.offset { IntOffset(x.roundToPx(), 2.dp.roundToPx()) }.size(27.dp).shadow(2.dp, CircleShape)
-            .background(Color.White, CircleShape))
+        Box(Modifier.offset { IntOffset(x.roundToPx(), 2.dp.roundToPx()) }.size(27.dp).shadow(if (cyber) 0.dp else 2.dp, shape)
+            .background(if (cyber) CyberColors.Cyan else Color.White, shape))
     }
 }
 
 @Composable
 fun IosGroup(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    if (LocalCyber.current) { CyberPanel(modifier.fillMaxWidth()) { Column(Modifier.fillMaxWidth(), content = content) }; return }
     Column(modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))
         .background(MaterialTheme.colorScheme.surface), content = content)
 }
@@ -106,7 +112,7 @@ fun IosRow(title: String, detail: String? = null, enabled: Boolean = true,
         Text(title, Modifier.weight(1f), fontSize = 16.sp,
             color = if (destructive) Color(0xffff453a) else MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else .45f))
         detail?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp, modifier = Modifier.padding(start = 8.dp)) }
-        if (onClick != null) Icon(Icons.Outlined.ChevronRight, null, Modifier.size(19.dp).padding(start = 3.dp),
+        if (onClick != null) LauncherSymbol(Icons.Outlined.ChevronRight, null, Modifier.size(19.dp).padding(start = 3.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .5f))
     }
 }
@@ -130,20 +136,23 @@ fun IosDivider() {
 @Composable
 fun IosSectionLabel(text: String) {
     Text(text.uppercase(), Modifier.padding(start = 17.dp, top = 24.dp, bottom = 8.dp),
-        color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, letterSpacing = .4.sp)
+        color = if (LocalCyber.current) CyberColors.Red else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, letterSpacing = .4.sp)
 }
 
 @Composable
 fun IosSegmented(options: List<String>, selected: Int, modifier: Modifier = Modifier, onSelect: (Int) -> Unit) {
+    val cyber = LocalCyber.current
+    val shape = if (cyber) CyberShape else RoundedCornerShape(11.dp)
+    val direction = if (LocalLayoutDirection.current == LayoutDirection.Ltr) 1 else -1
     val progress = animateFloatAsState(selected.toFloat(),
         if (LocalGlass.current.appearance.reducedEffects) tween(0) else spring(dampingRatio = .85f, stiffness = 650f), label = "segment")
-    BoxWithConstraints(modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp))
+    BoxWithConstraints(modifier.fillMaxWidth().clip(shape)
         .background(MaterialTheme.colorScheme.onSurface.copy(alpha = .07f)).padding(3.dp)) {
         val segmentWidth = maxWidth / options.size
         Box(Modifier.matchParentSize().graphicsLayer {
-            translationX = segmentWidth.toPx() * progress.value.coerceIn(0f, (options.size - 1).toFloat())
+            translationX = direction * segmentWidth.toPx() * progress.value.coerceIn(0f, (options.size - 1).toFloat())
         }.padding(end = segmentWidth * (options.size - 1))
-            .shadow(1.dp, RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp)))
+            .shadow(if (cyber) 0.dp else 1.dp, shape).background(if (cyber) CyberColors.Cyan.copy(alpha = .18f) else MaterialTheme.colorScheme.surface, shape))
         Row(Modifier.fillMaxWidth()) {
         options.forEachIndexed { index, title ->
             Box(Modifier.weight(1f).clip(RoundedCornerShape(8.dp))

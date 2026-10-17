@@ -29,12 +29,12 @@ fun TodayPage(now: Long, widgets: WidgetController, suggestions: List<AppRecord>
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 21.dp).testTag("today_page")) {
         Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Today", Modifier.weight(1f), fontSize = 34.sp, fontWeight = FontWeight.Bold, color = LocalGlassContentColor.current)
-            IconButton(onClick = onWidgets) { Icon(Icons.Outlined.Add, "Add Widgets", tint = LocalGlassContentColor.current) }
-            IconButton(onClick = onSettings, modifier = Modifier.testTag("settings_button")) { Icon(Icons.Outlined.Settings, "Settings", tint = LocalGlassContentColor.current) }
+            IconButton(onClick = onWidgets) { LauncherSymbol(Icons.Outlined.Add, "Add Widgets", tint = LocalGlassContentColor.current) }
+            IconButton(onClick = onSettings, modifier = Modifier.testTag("settings_button")) { LauncherSymbol(Icons.Outlined.Settings, "Settings", tint = LocalGlassContentColor.current) }
         }
         GlassPanel(Modifier.fillMaxWidth().height(47.dp).clickable(onClick = onSearch), radius = 22f, tint = .13f) {
             Row(Modifier.fillMaxSize().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.Search, null, Modifier.size(21.dp), tint = Color.White.copy(alpha = .8f))
+                LauncherSymbol(Icons.Outlined.Search, null, Modifier.size(21.dp), tint = Color.White.copy(alpha = .8f))
                 Text("Search", color = Color.White.copy(alpha = .7f), fontSize = 17.sp, modifier = Modifier.padding(start = 8.dp))
             }
         }
@@ -62,9 +62,9 @@ fun TodayPage(now: Long, widgets: WidgetController, suggestions: List<AppRecord>
 @Composable
 private fun ControlTile(title: String, icon: ImageVector, modifier: Modifier = Modifier, active: Boolean = false, onClick: () -> Unit) {
     GlassPanel(modifier.height(107.dp).clickable(onClick = onClick), radius = 28f, tint = .24f, interactive = true) {
-        if (active) Box(Modifier.fillMaxSize().background(Color(0xff007aff).copy(alpha = .7f)))
+        if (active) Box(Modifier.fillMaxSize().background((if (LocalCyber.current) CyberColors.Red else Color(0xff007aff)).copy(alpha = .7f)))
         Column(Modifier.fillMaxSize().padding(17.dp), verticalArrangement = Arrangement.SpaceBetween) {
-            Icon(icon, null, Modifier.size(29.dp), tint = Color.White)
+            LauncherSymbol(icon, null, Modifier.size(29.dp), tint = Color.White)
             Text(title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
         }
     }
@@ -80,7 +80,7 @@ fun ControlCenter(dark: Boolean, onClose: () -> Unit, onSystem: (String) -> Unit
                 Text(DateFormat.getTimeFormat(context).format(Date()), color = Color.White, fontSize = 44.sp, fontWeight = FontWeight.Light)
                 Text("Control Center", color = Color.White.copy(alpha = .6f), fontSize = 14.sp)
             }
-            IconButton(onClick = onClose) { Icon(Icons.Outlined.Close, "Close", tint = Color.White) }
+            IconButton(onClick = onClose) { LauncherSymbol(Icons.Outlined.Close, "Close", tint = Color.White) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             ControlTile("Internet", Icons.Outlined.Wifi, Modifier.weight(1f)) { onSystem(Settings.Panel.ACTION_INTERNET_CONNECTIVITY) }
@@ -93,7 +93,8 @@ fun ControlCenter(dark: Boolean, onClose: () -> Unit, onSystem: (String) -> Unit
         }
         Spacer(Modifier.height(14.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            ControlTile("Dark Mode", Icons.Outlined.DarkMode, Modifier.weight(1f), active = dark) { onDark(!dark) }
+            if (LocalCyber.current) ControlTile("HUD Effects", Icons.Outlined.Tune, Modifier.weight(1f), active = LocalGlass.current.appearance.cyberEffects) { onDark(!dark) }
+            else ControlTile("Dark Mode", Icons.Outlined.DarkMode, Modifier.weight(1f), active = dark) { onDark(!dark) }
             ControlTile("Widgets", Icons.Outlined.Widgets, Modifier.weight(1f), onClick = onWidgets)
         }
         Spacer(Modifier.height(14.dp))

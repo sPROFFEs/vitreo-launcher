@@ -19,6 +19,8 @@ import dev.vitreo.launcher.core.*
 import dev.vitreo.launcher.data.*
 import dev.vitreo.launcher.graphics.WallpaperFrame
 import dev.vitreo.launcher.graphics.WallpaperStore
+import dev.vitreo.launcher.graphics.HomeBackground
+import dev.vitreo.launcher.graphics.SystemHomeWallpaper
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
@@ -33,12 +35,23 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val ready: Boolean = false,
         val powerSaver: Boolean = false,
         val recentApps: List<String> = emptyList(),
+        val iconPacks: List<IconPackInfo> = emptyList(),
+        val iconRevision: Int = 0,
     )
     private val app = application
     private val recentPreferences = app.getSharedPreferences("recent-launches", Context.MODE_PRIVATE)
     private val store = StateStore(app)
     private val catalog = AppCatalog(app)
+    val iconPacks = IconPacks(app)
     private val wallpaperStore = WallpaperStore(app)
+    private val systemWallpaper = SystemHomeWallpaper(app)
+    private var homeRole = false
+    private var backgroundJob: Job? = null
+    private var syncJob: Job? = null
+    private val _background = MutableStateFlow<android.graphics.Bitmap?>(null)
+    val background: StateFlow<android.graphics.Bitmap?> = _background.asStateFlow()
+    private val _systemBackgroundVisible = MutableStateFlow(false)
+    val systemBackgroundVisible: StateFlow<Boolean> = _systemBackgroundVisible.asStateFlow()
     private val _ui = MutableStateFlow(UiState(recentApps = recentPreferences.getString("apps", "")
         .orEmpty().split('|').filter(::isAppId).distinct().take(16)))
     val ui: StateFlow<UiState> = _ui.asStateFlow()
@@ -152,6 +165,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     val remaining = records.filterNot { it.packageName in removed }
                     Triple(remaining, catalog.aliasReplacements(known, remaining), removed)
                 }
+                val availablePacks = withContext(Dispatchers.IO) { iconPacks.refresh() }
                 ensureActive()
                 val installed = if (_ui.value.layout.initialized) apps.map { it.id }
                     else catalog.preferredDock(apps) + apps.map { it.id }
@@ -159,7 +173,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 val saving = app.getSystemService(PowerManager::class.java)?.isPowerSaveMode == true
                 val before = _ui.value
                 val recent = before.recentApps.map { replacements[it] ?: it }.filterNot { it.substringBefore('/') in removed }.distinct()
-                _ui.value = before.copy(layout = merged, apps = apps, ready = true, powerSaver = saving, recentApps = recent)
+                _ui.value = before.copy(layout = merged, apps = apps, ready = true, powerSaver = saving, recentApps = recent,
+                    iconPacks = availablePacks, iconRevision = iconPacks.revision)
                 if (recent != before.recentApps) recentPreferences.edit().putString("apps", recent.joinToString("|")).apply()
                 if (merged != before.layout) saves.trySend(merged)
                 removedPackages.removeAll(removed)
@@ -180,11 +195,20 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         if (preparedWallpaper != null) {
             wallpaperJob?.cancel()
             _wallpaper.value = preparedWallpaper
+            prepareHomeBackground()
         } else if (old.appearance.palette != state.appearance.palette || old.appearance.usePhoto != state.appearance.usePhoto ||
             old.appearance.photoTransform != state.appearance.photoTransform) reloadWallpaper()
+        else if (old.appearance.themePreset != state.appearance.themePreset || old.appearance.wallpaperDim != state.appearance.wallpaperDim ||
+            old.appearance.syncWallpaper != state.appearance.syncWallpaper)
+            prepareHomeBackground(debounce = old.appearance.wallpaperDim != state.appearance.wallpaperDim)
     }
 
     fun appearance(value: Appearance) = commit(_ui.value.layout.copy(appearance = value))
+    fun overrideIcon(id: String, value: IconOverride?) {
+        if (_ui.value.apps.none { it.id == id }) return
+        val current = _ui.value.layout.appearance
+        appearance(current.copy(iconOverrides = if (value == null) current.iconOverrides - id else current.iconOverrides + (id to value)))
+    }
     fun addHome(appId: String) = commit(LayoutOps.addToHome(_ui.value.layout, appId))
     fun resetLayout() = commit(LayoutOps.reconcile(LauncherState(appearance = _ui.value.layout.appearance),
         (catalog.preferredDock(_ui.value.apps) + _ui.value.apps.map { it.id }).distinct()))
@@ -220,7 +244,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             try {
                 val frame = withContext(Dispatchers.IO) { wallpaperStore.load(appearance.usePhoto, appearance.palette,
                     appearance.photoTransform, wallpaperWidth, wallpaperHeight) }
-                ensureActive(); _wallpaper.value = frame
+                ensureActive(); _wallpaper.value = frame; prepareHomeBackground()
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { message("Could not prepare the wallpaper. Try another image.") }
         }
@@ -229,7 +253,45 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun wallpaperViewport(width: Int, height: Int) {
         if (width <= 0 || height <= 0 || width == wallpaperWidth && height == wallpaperHeight) return
         wallpaperWidth = width; wallpaperHeight = height
-        if (_ui.value.layout.appearance.usePhoto) reloadWallpaper()
+        if (_ui.value.layout.appearance.usePhoto) reloadWallpaper() else prepareHomeBackground()
+    }
+
+    fun homeRole(active: Boolean) {
+        homeRole = active
+        if (!active) { syncJob?.cancel(); _systemBackgroundVisible.value = false }
+        else syncHomeBackground()
+    }
+
+    private fun prepareHomeBackground(debounce: Boolean = false) {
+        val frame = _wallpaper.value ?: return
+        backgroundJob?.cancel(); syncJob?.cancel(); _systemBackgroundVisible.value = false
+        val appearance = _ui.value.layout.appearance
+        val width = wallpaperWidth; val height = wallpaperHeight
+        backgroundJob = viewModelScope.launch {
+            try {
+                if (debounce) delay(140)
+                val bitmap = withContext(Dispatchers.Default) { HomeBackground.render(frame, appearance, width, height, app.resources.displayMetrics.density) }
+                ensureActive(); _background.value = bitmap; syncHomeBackground()
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { message("Could not prepare the Home background.") }
+        }
+    }
+
+    private fun syncHomeBackground() {
+        syncJob?.cancel()
+        if (!homeRole || !_ui.value.layout.appearance.syncWallpaper) { _systemBackgroundVisible.value = false; return }
+        val bitmap = _background.value ?: return
+        syncJob = viewModelScope.launch {
+            // Coalesce slider/photo/viewport changes; wallpaper IO never runs on Main.
+            delay(350)
+            try {
+                val applied = withContext(Dispatchers.IO) { systemWallpaper.apply(bitmap) }
+                ensureActive()
+                if (homeRole && _background.value === bitmap && _ui.value.layout.appearance.syncWallpaper)
+                    _systemBackgroundVisible.value = applied
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { _systemBackgroundVisible.value = false; message("Android could not synchronize the Home wallpaper. The local background is still available.") }
+        }
     }
 
     fun preparePhoto(uri: Uri? = null) {
@@ -307,6 +369,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             put("agslRenderedThisProcess", dev.vitreo.launcher.graphics.GlassDiagnostics.hardwareRefractionDrawn)
             put("reducedMotion", _ui.value.layout.appearance.reducedEffects)
             put("reducedTransparency", _ui.value.layout.appearance.opaquePanels)
+            put("theme", if (_ui.value.layout.appearance.themePreset == 1) "Cyberpunk" else "iOS")
+            put("externalIconPackSelected", _ui.value.layout.appearance.iconPack.isNotEmpty())
             put("refraction", _ui.value.layout.appearance.refraction.toDouble())
             put("frost", _ui.value.layout.appearance.frost.toDouble())
             put("catalogSource", "LauncherApps + MAIN/LAUNCHER; current Android user")

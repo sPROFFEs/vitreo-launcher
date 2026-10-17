@@ -10,7 +10,8 @@ object LayoutOps {
                 is HomeEntry.App -> it.takeUnless { removed(it.id) }
                 is HomeEntry.Folder -> it.copy(apps = it.apps.filterNot(::removed))
             }
-        }, knownApps = state.knownApps.filterNot(::removed).toSet()).sanitized()
+        }, knownApps = state.knownApps.filterNot(::removed).toSet(),
+            appearance = state.appearance.copy(iconOverrides = state.appearance.iconOverrides.filterKeys { !removed(it) })).sanitized()
     }
 
     fun remapApps(state: LauncherState, replacements: Map<String, String>): LauncherState {
@@ -22,7 +23,8 @@ object LayoutOps {
                 is HomeEntry.App -> it.copy(id = mapped(it.id))
                 is HomeEntry.Folder -> it.copy(apps = it.apps.map(::mapped))
             }
-        }, knownApps = state.knownApps.mapTo(mutableSetOf(), ::mapped)).sanitized()
+        }, knownApps = state.knownApps.mapTo(mutableSetOf(), ::mapped),
+            appearance = state.appearance.copy(iconOverrides = state.appearance.iconOverrides.mapKeys { mapped(it.key) })).sanitized()
     }
 
     /** Reject additions at capacity before normalization could evict an existing app. */

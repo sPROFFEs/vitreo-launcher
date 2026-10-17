@@ -39,6 +39,11 @@ data class Appearance(
     val iosIcons: Boolean = true,
     val photoTransform: PhotoTransform = PhotoTransform(),
     val wallpaperDim: Float = .12f,
+    val themePreset: Int = 0,
+    val cyberEffects: Boolean = true,
+    val iconPack: String = "",
+    val iconOverrides: Map<String, IconOverride> = emptyMap(),
+    val syncWallpaper: Boolean = true,
 ) {
     fun sanitized() = copy(
         iconSize = if (iconSize.isFinite()) iconSize.coerceIn(MIN_ICON_SIZE, MAX_ICON_SIZE) else 60f,
@@ -50,7 +55,18 @@ data class Appearance(
         tintColor = tintColor or 0xff000000.toInt(),
         photoTransform = photoTransform.sanitized(),
         wallpaperDim = if (wallpaperDim.isFinite()) wallpaperDim.coerceIn(0f, .6f) else .12f,
+        themePreset = themePreset.coerceIn(0, 1),
+        iconPack = iconPack.takeIf(::isPackageName).orEmpty(),
+        iconOverrides = iconOverrides.entries.asSequence().filter { isAppId(it.key) && it.value.valid() }
+            .take(MAX_ITEMS).associate { it.toPair() },
     )
+}
+
+fun isPackageName(value: String): Boolean = value.length in 3..255 &&
+    Regex("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+").matches(value)
+
+data class IconOverride(val pack: String, val drawable: String) {
+    fun valid() = isPackageName(pack) && drawable.length in 1..128 && Regex("[a-z0-9_]+").matches(drawable)
 }
 
 data class LauncherState(

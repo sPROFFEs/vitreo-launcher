@@ -41,6 +41,15 @@ object StateCodec {
                 put("photoX", s.appearance.photoTransform.x.toDouble())
                 put("photoY", s.appearance.photoTransform.y.toDouble())
                 put("wallpaperDim", s.appearance.wallpaperDim.toDouble())
+                put("themePreset", s.appearance.themePreset)
+                put("cyberEffects", s.appearance.cyberEffects)
+                put("syncWallpaper", s.appearance.syncWallpaper)
+                put("iconPack", s.appearance.iconPack)
+                put("iconOverrides", JSONObject().apply {
+                    s.appearance.iconOverrides.forEach { (id, icon) ->
+                        put(id, JSONObject().put("pack", icon.pack).put("drawable", icon.drawable))
+                    }
+                })
             })
         }.toString(2)
     }
@@ -83,6 +92,16 @@ object StateCodec {
                 photoTransform = PhotoTransform(a.optDouble("photoZoom", 1.0).toFloat(),
                     a.optDouble("photoX", 0.0).toFloat(), a.optDouble("photoY", 0.0).toFloat()),
                 wallpaperDim = a.optDouble("wallpaperDim", .12).toFloat(),
+                themePreset = a.optInt("themePreset", 0),
+                cyberEffects = a.optBoolean("cyberEffects", true),
+                syncWallpaper = a.optBoolean("syncWallpaper", true),
+                iconPack = a.optString("iconPack", ""),
+                iconOverrides = a.optJSONObject("iconOverrides")?.let { overrides ->
+                    require(overrides.length() <= MAX_ITEMS) { "Too many icon overrides." }
+                    overrides.keys().asSequence().mapNotNull { id -> overrides.optJSONObject(id)?.let {
+                        id to IconOverride(it.optString("pack"), it.optString("drawable"))
+                    } }.toMap()
+                }.orEmpty(),
             ),
         ).sanitized()
     }

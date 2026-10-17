@@ -26,6 +26,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
 import dev.vitreo.launcher.core.HomeEntry
 import dev.vitreo.launcher.data.AppRecord
 
@@ -37,8 +39,11 @@ fun entryLabel(entry: HomeEntry, apps: Map<String, AppRecord>): String = when (e
 @Composable
 fun EntryIcon(entry: HomeEntry, apps: Map<String, AppRecord>, size: Dp, modifier: Modifier = Modifier) {
     val appearance = LocalGlass.current.appearance
-    Box(modifier.size(size).testTag("icon_art:${entry.id}").shadow(size * .05f, IconShape, ambientColor = Color.Black.copy(alpha = .2f),
-        spotColor = Color.Black.copy(alpha = .22f)).clip(IconShape)) {
+    val cyber = LocalCyber.current
+    val shape = if (cyber) CyberShape else IconShape
+    Box(modifier.size(size).testTag("icon_art:${entry.id}").shadow(size * .05f, shape, ambientColor = Color.Black.copy(alpha = .2f),
+        spotColor = Color.Black.copy(alpha = .22f)).clip(shape)
+        .then(if (cyber) Modifier.background(CyberColors.Panel).border(1.dp, CyberColors.Red.copy(alpha = .55f), shape) else Modifier)) {
         if (entry is HomeEntry.Folder) {
             GlassPanel(Modifier.fillMaxSize(), radius = size.value * .25f, tint = .12f) {}
             Column(Modifier.fillMaxSize().padding(size * .10f), verticalArrangement = Arrangement.SpaceEvenly) {
@@ -55,9 +60,19 @@ fun EntryIcon(entry: HomeEntry, apps: Map<String, AppRecord>, size: Dp, modifier
             }
         } else {
             val app = apps[entry.id]
+            val external = packIcon(entry.id)
+            val bundled = if (cyber) cyberArtwork(commonIconKind(app?.packageName.orEmpty())) else null
             val kind = if (appearance.iosIcons) commonIconKind(app?.packageName.orEmpty()) else null
             val style = appearance.iconStyle
-            if (kind != null) {
+            if (external != null) {
+                Image(external.asImageBitmap(), null, Modifier.fillMaxSize().padding(if (cyber) size * .08f else 0.dp)
+                    .testTag("external_icon:${entry.id}"), contentScale = ContentScale.Fit)
+            } else if (cyber) {
+                if (bundled != null) Image(painterResource(bundled), null, Modifier.fillMaxSize().padding(size * .08f),
+                    colorFilter = ColorFilter.tint(CyberColors.Cyan))
+                else if (app?.icon != null) Image(app.icon.asImageBitmap(), null, Modifier.fillMaxSize().padding(size * .15f), contentScale = ContentScale.Fit)
+                else Icon(Icons.Outlined.Android, null, Modifier.align(Alignment.Center).size(size * .6f), tint = CyberColors.Cyan)
+            } else if (kind != null) {
                 IosAppIcon(kind, style, Color(appearance.tintColor), Modifier.fillMaxSize())
             } else {
             if (style == 3) GlassPanel(Modifier.fillMaxSize(), radius = size.value * .25f, tint = .08f) {}
@@ -84,7 +99,8 @@ fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, l
     modifier: Modifier = Modifier, editing: Boolean = false, dragging: Boolean = false,
     onClick: (Rect?) -> Unit, onActions: (Rect?) -> Unit, onBounds: (Rect) -> Unit = {}, onRemove: (() -> Unit)? = null) {
     val appearance = LocalGlass.current.appearance
-    val angle: State<Float> = if (editing && !appearance.reducedEffects) {
+    val cyber = LocalCyber.current
+    val angle: State<Float> = if (editing && !appearance.reducedEffects && !cyber) {
         val transition = rememberInfiniteTransition(label = "jiggle")
         transition.animateFloat(-1.1f, 1.1f,
             infiniteRepeatable(tween(150 + (entry.id.hashCode().ushr(1) % 60)), RepeatMode.Reverse), label = "icon")
@@ -93,8 +109,8 @@ fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, l
     val interactions = remember { MutableInteractionSource() }
     val pressed by interactions.collectIsPressedAsState()
     var iconBounds by remember { mutableStateOf<Rect?>(null) }
-    val scale = animateFloatAsState(if (pressed && !editing && !appearance.reducedEffects) .94f else 1f,
-        if (appearance.reducedEffects) tween(0) else spring(dampingRatio = .72f, stiffness = 650f), label = "icon press")
+    val scale = animateFloatAsState(if (pressed && !editing && !appearance.reducedEffects) (if (cyber) .97f else .94f) else 1f,
+        if (appearance.reducedEffects) tween(0) else if (cyber) tween(90) else spring(dampingRatio = .72f, stiffness = 650f), label = "icon press")
     val contentColor = LocalGlassContentColor.current
     Column(modifier.onGloballyPositioned { onBounds(it.boundsInRoot()) }
         .semantics {
@@ -115,7 +131,7 @@ fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, l
         }
         if (labels) Text(label, Modifier.fillMaxWidth().padding(top = 6.dp, start = 1.dp, end = 1.dp),
             maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
-            style = TextStyle(fontSize = 12.sp, color = contentColor,
+            style = TextStyle(fontSize = 12.sp, color = contentColor, fontFamily = if (cyber) CyberFont else null,
                 shadow = if (contentColor == Color.White) Shadow(Color.Black.copy(alpha = .6f), blurRadius = 6f) else null))
     }
 }

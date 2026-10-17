@@ -701,3 +701,55 @@ public licenses.
 Creative Commons may be contacted at creativecommons.org.
 
 Contacts address-book artwork (drawable/ios_contacts.xml): original Vitreo artwork, MIT License.
+
+
+Arcticons artwork — CC BY-SA 4.0
+Copyright Arcticons contributors.
+Source revision: 90a4343510f35e33421f0a41df5debc29c3604d1.
+23 WebP source files are unchanged. Vitreo applies cyan tint and original HUD frames at runtime.
+See CC-BY-SA-4.0.txt. Artwork and adaptations retain CC BY-SA 4.0.
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/google_phone.webp
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/google_messages.webp
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/google_chrome.webp
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/google_camera.webp
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/google_photos.webp
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/clock.webp
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/calendar_google_31.webp
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/settings.webp
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/google_contacts.webp
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/music.webp
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/youtube_music.webp
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/telegram.webp
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/whatsapp.webp
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/signal.webp
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/youtube.webp
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/revanced_extended.webp
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/google_keep.webp
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/weather.webp
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/google_files.webp
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/calculator.webp
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/google_play_store.webp
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/google_maps.webp
+https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/google_mail.webp
+
+CYBERCORE UI glyphs — MIT, Copyright (c) 2026 sebyx07.
+13 outline SVGs converted to Android vectors; see CYBERCORE-MIT.txt.
+https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/actions/search.ts
+https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/tech/settings.ts
+https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/navigation/chevron-left.ts
+https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/navigation/chevron-right.ts
+https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/tech/wifi.ts
+https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/tech/bluetooth.ts
+https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/actions/plus.ts
+https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/actions/minus.ts
+https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/navigation/menu-dots.ts
+https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/media/volume-high.ts
+https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/navigation/home.ts
+https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/tech/sliders.ts
+https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/actions/check.ts
+
+Rajdhani — SIL Open Font License 1.1.
+Copyright (c) 2014 Indian Type Foundry (info@indiantypefoundry.com).
+Medium and Semibold source font bytes unchanged. See Rajdhani-OFL.txt.
+https://raw.githubusercontent.com/google/fonts/47d54ca1ebb14fd864695f1d39dc734f39017c33/ofl/rajdhani/Rajdhani-Medium.ttf
+https://raw.githubusercontent.com/google/fonts/47d54ca1ebb14fd864695f1d39dc734f39017c33/ofl/rajdhani/Rajdhani-SemiBold.ttf

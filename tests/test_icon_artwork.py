@@ -29,3 +29,17 @@ class IconArtworkTests(unittest.TestCase):
         self.assertIn("Creative Commons Attribution 4.0 International", notice)
         self.assertEqual((ROOT / "third_party/licenses/CC-BY-4.0.txt").read_bytes(),
             (ROOT / "app/src/main/assets/licenses/CC-BY-4.0.txt").read_bytes())
+
+    def test_cyberpunk_artwork_and_fonts_match_pinned_sources(self):
+        for group in ("arcticons", "cybercore", "fonts"):
+            records = json.loads((ROOT / f"third_party/{group}/assets.json").read_text())
+            self.assertGreater(len(records), 0)
+            for entry in records:
+                data = (ROOT / entry["file"]).read_bytes()
+                self.assertEqual(hashlib.sha256(data).hexdigest(), entry["sha256"])
+                self.assertIn(entry["source"], (ROOT / "app/src/main/assets/licenses/NOTICE.txt").read_text())
+        for name in ("CC-BY-SA-4.0.txt", "Rajdhani-OFL.txt"):
+            self.assertEqual((ROOT / "third_party/licenses" / name).read_bytes(),
+                (ROOT / "app/src/main/assets/licenses" / name).read_bytes())
+        self.assertEqual((ROOT / "third_party/cybercore/LICENSE").read_bytes(),
+            (ROOT / "app/src/main/assets/licenses/CYBERCORE-MIT.txt").read_bytes())

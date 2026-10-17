@@ -1,0 +1,186 @@
+[
+  {
+    "key": "phone",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/google_phone.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_phone.webp",
+    "sha256": "714770ded37d2ce7d620009da3c2171ecbde798030f390a2bdbf3f0ce78f851a",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  },
+  {
+    "key": "messages",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/google_messages.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_messages.webp",
+    "sha256": "d6fe06ceb6f209c7da095881dfc39681cf4906feaa381de31dbbf7309b06ea16",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  },
+  {
+    "key": "browser",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/google_chrome.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_browser.webp",
+    "sha256": "13dce08208b24ccdc5d61cfbee1ac625310c796fe30fb35239c7129001fc3986",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  },
+  {
+    "key": "camera",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/google_camera.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_camera.webp",
+    "sha256": "08104ca42045278db4f71c81b15ce36b4f6acc07b1c3f19c7db934320234a4a5",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  },
+  {
+    "key": "photos",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/google_photos.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_photos.webp",
+    "sha256": "33e6a4c3960fe3af0b2fd0d2b44348de3a8caa01d90626b374360544f6ae373f",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  },
+  {
+    "key": "clock",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/clock.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_clock.webp",
+    "sha256": "07b66befe66d8a10436c25c6746d5da536fce6faf4bddd52c8cf9d62cee163e5",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  },
+  {
+    "key": "calendar",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/calendar_google_31.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_calendar.webp",
+    "sha256": "e3bb4eb6c1af43c79572d403d4fb06624585961c792367e97feac2dccf569009",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  },
+  {
+    "key": "settings",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/settings.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_settings.webp",
+    "sha256": "072c47bde6301146787e86cf2e3286ac302d560990547467cd8e58647fb220a2",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  },
+  {
+    "key": "contacts",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/google_contacts.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_contacts.webp",
+    "sha256": "1b799755532db176f468a4a1f9df0033bd6ee88168840a542cd4f14c9095ebd4",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  },
+  {
+    "key": "music",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/music.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_music.webp",
+    "sha256": "8c567785a83a6dbab98a3e1f780df940c93e9d2e32588ae75dc57707ef3e72c8",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  },
+  {
+    "key": "youtube_music",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/youtube_music.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_youtube_music.webp",
+    "sha256": "a4f5dfe09ce55bbd1c222f78b4ab358895bbeb861806ef7bd7069dec1f80ae85",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  },
+  {
+    "key": "telegram",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/telegram.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_telegram.webp",
+    "sha256": "4d259e6270d3197f227ef442084ff1e48338f61d1992bac7d96dcefee87b1b68",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  },
+  {
+    "key": "whatsapp",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/whatsapp.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_whatsapp.webp",
+    "sha256": "3165a08cff9aceb3e06455c406fab5b4e0784d9d5e11bcb2cbcc748070a85d3d",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  },
+  {
+    "key": "signal",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/signal.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_signal.webp",
+    "sha256": "c8b4d2b92030b62f675034edc1aea47bec2aa7b5952db1532dc16d378dc35f19",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  },
+  {
+    "key": "youtube",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/youtube.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_youtube.webp",
+    "sha256": "b81ad60a89187b6df9e8478ebd2294e8c75a6186964b1f0abda6e0191a14c334",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  },
+  {
+    "key": "spotify",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/revanced_extended.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_spotify.webp",
+    "sha256": "4f200d0edb23d62b5e9bec0e8a8f7c430d448aca7f5fab57b29a9d755412d4c9",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  },
+  {
+    "key": "notes",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/google_keep.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_notes.webp",
+    "sha256": "68d2ad6ca470e933d6affdb26a5211de1277eec10c7a9bf736f0585ff6dabf9f",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  },
+  {
+    "key": "weather",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/weather.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_weather.webp",
+    "sha256": "b0c1bff53f9829b3bb7ca8182e7bb3b75716742374e75f3aea0d78d7b0ba7912",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  },
+  {
+    "key": "files",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/google_files.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_files.webp",
+    "sha256": "e70bc2dc4546158983af2bf23b660459eda09af69f9437ac90875ddb548ee327",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  },
+  {
+    "key": "calculator",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/calculator.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_calculator.webp",
+    "sha256": "83fc5727f77f96305e4d615831b2214dd8f55a9855a10518d10f7eb7e3c99a81",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  },
+  {
+    "key": "store",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/google_play_store.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_store.webp",
+    "sha256": "eb640d9c863bf84846eb6b89437dbfb303412e3a3b2bd58fd438714e4045380c",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  },
+  {
+    "key": "maps",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/google_maps.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_maps.webp",
+    "sha256": "b360b188e1dc3a08e90348ce7fa19bde88d262f67fbc6165b163aad529ffca9e",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  },
+  {
+    "key": "mail",
+    "source": "https://github.com/Arcticons-Team/Arcticons/blob/90a4343510f35e33421f0a41df5debc29c3604d1/app/src/normal/res/drawable-nodpi/google_mail.webp",
+    "file": "app/src/main/res/drawable-nodpi/cyber_mail.webp",
+    "sha256": "00101841be1a7d795752eb86d83db5aa967308004078d16e98fcdfe04d626537",
+    "license": "CC-BY-SA-4.0",
+    "changes": "Source bytes unchanged; launcher tints and frames artwork at runtime."
+  }
+]

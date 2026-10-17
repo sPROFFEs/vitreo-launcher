@@ -1,6 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
   <application android:label="Uninstall fixture" android:icon="@android:drawable/ic_menu_info_details" android:allowBackup="false">
     <activity android:name=".MainActivity" android:exported="true">
+      <intent-filter><action android:name="org.adw.ActivityStarter.THEMES" /></intent-filter>
       <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
     </activity>
     <activity-alias android:name=".HomeAlias" android:targetActivity=".MainActivity" android:label="Fixture Home" android:exported="true">

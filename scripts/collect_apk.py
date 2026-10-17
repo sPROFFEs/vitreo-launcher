@@ -39,7 +39,7 @@ def main() -> None:
         raise RuntimeError("Unexpected minimum or target SDK in the APK.")
     permissions = command(str(tools / "aapt"), "dump", "permissions", str(apk))
     requested = re.findall(r"uses-permission(?:-[^:]+)?: name='([^']+)'", permissions)
-    allowed = {expected_id + ".DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION", "android.permission.BIND_APPWIDGET"}
+    allowed = {expected_id + ".DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION", "android.permission.BIND_APPWIDGET", "android.permission.SET_WALLPAPER"}
     if set(requested) - allowed:
         raise RuntimeError(f"Unexpected APK permissions: {sorted(set(requested) - allowed)}")
     certificate = command(str(tools / "apksigner"), "verify", "--verbose", "--print-certs", str(apk))

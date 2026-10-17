@@ -81,6 +81,26 @@ El movimiento y sus referencias están descritos en [MOTION.md](MOTION.md).
 
 ## Material de cristal
 
+`HomeBackground` compone una sola imagen para el fallback local y Android Home.
+`SystemHomeWallpaper` aplica solo FLAG_SYSTEM, sin backup del sistema, cuando la
+opción de sincronizar está activa y Vitreo tiene el rol HOME. El hash de píxeles
+y el ID de wallpaper evitan escrituras repetidas. Se usan las dimensiones de la
+ventana completa para que mostrar el teclado no cambie el wallpaper. La ventana
+pide SHOW_WALLPAPER; al completar la sincronización, el fallback se desvanece y
+Android mantiene una superficie común durante Recientes y Home.
+
+El preset Cyberpunk usa materiales HUD nativos y omite `GlassRenderer`. Sus tokens,
+formas y tipografía se comparten mediante `VitreoTheme` y `LocalCyber`; iOS mantiene
+su ruta de cristal. La selección del tema es independiente del layout y de la fuente
+de iconos. [CYBERPUNK.md](CYBERPUNK.md) describe formatos, límites y referencias.
+
+`IconPacks` descubre paquetes mediante intents ADW/Nova y lee únicamente sus recursos.
+Los índices se parsean y las imágenes se rasterizan en IO. No se ejecuta código del
+pack. El caché de bitmaps tiene límite de 8 MiB y se invalida por versión/configuración;
+no se reinicia en un regreso normal desde una app. Los overrides se guardan por
+actividad, migran con los alias y se eliminan solo al confirmar la desinstalación.
+Si falta un pack o una imagen se conserva el catálogo y se usa el icono predeterminado.
+
 `WallpaperStore` genera fondos propios o copia una foto con lado largo máximo de
 1600 px y precalcula una textura esmerilada. Carga e importación están serializadas.
 `GlassPanel` llama a `GlassRenderer` en el Canvas de Compose. Android 13+ usa AGSL

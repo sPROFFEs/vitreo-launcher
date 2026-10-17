@@ -30,9 +30,12 @@ class MainActivity : ComponentActivity() {
     private var appReturnSerial by mutableIntStateOf(0)
     private var leftForApp = false
     private var defaultHome by mutableStateOf(false)
+    private var stoppedOnce = false
+    private var homeRevealSerial by mutableIntStateOf(0)
     private val widgetConfigurations = WidgetConfigurationRequests()
     private val roleRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         defaultHome = isDefaultHome()
+        model.homeRole(defaultHome)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,16 +44,26 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT))
         setContent {
             val ui by model.ui.collectAsStateWithLifecycle()
-            VitreoTheme(ui.layout.appearance.interfaceStyle) {
-                LauncherScreen(model, homeSerial, appReturnSerial, defaultHome, ::chooseHome, ::launchApp, ::launchShortcut, ::appInfo, ::configureWidget)
+            VitreoTheme(ui.layout.appearance.interfaceStyle, ui.layout.appearance.themePreset) {
+                LauncherScreen(model, homeSerial, appReturnSerial, defaultHome, ::chooseHome, ::launchApp, ::launchShortcut, ::appInfo, ::configureWidget, homeRevealSerial)
             }
         }
     }
     override fun onResume() {
         super.onResume()
         if (leftForApp) { leftForApp = false; appReturnSerial++ }
+        if (stoppedOnce) { stoppedOnce = false; homeRevealSerial++ }
         defaultHome = isDefaultHome()
+        model.homeRole(defaultHome)
         model.refresh()
+    }
+    override fun onStop() { stoppedOnce = true; super.onStop() }
+    override fun onPause() { stoppedOnce = true; super.onPause() }
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && defaultHome && model.systemBackgroundVisible.value) runCatching {
+            android.app.WallpaperManager.getInstance(this).setWallpaperOffsets(window.decorView.windowToken, .5f, .5f)
+        }
     }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)

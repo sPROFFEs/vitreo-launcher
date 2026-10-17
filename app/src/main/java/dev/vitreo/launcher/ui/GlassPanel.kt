@@ -36,6 +36,7 @@ val LocalGlassContentColor = staticCompositionLocalOf { Color.White }
 @Composable
 fun GlassPanel(modifier: Modifier = Modifier, radius: Float = 28f, tint: Float = .18f,
     material: GlassMaterial = GlassMaterial.Clear, interactive: Boolean = false, content: @Composable BoxScope.() -> Unit) {
+    if (LocalCyber.current) { CyberPanel(modifier, content); return }
     val glass = LocalGlass.current
     var pressed by remember { mutableStateOf(false) }
     var touch by remember { mutableStateOf(Offset(.5f, .5f)) }

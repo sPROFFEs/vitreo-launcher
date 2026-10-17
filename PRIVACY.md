@@ -24,6 +24,14 @@ se añaden de nuevo en otro dispositivo.
 
 ## Imágenes, copias y diagnóstico
 
+La opción **Sync with Android Home** está activada por defecto y solo se aplica
+cuando Vitreo es el launcher predeterminado. Usa el permiso normal SET_WALLPAPER
+para entregar a Android una copia del fondo de Home ya compuesto, con recorte,
+oscurecimiento y tema. Android la conserva como wallpaper del sistema. No se lee
+el fondo ajeno, no se solicita acceso a toda la galería y se desactiva el backup
+del sistema para esta copia. La opción se puede apagar en Wallpaper. Se configura
+únicamente FLAG_SYSTEM; el fondo de bloqueo sigue bajo gestión de Android.
+
 Las fotos se eligen mediante el selector del sistema y se copian reducidas al almacenamiento
 privado de Vitreo. No se lee toda la galería. La copia JSON conserva la distribución y la
 apariencia, pero no la foto, los IDs de widgets ni el historial de sugerencias.
@@ -33,6 +41,11 @@ estado y ajustes gráficos, número de actividades disponibles y el último stac
 No contiene un inventario de tus apps, fotografías o contraseñas.
 
 Los iconos de SVG Stack se incluyen en la APK; no se descargan al utilizar el launcher.
+El tema Cyberpunk incluye arte atribuido de Arcticons y CYBERCORE, y fuentes Rajdhani,
+también locales. Los packs de iconos se descubren mediante intents de temas ADW/Nova;
+solo se leen sus recursos, sin ejecutar código del pack ni enviar datos a su autor.
+Las referencias de pack e icono elegido se guardan en el layout y en sus copias;
+no se copian imágenes de packs externos al exportar.
 
 El cristal procesa exclusivamente el fondo propio del launcher. No captura otras apps ni
 sustituye las funciones de seguridad, notificaciones, bloqueo o Recientes de Android.

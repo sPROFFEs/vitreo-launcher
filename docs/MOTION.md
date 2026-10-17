@@ -52,6 +52,26 @@ reduced path. No idle refraction animation or polling loop is introduced.
 
 ## Verification and limits
 
+Cyberpunk (0.5.1) uses critically damped entry springs (panel stiffness 1000,
+menu 1200), restrained folder/category scale and 90 ms press feedback. HUD panels
+draw a single 180 ms decorative sweep, with a short displaced line accent.
+The effects switch, Reduce Motion and Battery Saver suppress this decoration.
+Static background lines have no animation loop. The existing interactive
+velocity handoff and content-retention behavior also applies to Cyberpunk.
+
+Returning from Recents or another activity triggers a separate Home arrival:
+icons start radially beyond the nearest screen edge and settle into their
+unchanged cells with a critically damped spring (stiffness 350). Widget cards
+use a smaller vertical reveal. Transforms run in graphics layers and do not
+repack the grid. Reduce Motion/Battery Saver settle immediately.
+
+Departure transforms apply to foreground content only. The wallpaper is never
+scaled or faded with the workspace. When Home synchronization succeeds, Android
+draws the shared wallpaper behind the transparent window, including during
+Recents. A bounded crossfade hands the identical local fallback to that system
+surface after applying a new background; no wallpaper update occurs per frame
+or on an unchanged return. Android still owns its task/card animations.
+
 JVM tests cover packing under different row counts and gesture dismissal choices.
 API 31/35 instrumentation covers real native widget binding, movement, resizing,
 persistence, clipping and catalog inset; existing regressions cover interrupted

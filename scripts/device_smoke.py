@@ -138,7 +138,8 @@ def main() -> None:
             raise RuntimeError("Build :uninstallFixture:assembleDebug before device smoke tests.")
         adb("push", str(fixtures[0]), "/data/local/tmp/vitreo-uninstall-fixture.apk")
         count = run_instrumentation()
-        native_screens = ["category-light", "category-dark", "settings-dark", "wallpaper-fit", "app-menu", "app-menu-more", "alphabetical-library", "installed-icon", "large-icons", "home-widget-small", "home-widget-medium"]
+        native_screens = ["category-light", "category-dark", "settings-dark", "wallpaper-fit", "app-menu", "app-menu-more", "alphabetical-library", "installed-icon", "large-icons", "home-widget-small", "home-widget-medium",
+            "cyber-settings", "cyber-home", "cyber-menu", "cyber-library", "cyber-category", "recents-return"]
         if args.api >= 33:
             native_screens += [f"glass-{material}-{effect}" for material in ("clear", "regular") for effect in ("flat", "refracted")]
         collect_native_screens(output, native_screens)
@@ -263,6 +264,11 @@ def main() -> None:
             capture_screen(output, "app-return", "Apps")
             adb("shell", "input", "keyevent", "KEYCODE_HOME")
             time.sleep(1)
+            adb("shell", "input", "keyevent", "KEYCODE_APP_SWITCH")
+            time.sleep(1)
+            adb("shell", "input", "keyevent", "KEYCODE_HOME")
+            time.sleep(1)
+            capture_screen(output, "recents-return", "Search")
             navigate_page(output, "motion-library", "App Library", lambda: swipe(.8, .2))
             # Reuse the same first category's centre, independently of icon bounds.
             adb("shell", "input", "tap", str(category_x), str(category_y))
@@ -286,7 +292,7 @@ def main() -> None:
             raise RuntimeError("A fatal crash occurred during optimized APK smoke testing.")
         result_path.write_text(json.dumps({"schema": 1, "commit": commit, "api": args.api,
             "status": "passed", "debugTestsPassed": count, "optimizedPreviewStarted": True,
-            "uiScreens": ["home", "today", "settings", "glass-settings", "wallpaper-settings", "widgets", "widget-previews", "spotlight", "library", "category", "app-menu", "app-menu-more", "category-return", "controls", "motion-app-search", "app-return"],
+            "uiScreens": ["home", "today", "settings", "glass-settings", "wallpaper-settings", "widgets", "widget-previews", "spotlight", "library", "category", "app-menu", "app-menu-more", "category-return", "controls", "motion-app-search", "app-return", "recents-return"],
             "motionRecordedWithAnimationsEnabled": True,
             "nativeScreens": native_screens,
             "physicalGrapheneOsTested": False}, indent=2) + "\n")

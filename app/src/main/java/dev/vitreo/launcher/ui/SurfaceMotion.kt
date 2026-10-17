@@ -22,8 +22,8 @@ import kotlin.math.abs
 
 /** Motion roles adapted from Folio's MIT FolioTokens.kt (see third_party/folio/PROVENANCE.md). */
 object LauncherMotion {
-    fun <T> panel() = spring<T>(dampingRatio = .9f, stiffness = 380f)
-    fun <T> menu() = spring<T>(dampingRatio = .78f, stiffness = 650f)
+    fun <T> panel(cyber: Boolean = false) = spring<T>(dampingRatio = if (cyber) 1f else .9f, stiffness = if (cyber) 1000f else 380f)
+    fun <T> menu(cyber: Boolean = false) = spring<T>(dampingRatio = if (cyber) 1f else .78f, stiffness = if (cyber) 1200f else 650f)
     fun <T> close() = spring<T>(dampingRatio = 1f, stiffness = 700f)
 }
 
@@ -43,6 +43,7 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
     var handoffProgress by remember { mutableFloatStateOf(1f) }
     var translationCorrection by remember { mutableFloatStateOf(0f) }
     val reduced = LocalGlass.current.appearance.reducedEffects
+    val cyber = LocalCyber.current
     val close by rememberUpdatedState(onClose)
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current.density
@@ -71,7 +72,7 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
             val velocity = releaseVelocity ?: progress.velocity
             releaseVelocity = null
             progress.animateTo(if (target != null) 1f else 0f,
-                if (reduced) tween(120) else if (target == null) LauncherMotion.close() else LauncherMotion.panel(),
+                if (reduced) tween(120) else if (target == null) LauncherMotion.close() else LauncherMotion.panel(cyber),
                 initialVelocity = if (reduced) 0f else velocity)
             dismissDown = false
             if (target == null) retained = null
@@ -81,7 +82,7 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
     LaunchedEffect(Unit) { snapshotFlow { (fingerProgress ?: progress.value).coerceIn(0f, 1f) }.collect(progressChanged) }
     if (displayed != null) {
         val style = kind(displayed)
-        val gesture = if (style == SurfaceKind.Page || reduced || target == null) Modifier else Modifier.pointerInput(style) {
+        val gesture = if (style == SurfaceKind.Page || reduced || target == null) Modifier else Modifier.pointerInput(style, cyber) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
                 // Scrolling app grids and text fields keep their gestures. The header is a dismissal handle.
@@ -140,7 +141,7 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
                                 releaseVelocity = normalized
                                 close()
                             } else if (currentTarget != null) {
-                                progress.animateTo(1f, LauncherMotion.panel(), initialVelocity = normalized)
+                                progress.animateTo(1f, LauncherMotion.panel(cyber), initialVelocity = normalized)
                                 dismissDown = false
                             }
                         }
@@ -153,8 +154,8 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
             alpha = (p * 2.5f).coerceIn(0f, 1f)
             if (!reduced) {
                 val start = when (style) {
-                    SurfaceKind.Folder -> .25f
-                    SurfaceKind.Category -> .72f
+                    SurfaceKind.Folder -> if (cyber) .94f else .25f
+                    SurfaceKind.Category -> if (cyber) .97f else .72f
                     else -> 1f
                 }
                 scaleX = start + (1f - start) * p; scaleY = scaleX
@@ -176,7 +177,7 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
         }) {
             AnimatedContent(displayed, transitionSpec = {
                 if (reduced) fadeIn(tween(100)) togetherWith fadeOut(tween(100))
-                else (fadeIn(tween(150)) + slideInHorizontally(LauncherMotion.panel()) { if (forward) it / 7 else -it / 10 }) togetherWith
+                else (fadeIn(tween(150)) + slideInHorizontally(LauncherMotion.panel(cyber)) { if (forward) it / 7 else -it / 10 }) togetherWith
                     (fadeOut(tween(120)) + slideOutHorizontally(LauncherMotion.close()) { if (forward) -it / 10 else it / 7 })
             }, label = "surface navigation") { content(it) }
         }

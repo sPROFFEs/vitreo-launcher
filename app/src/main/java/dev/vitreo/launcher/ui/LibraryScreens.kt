@@ -53,7 +53,7 @@ fun Spotlight(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestion
         Row(Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 20.dp), verticalAlignment = Alignment.CenterVertically) {
             GlassPanel(Modifier.weight(1f).height(49.dp), radius = 19f, tint = .32f) {
                 Row(Modifier.fillMaxSize().padding(horizontal = 13.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Search, null, Modifier.size(21.dp), tint = Color.White.copy(alpha = .8f))
+                    LauncherSymbol(Icons.Outlined.Search, null, Modifier.size(21.dp), tint = Color.White.copy(alpha = .8f))
                     BasicTextField(query, { query = it.take(100) }, Modifier.weight(1f).padding(start = 9.dp)
                         .focusRequester(focus).testTag("search_field"), singleLine = true,
                         textStyle = TextStyle(color = Color.White, fontSize = 18.sp), cursorBrush = SolidColor(Color.White),
@@ -63,7 +63,7 @@ fun Spotlight(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestion
                             if (query.isEmpty()) Text("Search", color = Color.White.copy(alpha = .6f), fontSize = 18.sp)
                             inner()
                         })
-                    if (query.isNotEmpty()) Icon(Icons.Outlined.Cancel, "Clear Search",
+                    if (query.isNotEmpty()) LauncherSymbol(Icons.Outlined.Cancel, "Clear Search",
                         Modifier.size(20.dp).clickable { query = "" }, tint = Color.White.copy(alpha = .6f))
                 }
             }
@@ -139,7 +139,7 @@ fun AppLibrary(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestio
     Column(Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 12.dp).testTag("app_library")) {
         GlassPanel(Modifier.fillMaxWidth().height(51.dp).clickable(onClick = onSearch), radius = 24f, tint = .2f) {
             Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                Icon(Icons.Outlined.Search, null, Modifier.size(20.dp), tint = Color.White.copy(alpha = .8f))
+                LauncherSymbol(Icons.Outlined.Search, null, Modifier.size(20.dp), tint = Color.White.copy(alpha = .8f))
                 Text("App Library", color = Color.White.copy(alpha = .85f), fontSize = 18.sp, modifier = Modifier.padding(start = 9.dp))
             }
         }
@@ -191,7 +191,7 @@ fun CategoryScreen(title: String, records: List<AppRecord>, apps: Map<String, Ap
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(title, Modifier.weight(1f), color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-            IconButton(onClick = onClose) { Icon(Icons.Outlined.Close, "Close", tint = Color.White) }
+            IconButton(onClick = onClose) { LauncherSymbol(Icons.Outlined.Close, "Close", tint = Color.White) }
         }
         Text("${records.size} apps", color = Color.White.copy(alpha = .8f), fontSize = 14.sp,
             modifier = Modifier.padding(top = 2.dp, bottom = 20.dp))

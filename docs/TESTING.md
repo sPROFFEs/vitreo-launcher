@@ -30,11 +30,21 @@ no exige modificar componentes del sistema.
 - Prueba proveedores altos/anchos: su contenido debe permanecer dentro del contenedor y la vista previa tener margen superior.
 - Abre/cierra carpetas y categorías lentamente y con un flick; invierte un gesto a mitad y comprueba que vuelve sin saltar.
 - Alterna apps y HOME repetidamente con las animaciones del sistema activadas.
+- Abre Recientes y vuelve a Home: los iconos entran desde los bordes sin recolocar
+  las celdas; el fondo permanece en la superficie del sistema. Repite con foto,
+  dimming y Cyberpunk. Sync with Android Home solo aplica siendo launcher predeterminado.
 - Exporta un backup, cambia la distribución e impórtalo. El fondo de foto no viaja en la copia.
 - Cierra el proceso y reinicia el teléfono: revisa que los cambios guardados permanezcan.
 - Instala y desinstala una app de prueba: se añade al instalar y desaparece de Home/dock/carpetas al desinstalar. Comprueba también una actualización: debe conservar su posición.
 - Desinstala una app con Vitreo cerrado, vuelve y comprueba que no quede su acceso. Una app solo temporalmente no disponible conserva su posición.
 - Quitar un acceso desde Vitreo no desinstala la app.
+- Selecciona Cyberpunk en Themes & Icons y revisa Home, Dock, carpetas, categorías,
+  búsqueda, menús y widgets; vuelve a iOS y comprueba que no cambió la distribución.
+- Instala un pack ADW/Nova, selecciónalo y elige un icono individual desde More →
+  Change Icon. Actualiza/desinstala el pack y restaura una copia sin él instalado:
+  los accesos siguen presentes con su arte predeterminado. Prueba alias de Telegram.
+- Comprueba HUD Effects, Reduce Motion y ahorro de batería; el reposo no debe animar
+  scanlines ni glitches. Compara recorridos repetidos con efectos activados/desactivados.
 
 Prueba después texto grande, orientación horizontal, navegación por gestos y de
 tres botones. Los perfiles de trabajo y el espacio privado están fuera de alcance;

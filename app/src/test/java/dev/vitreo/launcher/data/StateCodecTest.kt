@@ -43,5 +43,31 @@ class StateCodecTest {
         assertTrue(state.appearance.showWidgets)
         assertEquals(PhotoTransform(), state.appearance.photoTransform)
         assertEquals(.12f, state.appearance.wallpaperDim)
+        assertEquals(0, state.appearance.themePreset)
+        assertEquals("", state.appearance.iconPack)
+        assertTrue(state.appearance.iconOverrides.isEmpty())
+        assertTrue(state.appearance.syncWallpaper)
+    }
+    @Test fun cyberThemeAndExternalIconReferencesSurviveBackupWithoutChangingPlacement() {
+        val state = LauncherState(initialized = true, home = listOf(HomeEntry.App(a)), dock = listOf(b),
+            appearance = Appearance(themePreset = 1, cyberEffects = false, syncWallpaper = false, iconPack = "com.example.pack",
+                iconOverrides = mapOf(a to IconOverride("com.example.other", "alternative_1")))).sanitized()
+        assertEquals(state, StateCodec.decode(StateCodec.encode(state)))
+        assertEquals(listOf(b, a), state.placedApps())
+    }
+    @Test fun unsafePackAndDrawableReferencesAreRejectedWithoutLosingApps() {
+        val state = LauncherState(initialized = true, home = listOf(HomeEntry.App(a)),
+            appearance = Appearance(themePreset = 9, iconPack = "../../bad", iconOverrides = mapOf(
+                a to IconOverride("com.example.pack", "../../drawable"), b to IconOverride("intent://bad", "safe")))).sanitized()
+        assertEquals(listOf(a), state.placedApps())
+        assertEquals(1, state.appearance.themePreset)
+        assertEquals("", state.appearance.iconPack)
+        assertTrue(state.appearance.iconOverrides.isEmpty())
+    }
+    @Test fun uninstallAndAliasReplacementAlsoUpdatePerAppIconReferences() {
+        val state = LauncherState(initialized = true, home = listOf(HomeEntry.App(a)),
+            appearance = Appearance(iconOverrides = mapOf(a to IconOverride("com.example.pack", "alternative"))))
+        assertTrue(LayoutOps.removePackages(state, setOf("com.example.one")).appearance.iconOverrides.isEmpty())
+        assertEquals(state.appearance.iconOverrides[a], LayoutOps.remapApps(state, mapOf(a to b)).appearance.iconOverrides[b])
     }
 }

@@ -91,7 +91,7 @@ fun WidgetPreview(info: AppWidgetProviderInfo) {
             if (preview != null) Image(checkNotNull(preview).asImageBitmap(), "${info.loadLabel(context.packageManager)} widget preview",
                 Modifier.fillMaxSize().testTag("widget_preview:${info.provider.flattenToString()}"), contentScale = ContentScale.Fit)
             else Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Outlined.Widgets, null, Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                LauncherSymbol(Icons.Outlined.Widgets, null, Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("No preview provided by this app", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 10.dp))
             }

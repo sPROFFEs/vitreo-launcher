@@ -1,5 +1,18 @@
 # Cambios
 
+## 0.5.1 — Tema Cyberpunk y packs de iconos — 2026-10-17
+
+- Regreso desde Recientes con iconos que entran radialmente desde fuera de la pantalla, sin cambiar sus celdas ni animar el fondo con el escritorio; widgets con entrada vertical suave.
+- Fondo compartido con Android Home cuando Vitreo es predeterminado, incluyendo foto, recorte, oscurecimiento y Cyberpunk. Ventana integrada con la superficie de wallpaper del sistema y fallback local con transición. Sync with Android Home se puede desactivar; se añade el permiso normal SET_WALLPAPER.
+
+- Tema Cyberpunk opcional en Themes & Icons: HUD oscuro rojo/cian, esquinas recortadas, fondo de cuadrícula, tipografía Rajdhani y reloj/calendario digitales.
+- Tratamiento compartido en Home, Dock, carpetas, biblioteca, búsqueda, menús, controles y ajustes. iOS sigue siendo el predeterminado y el layout se conserva.
+- 23 iconos de familias de apps de Arcticons (CC BY-SA 4.0) y 13 controles CYBERCORE (MIT), con fuentes, hashes y licencias en el repo y APK.
+- Packs ADW/Nova instalados: mapeo estático por actividad y selección individual con búsqueda desde More → Change Icon; fallback si falta el recurso o se desinstala el pack.
+- Barrido de paneles y acentos glitch breves, sin bucle en reposo; interruptor HUD Effects y respeto al movimiento reducido/ahorro. Entradas con muelles críticamente amortiguados y cancelación continua.
+- Copias compatibles con versiones anteriores, referencias de iconos portables, caché de recursos en IO y limpieza/migración de overrides al desinstalar/cambiar alias.
+- Pruebas de parsers, límites, instalación/actualización/eliminación de un pack de fixture, selección y persistencia de iconos y recorrido visual del tema.
+
 ## 0.5.0 — Widgets en Home y movimiento — 2026-10-17
 
 - Desinstalar elimina automáticamente los accesos de Home, dock, carpetas y sugerencias. Las actualizaciones conservan su posición; una comprobación al refrescar limpia fantasmas de desinstalaciones ocurridas con el launcher cerrado.

@@ -70,6 +70,7 @@ val LauncherReadyKey = SemanticsPropertyKey<Boolean>("LauncherReady")
 val AppReturnSerialKey = SemanticsPropertyKey<Int>("AppReturnSerial")
 val AppOpeningKey = SemanticsPropertyKey<Boolean>("AppOpening")
 val HomeRowsKey = SemanticsPropertyKey<Int>("HomeRows")
+val HomeRevealSerialKey = SemanticsPropertyKey<Int>("HomeRevealSerial")
 private sealed interface Sheet {
     data object Search : Sheet
     data object LibrarySearch : Sheet
@@ -79,6 +80,7 @@ private sealed interface Sheet {
     data class Widget(val id: Int) : Sheet
     data object Controls : Sheet
     data object Wallpaper : Sheet
+    data class IconPicker(val app: String) : Sheet
     data class Folder(val id: String) : Sheet
     data class Category(val title: String, val apps: List<AppRecord>) : Sheet
     data class PairWith(val app: String) : Sheet
@@ -90,9 +92,12 @@ private data class WidgetDragSession(val placement: HomeWidgetPlacement, val pos
 @Composable
 fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: Int, defaultHome: Boolean,
     onSetHome: () -> Unit, onLaunch: (String, Rect?) -> Boolean, onShortcut: (ShortcutInfo, Rect?) -> Boolean, onAppInfo: (String) -> Unit,
-    onConfigureWidget: (AppWidgetHost, Int, (Boolean) -> Unit) -> Unit) {
+    onConfigureWidget: (AppWidgetHost, Int, (Boolean) -> Unit) -> Unit, homeRevealSerial: Int = 0) {
     val ui by model.ui.collectAsStateWithLifecycle()
     val frame by model.wallpaper.collectAsStateWithLifecycle()
+    val background by model.background.collectAsStateWithLifecycle()
+    val systemBackground by model.systemBackgroundVisible.collectAsStateWithLifecycle()
+    val localBackgroundAlpha = animateFloatAsState(if (systemBackground) 0f else 1f, tween(180), label = "system wallpaper handoff")
     val photoDraft by model.photoDraft.collectAsStateWithLifecycle()
     val photoBusy by model.photoBusy.collectAsStateWithLifecycle()
     val apps = remember(ui.apps) { ui.apps.associateBy { it.id } }
@@ -109,6 +114,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     var actionReturn by remember { mutableStateOf<AppActionTarget?>(null) }
     var launching by remember { mutableStateOf(false) }
     val departure = remember { Animatable(0f) }
+    val arrival = remember { Animatable(1f) }
     var surfaceProgress by remember { mutableFloatStateOf(0f) }
     val modalPresent = sheet != null || actionTarget != null || choiceSheet != null
     var editing by remember { mutableStateOf(false) }
@@ -135,6 +141,20 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val snackbar = remember { SnackbarHostState() }
     val widgets = remember { WidgetController(context) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) scope.launch { arrival.snapTo(0f) }
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(homeRevealSerial, appearance.reducedEffects) {
+        if (appearance.reducedEffects || homeRevealSerial == 0) arrival.snapTo(1f)
+        else {
+            if (arrival.value >= .999f) arrival.snapTo(0f)
+            arrival.animateTo(1f, spring(dampingRatio = 1f, stiffness = 350f))
+        }
+    }
     DisposableEffect(widgets, lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_START) { widgets.refresh(); widgets.host.startListening() }
@@ -224,7 +244,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     }
     LaunchedEffect(appReturnSerial) {
         launching = false
-        departure.animateTo(0f, if (appearance.reducedEffects) tween(0) else LauncherMotion.panel())
+        departure.snapTo(0f)
     }
     LaunchedEffect(launching) {
         if (launching) {
@@ -239,15 +259,20 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         val app = ui.apps.firstOrNull { "calendar" in it.packageName || "calendario" in searchKey(it.label) }
         if (app != null) launch(app.id, null) else model.message("No calendar app is installed.")
     }
-    val opaqueScreen = sheet == Sheet.Settings || sheet == Sheet.Widgets || sheet is Sheet.Widget || sheet == Sheet.Licenses || sheet == Sheet.Wallpaper ||
+    val opaqueScreen = sheet == Sheet.Settings || sheet == Sheet.Widgets || sheet is Sheet.Widget || sheet is Sheet.IconPicker || sheet == Sheet.Licenses || sheet == Sheet.Wallpaper ||
         sheet is Sheet.PairWith || sheet is Sheet.AddToFolder
-    val lightWallpaper = (frame?.brightness ?: 0f) * (1f - appearance.wallpaperDim) > .62f
+    val lightWallpaper = appearance.themePreset != 1 && (frame?.brightness ?: 0f) * (1f - appearance.wallpaperDim) > .62f
     val lightChrome = opaqueScreen && sheet != Sheet.Wallpaper && MaterialTheme.colorScheme.background.luminance() > .5f ||
         sheet == null && lightWallpaper
     SideEffect {
         (context as? Activity)?.let { activity -> WindowCompat.getInsetsController(activity.window, localView).apply {
             isAppearanceLightStatusBars = lightChrome; isAppearanceLightNavigationBars = lightChrome
         } }
+    }
+    LaunchedEffect(systemBackground) {
+        if (systemBackground) runCatching {
+            android.app.WallpaperManager.getInstance(context).setWallpaperOffsets(localView.windowToken, .5f, .5f)
+        }
     }
     LaunchedEffect(Unit) { model.messages.collect { snackbar.showSnackbar(it) } }
     LaunchedEffect(sheet, actionTarget) {
@@ -379,35 +404,37 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     }
     val menuBlur = animateFloatAsState(if (actionTarget != null) 1f else 0f,
         if (appearance.reducedEffects) tween(0) else LauncherMotion.close(), label = "menu backdrop")
-    val wallpaperText = if (lightWallpaper) Color(0xff151518) else Color.White
+    val wallpaperText = if (appearance.themePreset == 1) CyberColors.Text else if (lightWallpaper) Color(0xff151518) else Color.White
     CompositionLocalProvider(LocalGlass provides GlassEnvironment(frame, viewport, appearance), LocalHomeClock provides now,
-        LocalGlassContentColor provides wallpaperText) {
+        LocalGlassContentColor provides wallpaperText, LocalIconPacks provides PackEnvironment(model.iconPacks, ui.iconRevision),
+        LocalHomeArrival provides HomeArrivalEnvironment(arrival.asState(), viewport.width, viewport.height,
+            onHomePage && sheet == null && !editing && !appearance.reducedEffects)) {
         Box(Modifier.fillMaxSize().testTag("launcher_root").semantics {
-            this[LauncherReadyKey] = ui.ready && frame != null
+            this[LauncherReadyKey] = ui.ready && frame != null && background != null
             this[HomeRowsKey] = geometry.rows
             this[AppReturnSerialKey] = appReturnSerial
             this[AppOpeningKey] = launching
+            this[HomeRevealSerialKey] = homeRevealSerial
         }
-            .background(Color(0xff142f68)).graphicsLayer {
-                if (!appearance.reducedEffects) {
-                    scaleX = 1f - departure.value * .045f; scaleY = scaleX
-                    alpha = 1f - departure.value * .18f
-                }
-            }.then(gestureModifier).onGloballyPositioned { coordinates ->
+            .then(gestureModifier).onGloballyPositioned { coordinates ->
                 val screen = IntArray(2); val window = IntArray(2)
                 localView.getLocationOnScreen(screen); localView.getLocationInWindow(window)
                 val origin = coordinates.positionInWindow()
                 viewport = Viewport(coordinates.size.width.toFloat(), coordinates.size.height.toFloat(),
                     origin.x + screen[0] - window[0], origin.y + screen[1] - window[1])
-                model.wallpaperViewport(coordinates.size.width, coordinates.size.height)
+                val bounds = (context as? Activity)?.windowManager?.currentWindowMetrics?.bounds
+                model.wallpaperViewport(bounds?.width() ?: coordinates.size.width, bounds?.height() ?: coordinates.size.height)
                 rootPosition = coordinates.positionInRoot()
             }) {
-            frame?.let { Image(it.sharp.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
-            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = appearance.wallpaperDim)))
+            background?.let { Image(it.asImageBitmap(), null, Modifier.fillMaxSize().graphicsLayer { alpha = localBackgroundAlpha.value }, contentScale = ContentScale.Crop) }
+            if (appearance.themePreset == 1) Box(Modifier.fillMaxSize().testTag("cyber_backdrop"))
             Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.displayCutout))
                 .padding(top = if (editing) 42.dp else 9.dp)
                 .then(if (modalPresent) Modifier.clearAndSetSemantics {} else Modifier)
                 .graphicsLayer {
+                    if (!appearance.reducedEffects) {
+                        scaleX = 1f - departure.value * .025f; scaleY = scaleX
+                    }
                     // Read the animation in the drawing phase. Rebuilding the entire
                     // workspace for every blur frame causes avoidable layout/recomposition.
                     alpha = if (opaqueScreen && surfaceProgress >= .999f) 0f else 1f
@@ -459,7 +486,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                             }
                         } else GlassPanel(Modifier.testTag("library_button").clickable { openSearch() }, radius = 18f, tint = .1f, interactive = true) {
                             Row(Modifier.padding(horizontal = 14.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Outlined.Search, null, Modifier.size(14.dp), tint = Color.White)
+                                LauncherSymbol(Icons.Outlined.Search, null, Modifier.size(14.dp), tint = Color.White)
                                 Text("Search", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 5.dp))
                             }
                         }
@@ -470,10 +497,12 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                             repeat(DOCK_SLOTS) { slot ->
                                 val id = ui.layout.dock.getOrNull(slot)
                                 if (id == null) Box(Modifier.weight(1f).fillMaxHeight().clickable { openSearch() }, contentAlignment = Alignment.Center) {
-                                    if (editing) Icon(Icons.Outlined.Add, "Add to Dock", tint = Color.White.copy(alpha = .6f))
+                                    if (editing) LauncherSymbol(Icons.Outlined.Add, "Add to Dock", tint = Color.White.copy(alpha = .6f))
                                 } else key(id) {
                                     LauncherTile(HomeEntry.App(id), apps, geometry.iconSize.dp, false,
-                                        Modifier.weight(1f).fillMaxHeight(), editing, drag?.entry?.id == id,
+                                        Modifier.weight(1f).fillMaxHeight().then(homeArrival(
+                                            Offset(dockBounds.left + dockBounds.width * (slot + .5f) / DOCK_SLOTS, dockBounds.center.y),
+                                            with(density) { geometry.iconSize.dp.toPx() })), editing, drag?.entry?.id == id,
                                         onClick = { openEntry(HomeEntry.App(id), it) }, onActions = { actions(id, it) },
                                         onBounds = { cellBounds[id] = it }, onRemove = { model.addHome(id) })
                                     DisposableEffect(id) { onDispose { cellBounds.remove(id) } }
@@ -489,7 +518,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                 GlassPanel(radius = 20f) { Text("Add Widgets", color = Color.White, fontSize = 13.sp,
                     modifier = Modifier.testTag("add_home_widgets").clickable { widgetGalleryHomePage = pager.currentPage - 1; sheet = Sheet.Widgets }.padding(horizontal = 14.dp, vertical = 10.dp)) }
                 Row {
-                    IconButton(onClick = { sheet = Sheet.Settings }, modifier = Modifier.testTag("settings_button")) { Icon(Icons.Outlined.Settings, "Settings", tint = LocalGlassContentColor.current) }
+                    IconButton(onClick = { sheet = Sheet.Settings }, modifier = Modifier.testTag("settings_button")) { LauncherSymbol(Icons.Outlined.Settings, "Settings", tint = LocalGlassContentColor.current) }
                     GlassPanel(radius = 20f) { Text("Done", color = Color.White, fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.testTag("edit_done").clickable { editing = false }.padding(horizontal = 17.dp, vertical = 10.dp)) }
                 }
@@ -562,8 +591,10 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                             onRemove = { widgets.remove(current.id); closeSurface() },
                             onConfigure = { onConfigureWidget(widgets.host, current.id) {} }, onClose = ::closeSurface)
                         Sheet.Licenses -> LicensesSheet(::closeSurface)
+                        is Sheet.IconPicker -> IconPickerSheet(model, ui, current.app, ::closeSurface)
                         Sheet.Controls -> ControlCenter(MaterialTheme.colorScheme.background.luminance() < .5f, { sheet = null }, ::system,
-                            { model.appearance(ui.layout.appearance.copy(interfaceStyle = if (it) 2 else 1)) }, { pushPage(Sheet.Settings) }, { pushPage(Sheet.Widgets) })
+                            { model.appearance(if (appearance.themePreset == 1) ui.layout.appearance.copy(cyberEffects = !appearance.cyberEffects)
+                                else ui.layout.appearance.copy(interfaceStyle = if (it) 2 else 1)) }, { pushPage(Sheet.Settings) }, { pushPage(Sheet.Widgets) })
                         is Sheet.Folder -> {
                             val live = ui.layout.home.filterIsInstance<HomeEntry.Folder>().find { it.id == current.id }
                             var snapshot by remember(current.id) { mutableStateOf(live) }
@@ -590,7 +621,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                 { actionReturn = actionTarget; actionTarget = null; choiceSheet = Sheet.AddToFolder(it) },
                 { actionTarget = null; sheet = Sheet.Folder(it) }, { model.dissolve(it); actionTarget = null }, {
                     scope.launch { pager.scrollToPage(pager.currentPage.coerceIn(1, homePages)); editing = true; sheet = null; actionTarget = null }
-                })
+                }, onIcon = { actionTarget = null; pushPage(Sheet.IconPicker(it)) })
             SurfaceHost(choiceSheet, { SurfaceKind.Page }, TransformOrigin.Center, ::closeSurface) { choice ->
                 when (choice) {
                     is Sheet.PairWith -> ChoiceSheet("Create Folder", ui.layout.home.filterIsInstance<HomeEntry.App>().filter { it.id != choice.app }

@@ -7,7 +7,8 @@
     <item name="android:statusBarColor">@android:color/transparent</item>
     <item name="android:navigationBarColor">@android:color/transparent</item>
     <item name="android:windowActionModeOverlay">true</item>
-    <item name="android:windowBackground">#101B2B</item>
+    <item name="android:windowBackground">@android:color/transparent</item>
+    <item name="android:windowShowWallpaper">true</item>
     <item name="android:windowSplashScreenBackground">#101B2B</item>
     <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_vitreo</item>
   </style>
