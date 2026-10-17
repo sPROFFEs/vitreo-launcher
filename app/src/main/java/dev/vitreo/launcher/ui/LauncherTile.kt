@@ -84,17 +84,16 @@ fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, l
     modifier: Modifier = Modifier, editing: Boolean = false, dragging: Boolean = false,
     onClick: (Rect?) -> Unit, onActions: (Rect?) -> Unit, onBounds: (Rect) -> Unit = {}, onRemove: (() -> Unit)? = null) {
     val appearance = LocalGlass.current.appearance
-    val angle = if (editing && !appearance.reducedEffects) {
+    val angle: State<Float> = if (editing && !appearance.reducedEffects) {
         val transition = rememberInfiniteTransition(label = "jiggle")
-        val value by transition.animateFloat(-1.1f, 1.1f,
+        transition.animateFloat(-1.1f, 1.1f,
             infiniteRepeatable(tween(150 + (entry.id.hashCode().ushr(1) % 60)), RepeatMode.Reverse), label = "icon")
-        value
-    } else 0f
+    } else rememberUpdatedState(0f)
     val label = entryLabel(entry, apps)
     val interactions = remember { MutableInteractionSource() }
     val pressed by interactions.collectIsPressedAsState()
     var iconBounds by remember { mutableStateOf<Rect?>(null) }
-    val scale by animateFloatAsState(if (pressed && !editing && !appearance.reducedEffects) .91f else 1f,
+    val scale = animateFloatAsState(if (pressed && !editing && !appearance.reducedEffects) .94f else 1f,
         if (appearance.reducedEffects) tween(0) else spring(dampingRatio = .72f, stiffness = 650f), label = "icon press")
     val contentColor = LocalGlassContentColor.current
     Column(modifier.onGloballyPositioned { onBounds(it.boundsInRoot()) }
@@ -105,7 +104,9 @@ fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, l
             onLongClickLabel = "Actions for $label", onLongClick = if (editing) null else ({ onActions(iconBounds) }))
         .alpha(if (dragging) .2f else if (entry is HomeEntry.App && apps[entry.id] == null) .5f else 1f)
         .padding(top = 7.dp, bottom = 5.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.onGloballyPositioned { iconBounds = it.boundsInRoot() }.rotate(angle).scale(scale)) {
+        Box(Modifier.onGloballyPositioned { iconBounds = it.boundsInRoot() }.graphicsLayer {
+            rotationZ = angle.value; scaleX = scale.value; scaleY = scale.value
+        }) {
             EntryIcon(entry, apps, iconSize)
             if (editing && onRemove != null) Box(Modifier.offset((-5).dp, (-5).dp).size(23.dp)
                 .background(Color(0xffd5d7db), CircleShape).clickable(onClick = onRemove), contentAlignment = Alignment.Center) {

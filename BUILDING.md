@@ -69,12 +69,11 @@ bash gradlew --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assemblePrev
 
 APK de pruebas: `app/build/outputs/apk/preview/app-preview.apk`.
 Para desarrollo, usa `:app:assembleDebug`; tiene ID `dev.vitreo.launcher.debug`.
-En Windows, `gradlew.bat` usa `python` del PATH. El helper Python de publicación
-puede invocarse directamente: `python scripts/bootstrap_repository.py OWNER/REPO`.
+En Windows, `gradlew.bat` usa `python` del PATH.
 
 ### Por qué hay un gradlew sin gradle-wrapper.jar
 
-Este ZIP utiliza un **bootstrap de texto propio** (`scripts/gradle_bootstrap.py`),
+El proyecto utiliza un **bootstrap de texto propio** (`scripts/gradle_bootstrap.py`),
 no pretende incluir el wrapper oficial completo. Busca Gradle 8.11.1 ya instalado;
 en su ausencia descarga el ZIP oficial, verifica el SHA-256 publicado y solo
 entonces lo extrae y ejecuta. No ejecuta un JAR descargado sin verificar.
@@ -104,8 +103,6 @@ No comprueba tipos Android, Compose, recursos ni ejecución AGSL.
 | Síntoma | Acción |
 |---|---|
 | No aparece ningún workflow | Confirma que `.github/workflows/` está en la raíz, que la rama es `main` y Actions está habilitado |
-| El helper se detiene con repo existente | Solo crea repos nuevos; para el existente configura los secrets según SIGNING.md y usa Git normal |
-| Falla después de crear un repo vacío | No borres claves privadas; revisa el error, configura secrets en ese repo y sube con Git, o elimina expresamente el repo vacío antes de repetir |
 | `Incomplete signing secrets` / `A release requires all four` | Configura los cuatro secrets; para una APK temporal ejecuta Pull request checks y descarga su artifact Preview |
 | `Keystore was tampered with` / alias no encontrado | Revisa base64, tipo de almacén, alias y contraseñas; nunca imprimas los secretos en logs |
 | 403 al publicar | Revisa políticas de Actions, permiso `contents: write` y reglas de etiquetas; no concedas un token personal amplio como arreglo automático |
@@ -134,15 +131,16 @@ así, **Re-run failed jobs** puede recuperar el resultado de un job previo que
 ya pasó. Esta sustitución afecta a artifacts temporales de Actions, nunca a
 los assets de una release publicada.
 
-## Interfaz 0.2.x
+## Pruebas de widgets y movimiento
 
-El inicio usa páginas Home entre Hoy y Biblioteca. Spotlight se abre desde Buscar
-o al deslizar hacia abajo. Las capturas de Preview optimizada en la matriz API
-31/35 incluyen home, today, spotlight, library, settings y controls. El manifiesto
-permite únicamente BIND_APPWIDGET, además del permiso interno de AndroidX
-generado al compilar. La supresión ProtectedPermissions se limita a esa
-declaración: un host normal solicita la vinculación mediante el diálogo del
-sistema, como requiere el contrato oficial de AppWidgetHost.
+La instrumentación incluye un proveedor aislado en la APK de tests, habilitado
+solo durante su escenario. Comprueba alta real desde la galería, tamaños, cambio
+de página, persistencia tras recrear la actividad, movimiento a Today y liberación
+del ID. No se incluye ese proveedor en las APK de usuario. Las pruebas de píxeles
+comprueban el margen de la vista previa y el recorte nativo de contenido desbordado.
 
-Los IDs de widgets se conservan en preferencias privadas por instalación.
-No forman parte del esquema portable de distribución ni de sus importaciones.
+Para ejecutar la matriz sin publicar una release, usa **Emulator smoke tests → Run
+workflow** sobre la rama deseada. El script de smoke borra datos y cambia HOME
+únicamente en un emulador desechable. La guía de pruebas físicas está en
+[docs/TESTING.md](docs/TESTING.md); el diseño de movimiento en
+[docs/MOTION.md](docs/MOTION.md).

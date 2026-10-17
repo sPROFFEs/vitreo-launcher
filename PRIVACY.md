@@ -1,4 +1,4 @@
-# Privacidad — Vitreo 0.4.1
+# Privacidad — Vitreo
 
 Vitreo no tiene conexión propia a Internet, cuentas, anuncios ni telemetría.
 La búsqueda y la clasificación de aplicaciones son locales y se limitan al usuario Android actual.
@@ -19,7 +19,7 @@ se libera el ID pendiente. Los widgets añadidos se configuran con su propio pro
 Sus actualizaciones se escuchan solo mientras el launcher está visible.
 
 Cada widget pertenece a su app proveedora, que conserva sus propias políticas de datos,
-red y permisos. Los IDs de widgets se guardan aparte de las copias exportables; los widgets
+red y permisos. Los IDs, páginas y tamaños de widgets se guardan localmente, aparte de las copias exportables; los widgets
 se añaden de nuevo en otro dispositivo.
 
 ## Imágenes, copias y diagnóstico

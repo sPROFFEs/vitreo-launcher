@@ -2,12 +2,17 @@ package dev.vitreo.launcher
 
 import android.content.Context
 import android.content.Intent
+import android.Manifest
+import android.content.ComponentName
+import android.content.pm.PackageManager
+import android.appwidget.AppWidgetManager
 import android.graphics.RuntimeShader
 import android.os.Build
 import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
 import android.net.Uri
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.geometry.Offset
@@ -29,6 +34,7 @@ import dev.vitreo.launcher.ui.LauncherReadyKey
 import dev.vitreo.launcher.ui.HomeRowsKey
 import dev.vitreo.launcher.ui.PhotoZoomKey
 import dev.vitreo.launcher.data.AppCatalog
+import dev.vitreo.launcher.data.WidgetController
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -63,7 +69,9 @@ class LauncherSmokeTest {
     }
     private fun captureEvidence(name: String) {
         compose.waitForIdle()
-        val screenshot = checkNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot())
+        // PixelCopy waits for the current Compose frame. A raw UiAutomation
+        // screenshot can still contain the previous size/theme after semantics update.
+        val screenshot = compose.onRoot().captureToImage().asAndroidBitmap()
         // adb pull copies the file as bytes; it does not depend on run-as output framing.
         val directory = checkNotNull(compose.activity.getExternalFilesDir("review"))
         check(directory.isDirectory || directory.mkdirs())
@@ -80,6 +88,62 @@ class LauncherSmokeTest {
         it.config.getOrNull(SemanticsProperties.TestTag)?.startsWith("home_entry:") == true
     }).fetchSemanticsNodes().sortedWith(compareBy({ it.boundsInRoot.top }, { it.boundsInRoot.left }))
         .map { it.config[SemanticsProperties.TestTag] }
+
+    @Test fun nativeWidgetCanBeAddedResizedMovedAcrossPagesAndReturnedToToday() {
+        awaitReady()
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = compose.activity.applicationContext
+        val provider = ComponentName(instrumentation.context.packageName, WidgetFixtureProvider::class.java.name)
+        val manager = AppWidgetManager.getInstance(context)
+        val controller = WidgetController(context)
+        val before = controller.ids.toSet()
+        val automation = instrumentation.uiAutomation
+        automation.adoptShellPermissionIdentity(Manifest.permission.BIND_APPWIDGET, "android.permission.CHANGE_COMPONENT_ENABLED_STATE")
+        var id = -1
+        try {
+            context.packageManager.setComponentEnabledSetting(provider, PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP)
+            compose.waitUntil(10_000) { manager.installedProviders.any { it.provider == provider } }
+            val first = homeIconTags().first()
+            compose.onNodeWithTag(first).performTouchInput { longClick() }
+            compose.onNodeWithText("Edit Home Screen").performClick()
+            compose.onNodeWithTag("add_home_widgets").performClick()
+            compose.onNodeWithTag("widget_search").performScrollTo().performTextInput("Vitreo Test Widget")
+            compose.onNodeWithText("Vitreo Test Widget").performScrollTo().performClick()
+            compose.waitUntil(10_000) { WidgetController(context).ids.any { it !in before } }
+            id = WidgetController(context).ids.first { it !in before }
+            compose.onNodeWithTag("home_widget:$id").assertIsDisplayed()
+            compose.onNodeWithTag("native_widget:$id").assertIsDisplayed()
+            val small = compose.onNodeWithTag("home_widget:$id").fetchSemanticsNode().boundsInRoot
+            captureEvidence("home-widget-small")
+            compose.onNodeWithTag("edit_widget:$id").performClick()
+            compose.onNodeWithText("Medium").performClick()
+            compose.onNodeWithTag("home_widget:$id").assertIsDisplayed()
+            val medium = compose.onNodeWithTag("home_widget:$id").fetchSemanticsNode().boundsInRoot
+            assertTrue("Medium must span more columns", medium.width > small.width * 1.8f)
+            compose.onNodeWithTag("edit_widget:$id").performClick()
+            compose.onNodeWithText("Next Page").performScrollTo().performClick()
+            compose.onNodeWithTag("home_widget:$id").assertIsDisplayed()
+            assertEquals(1, WidgetController(context).homePlacements.single { it.id == id }.page)
+            captureEvidence("home-widget-medium")
+            compose.activityRule.scenario.recreate()
+            awaitReady()
+            compose.onNodeWithTag("home_workspace").performTouchInput { swipeLeft() }
+            compose.onNodeWithTag("home_widget:$id").assertIsDisplayed()
+            compose.onNodeWithTag("edit_widget:$id").performClick()
+            compose.onNodeWithText("Today", useUnmergedTree = true).performClick()
+            compose.onNodeWithTag("today_page").assertIsDisplayed()
+            compose.onNodeWithTag("native_widget:$id").performScrollTo().assertIsDisplayed()
+            assertTrue(id in WidgetController(context).todayIds)
+            compose.onNodeWithTag("edit_widget:$id").performScrollTo().performClick()
+            compose.onNodeWithText("Remove Widget").performScrollTo().performClick()
+            assertTrue(id !in WidgetController(context).ids)
+            assertEquals(null, manager.getAppWidgetInfo(id))
+        } finally {
+            if (id >= 0) WidgetController(context).remove(id)
+            context.packageManager.setComponentEnabledSetting(provider, PackageManager.COMPONENT_ENABLED_STATE_DEFAULT, PackageManager.DONT_KILL_APP)
+            automation.dropShellPermissionIdentity()
+        }
+    }
 
     @Test fun modalBlocksHomeDraggingAndHidesUnderlyingAccessibilityNodes() {
         awaitReady()

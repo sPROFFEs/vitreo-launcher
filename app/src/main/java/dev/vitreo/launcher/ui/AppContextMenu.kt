@@ -5,6 +5,12 @@ import android.content.pm.LauncherApps
 import android.content.pm.ShortcutInfo
 import android.os.Process
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -109,7 +115,12 @@ fun AppContextMenu(target: AppActionTarget?, state: LauncherState, apps: Map<Str
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(entryLabel(entry, apps), Modifier.padding(horizontal = 17.dp, vertical = 12.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                AnimatedContent(more, label = "menu actions") { expanded ->
+                AnimatedContent(more, transitionSpec = {
+                    if (reduced) fadeIn(tween(100)) togetherWith fadeOut(tween(100))
+                    else ((fadeIn(tween(120)) + slideInHorizontally(LauncherMotion.panel()) { if (targetState) it / 8 else -it / 8 }) togetherWith
+                        (fadeOut(tween(90)) + slideOutHorizontally(LauncherMotion.close()) { if (targetState) -it / 8 else it / 8 }))
+                        .using(SizeTransform { _, _ -> LauncherMotion.panel() })
+                }, label = "menu actions") { expanded ->
                     Column {
                         if (expanded) {
                             ContextRow("Back", Icons.Outlined.ChevronLeft) { more = false }

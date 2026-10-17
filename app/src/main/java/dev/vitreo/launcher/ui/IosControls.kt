@@ -135,14 +135,14 @@ fun IosSectionLabel(text: String) {
 
 @Composable
 fun IosSegmented(options: List<String>, selected: Int, modifier: Modifier = Modifier, onSelect: (Int) -> Unit) {
-    val progress by animateFloatAsState(selected.toFloat(),
+    val progress = animateFloatAsState(selected.toFloat(),
         if (LocalGlass.current.appearance.reducedEffects) tween(0) else spring(dampingRatio = .85f, stiffness = 650f), label = "segment")
     BoxWithConstraints(modifier.fillMaxWidth().clip(RoundedCornerShape(11.dp))
         .background(MaterialTheme.colorScheme.onSurface.copy(alpha = .07f)).padding(3.dp)) {
         val segmentWidth = maxWidth / options.size
-        val position = progress.coerceIn(0f, (options.size - 1).toFloat())
-        Box(Modifier.matchParentSize().padding(start = segmentWidth * position,
-            end = segmentWidth * (options.size - 1 - position))
+        Box(Modifier.matchParentSize().graphicsLayer {
+            translationX = segmentWidth.toPx() * progress.value.coerceIn(0f, (options.size - 1).toFloat())
+        }.padding(end = segmentWidth * (options.size - 1))
             .shadow(1.dp, RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp)))
         Row(Modifier.fillMaxWidth()) {
         options.forEachIndexed { index, title ->

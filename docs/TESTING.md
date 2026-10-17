@@ -1,7 +1,7 @@
-# Probar en GrapheneOS
+# Pruebas en dispositivos físicos
 
-No hay validación física de GrapheneOS en esta entrega. Anota el modelo de Pixel,
-versión de Android, build completo de GrapheneOS, versión/app ID de Vitreo y SHA
+La CI prueba emuladores Android 12/15. No sustituye una comprobación en Pixel,
+Samsung o GrapheneOS. Anota el modelo, versión/build de Android, versión/app ID de Vitreo y SHA
 antes de abrir una incidencia. El emulador AOSP no cubre estas diferencias.
 
 ## Instalación
@@ -25,7 +25,11 @@ no exige modificar componentes del sistema.
 - Crea, renombra y deshaz carpetas. Quita un acceso directo y refresca: no debe reaparecer solo.
 - Cambia fondo, transparencia y modo opaco/reducido. Comprueba contraste y ahorro de batería.
 - Abre Ajustes desde el modo edición: arrastrar sobre el panel no debe mover iconos detrás.
-- Añade un widget en Hoy, cancela su autorización/configuración y vuelve a intentarlo.
+- Añade widgets reales a Home y Today; cancela y repite la autorización/configuración.
+- Cambia Small/Medium/Large, página y posición por arrastre. Reinicia y comprueba la persistencia.
+- Prueba proveedores altos/anchos: su contenido debe permanecer dentro del contenedor y la vista previa tener margen superior.
+- Abre/cierra carpetas y categorías lentamente y con un flick; invierte un gesto a mitad y comprueba que vuelve sin saltar.
+- Alterna apps y HOME repetidamente con las animaciones del sistema activadas.
 - Exporta un backup, cambia la distribución e impórtalo. El fondo de foto no viaja en la copia.
 - Cierra el proceso y reinicia el teléfono: revisa que los cambios guardados permanezcan.
 - Instala una app nueva y elimina otra: la nueva se añade, la no disponible conserva

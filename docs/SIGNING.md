@@ -11,28 +11,20 @@
 No uses una clave privada publicada en el repo como firma estable: cualquier
 persona que la posea podría firmar código con esa identidad. Vitreo no incluye una.
 Para actualizar la misma app normalmente deben conservarse app ID y firma y
-subir versionCode; no se implementa rotación de claves en 0.1.0.
+subir versionCode; no se implementa rotación de claves.
 Referencia: https://developer.android.com/studio/publish/app-signing
 
-## Bootstrap recomendado
+## Conservar la clave existente
 
-`bash scripts/publish.sh OWNER/REPO` crea una clave RSA de 3072 bits con `keytool`,
-en un almacén PKCS12. Ruta predeterminada, fuera del proyecto:
+Las actualizaciones deben usar la clave de la primera release instalada. No generes
+otra clave para arreglar un workflow. Conserva una copia cifrada offline del almacén
+y sus contraseñas; nunca los añadas al repositorio, una issue o una release.
 
-```text
-~/.local/share/vitreo/signing/OWNER__REPO/
-    release.p12
-    secrets.json
-```
-
-Respeta `XDG_DATA_HOME` si está configurado. La carpeta es 0700 y los archivos
-0600 en sistemas POSIX. **La clave y su contraseña se guardan juntas** para poder
-repetir builds: esos permisos no equivalen a cifrado ni a un gestor de secretos.
-Haz una copia cifrada offline o migra ambas piezas a almacenamiento de secretos.
-Nunca adjuntes estos archivos a una issue ni los subas a releases.
-
-El helper no sobrescribe material existente. Si encuentra una carpeta incompleta,
-se detiene. No vuelve a generar otra identidad silenciosamente.
+Las instalaciones preparadas con el antiguo helper pueden tener su copia fuera del
+repo, en `~/.local/share/vitreo/signing/OWNER__REPO/` (`release.p12` y `secrets.json`).
+Los permisos 0700/0600 no cifran esos archivos. El helper de creación de repositorios
+se retiró porque no corresponde al mantenimiento de un repo ya publicado; los
+almacenes existentes siguen siendo válidos y no se modifican al actualizar.
 
 ## Secrets de GitHub Actions
 
@@ -45,9 +37,8 @@ ANDROID_KEY_ALIAS
 ANDROID_KEY_PASSWORD
 ```
 
-El helper los carga por stdin a `gh secret set`, no como argumentos que muestren
-contraseñas en la lista de procesos. Con PKCS12 generado por el helper, ambas
-contraseñas son la misma. El base64 es codificación, no cifrado.
+Carga sus valores desde tu gestor de secretos. El base64 es codificación, no cifrado.
+Con el PKCS12 generado por el helper antiguo, ambas contraseñas son la misma.
 
 Para reponer los secrets en un repo ya existente sin mostrar valores, ejecuta
 este fragmento desde la raíz del proyecto y cambia `repo`:
@@ -91,13 +82,9 @@ La copia no contiene la imagen. Elige release como app de inicio y desinstala
 Preview después de comprobar el resultado. Al probar otro build de Preview,
 conserva primero una copia: las firmas pueden ser diferentes.
 
-Si ya se publicó `v0.1.0` en modo Preview, no se reemplaza esa release al configurar
-los secrets. Incrementa a `0.1.1` y publica la versión privada correctamente firmada.
+## Publicación
 
-## Regla de la revisión actual
-
-`Release APK` exige firma privada y ya no publica una Preview como `v0.1.0`.
-Preview queda disponible como artifact de `Pull request checks`. El job que
-publica la release no tiene la clave; compara nuevamente hashes y verifica los
-digests de los assets recibidos por GitHub. No se ha habilitado administrativamente
-la inmutabilidad de releases en tu cuenta: es el script el que se niega a sobrescribir.
+`Release APK` exige firma privada. Preview queda como artifact de pruebas.
+El job de publicación no recibe la clave; vuelve a comprobar hashes y los digests
+de los assets recibidos por GitHub. El script impide sobrescribir tags y assets
+públicos; cada revisión publicada necesita una versión superior.

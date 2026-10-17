@@ -1,4 +1,4 @@
-VITREO 0.4.1 - LICENSES AND PROVENANCE
+VITREO - LICENSES AND PROVENANCE
 
 Vitreo is an independent experimental launcher, not affiliated with Apple,
 GrapheneOS or Folio. No Liquid Touch or Backdrop code/assets are included.
@@ -301,7 +301,6 @@ signal: https://svgstack.com/icon/signal-app-icon-1539
 youtube: https://svgstack.com/icon/youtube-ios-app-logo-7153
 spotify: https://svgstack.com/icon/spotify-ios-app-icon-7168
 youtube_music: https://svgstack.com/icon/youtube-music-ios-app-icon-7165
-contacts: https://svgstack.com/icon/ios-26-contacts-icon-4044
 
 Complete CC BY 4.0 license:
 
@@ -700,3 +699,5 @@ the avoidance of doubt, this paragraph does not form part of the
 public licenses.
 
 Creative Commons may be contacted at creativecommons.org.
+
+Contacts address-book artwork (drawable/ios_contacts.xml): original Vitreo artwork, MIT License.

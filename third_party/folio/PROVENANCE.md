@@ -25,22 +25,12 @@ pruebas independientes. Las funciones no son intercambiables con la API original
 La licencia upstream conservada atribuye el copyright a **Duo Launcher contributors**,
 aunque el repositorio se llama Folio. No se ha sustituido esa atribución.
 
-## Lo que no contiene este ZIP
+## Alcance
 
-No contiene un clon ni un fork completo de Folio: no reutiliza su Activity, su
-repositorio de estado, sus carpetas, widgets, pantallas, centro de control,
-Dynamic Island ni pruebas. Esos componentes de Vitreo se han implementado
-por separado o están expresamente fuera del alcance de 0.1.0.
-
-No se pudo descargar y compilar un checkout completo de Folio en el entorno de
-preparación. La revisión inicial consultó `main`; esta revisión añade la
-referencia inmutable comprobada arriba. No se presenta como un checkout completo
-compilado. Las partes adaptadas están incluidas y el build no consulta ese repositorio.
-
-La interfaz, persistencia, shader, herramientas y workflows restantes de Vitreo
-son implementaciones nuevas. No se ha copiado código ni recursos de Liquid Touch,
-ni se ha integrado Backdrop/AndroidLiquidGlass. La semejanza visual buscada es
-una referencia de diseño, no una promesa de equivalencia con iOS.
+No es un clon completo de Folio. La persistencia, los widgets, las pantallas y el
+shader se integran en la arquitectura de Vitreo. El build no descarga Folio y no
+se atribuyen a Vitreo resultados de rendimiento de ese launcher. Se conservan las
+referencias inmutables y licencias de las partes adaptadas.
 
 ## Revisión de movimiento y menús — 2026-10-16
 

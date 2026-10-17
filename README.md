@@ -1,101 +1,112 @@
-# Vitreo Launcher 0.4.1
+# Vitreo Launcher
 
-Un inicio Android inspirado en la pantalla de inicio actual de iOS y en
-[Folio](https://github.com/McCal-Codes/folio), con una interfaz más pequeña y directa.
-Android 12 o posterior, sin root, cuentas, anuncios ni telemetría.
+An Android home screen inspired by iOS, with glass surfaces, a four-column grid,
+App Library and native Android widgets. Android 12 or newer. English by default;
+no accounts, ads, analytics, root or accessibility service.
+
+[Download the signed APK](https://github.com/sPROFFEs/vitreo-launcher/releases/latest)
+· [Changes](CHANGELOG.md) · [Build](BUILDING.md) · [Privacy](PRIVACY.md)
 
 <p>
-  <img src="docs/screenshots/home.png" width="240" alt="Inicio de Vitreo con widgets y dock de cristal">
-  <img src="docs/screenshots/settings.png" width="240" alt="Ajustes agrupados de Vitreo">
-  <img src="docs/screenshots/category.png" width="240" alt="Categoría de la biblioteca con material legible">
-  <img src="docs/screenshots/app-menu.png" width="240" alt="Menú contextual anclado al icono, con acceso rápido real de la app">
-  <img src="docs/screenshots/widget-previews.png" width="240" alt="Previsualizaciones suministradas por las apps">
+  <img src="docs/screenshots/home.png" width="220" alt="Home screen with clock, calendar and glass dock">
+  <img src="docs/screenshots/category.png" width="220" alt="Expanded App Library category">
+  <img src="docs/screenshots/app-menu.png" width="220" alt="App menu anchored to its icon">
+  <img src="docs/screenshots/widget-previews.png" width="220" alt="Widget catalog with provider previews">
 </p>
 
-Capturas reales del APK Preview en Android 12 (inicio/ajustes) y Android 15 (biblioteca/menús/widgets).
-El [icono instalado](docs/screenshots/app-icon.png) llena la máscara circular sin un recuadro interior.
+Screenshots from Android emulators. Each CI run also keeps screenshots, a motion
+recording and test reports for its exact commit.
 
-## La experiencia
+## Use Vitreo
 
-La interfaz está en inglés por defecto.
+Install the release APK and select **Vitreo** as your default Home app in Android
+Settings. Keep your system launcher installed so you can switch back at any time.
+Updates use the same app ID and signing key; install the newer APK over the old one.
+Debug and Preview are separate apps with separate data and test signatures.
 
-- **Icono de la APK:** fondo adaptativo completo y marca sin recuadro; recurso circular y soporte de iconos monocromáticos.
-- **Inicio:** cuatro columnas, iconos con esquinas continuas y un dock de cristal de cuatro plazas.
-- **Widgets de inicio:** reloj analógico y calendario con la fecha real, que puedes mostrar u ocultar.
-- **Hoy:** desliza a la derecha. Sugerencias basadas en las apps que abres desde Vitreo y widgets reales de tus apps Android.
-- **Spotlight:** toca Search o desliza hacia abajo. Búsqueda local por nombre o paquete, con acceso inmediato al teclado.
-- **Biblioteca de apps:** después de la última página. Grupos automáticos, categorías ampliables y búsqueda en lista alfabética con índice lateral.
-- **Catálogo:** accesos del usuario Android actual obtenidos mediante LauncherApps, incluidos iconos alternativos activados por las apps. Cambiar de icono conserva su posición cuando apunta a la misma actividad.
-- **Apps y menús:** apertura desde el icono real en todas las vistas. Al regresar con Atrás o HOME se recupera la carpeta, categoría o búsqueda; otro HOME vuelve al inicio. Mantén pulsado un icono para levantarlo y ver un menú anclado, acciones adicionales y los accesos rápidos que publique esa app.
-- **Movimiento:** paneles con apertura y salida al origen; arrastra hacia abajo desde su cabecera para cerrar o suelta antes para cancelar. Los ajustes de movimiento reducido y ahorro de batería siguen activos.
-- **Carpetas:** panel central de cristal, cuadrícula de tres por tres, páginas y nombre editable.
-- **Edición:** mantén pulsado un espacio libre, o elige Edit Home Screen en el menú de un icono. Los iconos se mueven suavemente; puedes reordenarlos, moverlos entre páginas manteniéndolos junto al borde y cambiarlos con los del dock. Mantén una app sobre otra para crear una carpeta o añadirla a una existente.
-- **Personalización:** 23 iconos de los conjuntos de SVG Stack, tratamientos claro/oscuro/tintado/cristal y opción de conservar el arte de las apps. Tamaño de inicio y dock hasta 84 puntos, limitado por el espacio de cada columna; aspecto claro, oscuro o automático; cuatro fondos originales y fotos locales.
-- **Fotos:** editor con pellizco y arrastre, Fit para ver la foto entera sobre una extensión desenfocada, Fill, Reset y guardar/cancelar. Conserva el original y permite reajustarlo.
-- **Widgets:** selector con búsqueda y previsualizaciones completas ajustadas a la tarjeta, sin recortar proveedores altos o anchos. Hoy respeta la altura mínima del widget y recorta sus vistas nativas a los bordes redondeados.
-- **Ajustes:** listas agrupadas, vistas previas, navegación animada, controles segmentados e interruptores al estilo iOS. Motion & Glass permite ajustar escarcha, refracción y accesibilidad; Wallpaper permite oscurecer el fondo. Se abren desde la rueda de Hoy o desde el modo edición.
-- **Centro de control:** desliza hacia abajo desde la zona superior derecha del inicio. Accesos funcionales a Internet, Bluetooth, sonido y pantalla, además del aspecto y widgets de Vitreo.
+- **Home:** swipe between pages. Four app columns, folders and a four-slot glass dock.
+- **Today:** swipe right from the first Home page for widgets and recent suggestions.
+- **Search:** tap Search or swipe down. Search locally by app name or package.
+- **App Library:** swipe past the last Home page. Open a category or use the alphabetical index.
+- **App actions:** hold an icon for shortcuts, folders, Dock and Edit Home Screen.
+- **Settings:** use the gear in Today or in Edit Home Screen. Choose icon size up to
+  84 dp, icon artwork/treatment, appearance, wallpaper and Motion & Glass options.
+- **Wallpaper:** use a built-in background or a local photo. Pinch, pan, Fit, Fill and
+  Reset let you frame it before saving; the original remains available for later edits.
 
-El sistema mantiene su teclado, pantalla de bloqueo, notificaciones y Recientes.
-Los controles de conectividad y sonido abren los paneles de Android. Los widgets
-nativos se añaden a Hoy mediante la autorización del sistema; sus IDs pertenecen
-a esta instalación y no se incluyen en copias portables.
+## Widgets on Home and Today
 
-## Instalar y actualizar
+1. Hold an empty Home area, or choose **Edit Home Screen** from an app's menu.
+2. Tap **Add Widgets**. Choose **Home Screen** or **Today**, and a size for Home.
+3. Find a widget and tap **Add**. Accept Android's binding/configuration dialog if requested.
+4. Tap the **…** below a widget to change its size or page, move it between Home
+   and Today, or remove it. In edit mode, hold and drag a Home widget; pause at an
+   edge to change pages. A trailing page is available during a widget drag.
 
-Descarga la APK firmada en [Releases](https://github.com/sPROFFEs/vitreo-launcher/releases).
-La identidad de release es `dev.vitreo.launcher`. La versión 0.4.1 conserva la firma
-anterior y sube el versionCode a 401: se puede actualizar sin desinstalar ni perder
-la distribución. Las copias de 0.1.0 siguen siendo compatibles.
+Apps make room around widget rectangles. Page and size survive app restarts;
+existing Today widgets stay in Today after upgrading. Up to eight native widgets
+can be added. Large provider layouts are fitted proportionally and clipped inside
+rounded native containers. Catalog previews are passive and never bind a widget.
+Widget IDs belong to this installation and are excluded from portable backups.
 
-Preview (`dev.vitreo.launcher.preview`) y Debug (`dev.vitreo.launcher.debug`) son
-apps separadas. Preview usa una firma temporal del entorno de pruebas.
+The built-in Clock & Calendar pair can be toggled separately. Native widgets come
+from installed Android apps; their content and network use belong to their providers.
 
-Si falta una app, prueba Settings → Refresh apps y búscala por nombre o paquete
-en Search. La lista corresponde al usuario Android actual; todavía no combina
-perfiles de trabajo, Carpeta Segura ni Espacio Privado. Motion & Glass muestra
-cuándo el ahorro de batería, Reducir movimiento o Reducir transparencia limitan
-el efecto. El fondo aporta el detalle que se refracta: una foto con textura hace
-el borde más visible que un color uniforme.
+## Motion and glass
 
-## Compilar y publicar
+Panels open from their source and retain their content during dismissal. Dragging
+can cancel or complete a close using distance and velocity. Press feedback, icon
+editing and segmented controls animate in the drawing layer; Home cells spring
+into their new positions when widget space changes. The design references and
+implementation choices are documented in [Motion](docs/MOTION.md).
 
-Con JDK 17 y SDK Android 35:
+Android 13+ uses a custom AGSL effect over Vitreo's own wallpaper. Android 12 uses
+a frosted fallback. **Battery Saver and Reduce Motion limit the effect**; Reduce
+Transparency uses opaque panels. Settings explains which mode is active. A textured
+wallpaper makes refraction easier to see. Vitreo does not use UIKit or capture other apps.
 
-```bash
-bash gradlew --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assemblePreview
+Android controls cross-app transitions, Recents, notifications, the keyboard and
+lock screen. Vitreo coordinates its desktop and passes the tapped icon's bounds
+to the system; it cannot replace iOS's compositor or Android's system launcher integration.
+
+## Development
+
+With JDK 17, Python 3.10+ and Android SDK 35 configured:
+
+```sh
 python3 scripts/check_project.py
 python3 -m unittest discover -s tests -v
+bash gradlew --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:lintPreview :app:assemblePreview
 ```
 
-`Release APK` se ejecuta al subir a `main`. Comprueba fuente y firma configurada,
-prueba emuladores API 31 y 35, compila la release optimizada y verifica identidad,
-permisos, certificado y hashes antes de publicarla. Solo publica una APK con los
-cuatro secrets privados de firma. Las versiones numéricas se publican como releases
-normales; GitHub elige `Latest` por versión. Preview se distribuye como artifact
-de CI. Consulta [BUILDING.md](BUILDING.md) y
-[SIGNING.md](docs/SIGNING.md).
+Preview APK: `app/build/outputs/apk/preview/app-preview.apk`.
+See [BUILDING.md](BUILDING.md) for pinned tools, emulator tests and release setup;
+[Architecture](docs/ARCHITECTURE.md) for storage and layout;
+[Testing](docs/TESTING.md) for physical-device checks.
 
-Para la siguiente versión:
+A push to `main` runs source checks, API 31/35 device tests, JVM tests and lint,
+then builds and verifies the signed, optimized release. Numeric versions publish
+as normal releases. Published tags and assets are never overwritten: bump
+`version.properties` with `python3 scripts/bump_version.py X.Y.Z` before the next
+release. Signing setup and update continuity are in [SIGNING.md](docs/SIGNING.md).
 
-```bash
-python3 scripts/bump_version.py 0.4.2
-git add app scripts version.properties README.md CHANGELOG.md
-git commit -m "Update Vitreo"
-git push origin main
-```
+## Troubleshooting
 
-Los assets publicados son inmutables: cada revisión utiliza una versión nueva.
+If an app is missing, use **Settings → Refresh apps** and search by name or package.
+The catalog covers the current Android user. Work profiles, Secure Folder and
+Private Space are not combined into this catalog.
 
-## Diseño, privacidad y procedencia
+For a bug report, include the device, Android version, Vitreo version, exact steps
+and **Settings → About Vitreo → Save diagnostics**. Review the exported file before
+sharing it. See [Security](SECURITY.md) for private reports.
 
-La referencia visual es [iOS](https://www.apple.com/os/ios/) y sus controles
-Liquid Glass ([UIKit](https://developer.apple.com/documentation/uikit/uiglasseffect) y [materiales](https://developer.apple.com/design/human-interface-guidelines/materials)), la referencia visual de [liquid-glass.pro](https://www.liquid-glass.pro/), junto con las interacciones de [Folio](https://github.com/McCal-Codes/folio).
-Vitreo dibuja sus propios fondos y materiales y utiliza el arte de las aplicaciones
-instaladas y de [SVG Stack](https://svgstack.com/collections/apple-ios-icon-set), con atribución CC BY 4.0 conservada. La geometría, los roles de movimiento y el anclaje de menús adaptados de Folio conservan su licencia y atribución en
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+## License and credits
 
-El cristal se dibuja directamente en Compose, con un shader Android propio y sin una vista Android adicional por panel: no usa UIKit ni captura otras aplicaciones. Solo procesa el fondo propio del launcher. Los controles usan un acabado transparente y las carpetas/categorías un material más denso con texto adaptado al tema. Los reflejos de pulsación no crean un bucle de renderizado en reposo. Android controla las transiciones entre tareas y Recientes; Vitreo coordina su escritorio y entrega el origen del icono al sistema. No sustituye el compositor de iOS ni ofrece control total de las ventanas de otras apps. Los datos se conservan en
-el dispositivo. El único permiso específico de esta versión es la vinculación
-opcional de widgets a través del diálogo de Android. Más detalles en
-[PRIVACY.md](PRIVACY.md). Licencia MIT.
+Vitreo is MIT licensed. Selected geometry, motion roles and menu placement adapt
+[Folio](https://github.com/McCal-Codes/folio), with its MIT notice retained.
+Twenty-two bundled app images come from [SVG Stack](https://svgstack.com/collections/apple-ios-icon-set)
+under CC BY 4.0; Contacts uses original address-book artwork. Clock and Calendar
+show live local time/date. Other apps retain their own icons. All source URLs,
+hashes and notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and in
+the APK's Open source licenses screen. Apple/iOS are design references; Vitreo is
+an independent Android project.

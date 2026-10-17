@@ -76,6 +76,7 @@ private sealed interface Sheet {
     data object Settings : Sheet
     data object Licenses : Sheet
     data object Widgets : Sheet
+    data class Widget(val id: Int) : Sheet
     data object Controls : Sheet
     data object Wallpaper : Sheet
     data class Folder(val id: String) : Sheet
@@ -84,6 +85,7 @@ private sealed interface Sheet {
     data class AddToFolder(val app: String) : Sheet
 }
 private data class DragSession(val entry: HomeEntry, val position: Offset)
+private data class WidgetDragSession(val placement: HomeWidgetPlacement, val position: Offset)
 
 @Composable
 fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: Int, defaultHome: Boolean,
@@ -99,6 +101,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     }
     val appearance = ui.layout.appearance.copy(reducedEffects = ui.layout.appearance.reducedEffects || ui.powerSaver)
     var sheet by remember { mutableStateOf<Sheet?>(null) }
+    var navigatingForward by remember { mutableStateOf(true) }
     val pageHistory = remember { mutableStateListOf<Sheet>() }
     val savedPages = rememberSaveableStateHolder()
     var actionTarget by remember { mutableStateOf<AppActionTarget?>(null) }
@@ -116,6 +119,9 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     var workspaceBounds by remember { mutableStateOf(Rect.Zero) }
     var dockBounds by remember { mutableStateOf(Rect.Zero) }
     var drag by remember { mutableStateOf<DragSession?>(null) }
+    var widgetDrag by remember { mutableStateOf<WidgetDragSession?>(null) }
+    var widgetGalleryHomePage by remember { mutableStateOf<Int?>(0) }
+    var revealWidget by remember { mutableIntStateOf(-1) }
     var folderTarget by remember { mutableStateOf<String?>(null) }
     var folderAnchor by remember { mutableStateOf(TransformOrigin.Center) }
     val cellBounds = remember { mutableStateMapOf<String, Rect>() }
@@ -148,14 +154,18 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val rowHeight = if (workspaceWasEditing) (geometry.cells.rowHeight - 33f / geometry.rows)
         .coerceAtLeast(geometry.iconSize + 20f * density.fontScale + 8f) else geometry.cells.rowHeight
     val withWidgets = appearance.showWidgets && geometry.rows >= 4
-    val firstCapacity = if (withWidgets) (geometry.rows - 2) * GRID_COLUMNS else geometry.pageSize
-    val homePages = if (ui.layout.home.size <= firstCapacity) 1
-        else 1 + pageCount(ui.layout.home.size - firstCapacity, geometry.pageSize)
+    val homeGrid = remember(ui.layout.home, widgets.homePlacements.toList(), geometry.rows, withWidgets) {
+        planHomeGrid(ui.layout.home, widgets.homePlacements.toList(), geometry.rows, withWidgets)
+    }
+    val homePages = homeGrid.size + if (widgetDrag != null) 1 else 0
     val pager = rememberPagerState(initialPage = 1, pageCount = { homePages + 2 })
-    var widgetCount by remember { mutableIntStateOf(widgets.ids.size) }
-    LaunchedEffect(widgets.ids.size) {
-        if (widgets.ids.size > widgetCount) pager.animateScrollToPage(0)
-        widgetCount = widgets.ids.size
+    LaunchedEffect(widgets.lastAddedId) { if (widgets.lastAddedId >= 0) revealWidget = widgets.lastAddedId }
+    LaunchedEffect(revealWidget, homeGrid) {
+        if (revealWidget >= 0) {
+            val index = homeGrid.indexOfFirst { page -> page.widgets.any { it.id == revealWidget } }
+            pager.animateScrollToPage(if (index >= 0) index + 1 else 0)
+            revealWidget = -1
+        }
     }
     val onHomePage = pager.currentPage in 1..homePages
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let { model.preparePhoto(it) } }
@@ -195,10 +205,13 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
             ((it.y - rootPosition.y) / viewport.height).coerceIn(0f, 1f))
     } ?: TransformOrigin.Center
     fun pushPage(next: Sheet) {
+        navigatingForward = true
+        if (next == Sheet.Widgets) widgetGalleryHomePage = (pager.currentPage - 1).coerceIn(0, homePages - 1)
         sheet?.let { if (it != next) pageHistory.add(it) }
         sheet = next
     }
     fun closeSurface() {
+        navigatingForward = false
         when {
             choiceSheet != null -> { choiceSheet = null; actionTarget = actionReturn; actionReturn = null }
             actionTarget != null -> actionTarget = null
@@ -226,7 +239,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         val app = ui.apps.firstOrNull { "calendar" in it.packageName || "calendario" in searchKey(it.label) }
         if (app != null) launch(app.id, null) else model.message("No calendar app is installed.")
     }
-    val opaqueScreen = sheet == Sheet.Settings || sheet == Sheet.Widgets || sheet == Sheet.Licenses || sheet == Sheet.Wallpaper ||
+    val opaqueScreen = sheet == Sheet.Settings || sheet == Sheet.Widgets || sheet is Sheet.Widget || sheet == Sheet.Licenses || sheet == Sheet.Wallpaper ||
         sheet is Sheet.PairWith || sheet is Sheet.AddToFolder
     val lightWallpaper = (frame?.brightness ?: 0f) * (1f - appearance.wallpaperDim) > .62f
     val lightChrome = opaqueScreen && sheet != Sheet.Wallpaper && MaterialTheme.colorScheme.background.luminance() > .5f ||
@@ -240,18 +253,18 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     LaunchedEffect(sheet, actionTarget) {
         if (sheet != Sheet.Search && sheet != Sheet.LibrarySearch || actionTarget != null) { focusManager.clearFocus(); keyboard?.hide() }
     }
-    LaunchedEffect(homeSerial) { sheet = null; pageHistory.clear(); savedPages.removeState("settings"); actionTarget = null; choiceSheet = null; actionReturn = null; model.discardPhoto(); editing = false; drag = null; focusManager.clearFocus(); keyboard?.hide(); pager.scrollToPage(1) }
+    LaunchedEffect(homeSerial) { sheet = null; pageHistory.clear(); savedPages.removeState("settings"); actionTarget = null; choiceSheet = null; actionReturn = null; model.discardPhoto(); editing = false; drag = null; widgetDrag = null; focusManager.clearFocus(); keyboard?.hide(); pager.scrollToPage(1) }
     var previousHomePages by remember { mutableIntStateOf(homePages) }
     LaunchedEffect(pager.currentPage, homePages, editing) {
         val shrank = homePages < previousHomePages
         previousHomePages = homePages
         if (editing && shrank && pager.currentPage > homePages) pager.scrollToPage(homePages)
-        else if (pager.currentPage !in 1..homePages) { editing = false; drag = null; folderTarget = null }
+        else if (pager.currentPage !in 1..homePages) { editing = false; drag = null; widgetDrag = null; folderTarget = null }
     }
     BackHandler {
         when {
             modalPresent -> closeSurface()
-            editing -> { editing = false; drag = null }
+            editing -> { editing = false; drag = null; widgetDrag = null }
             pager.currentPage != 1 -> scope.launch { pager.animateScrollToPage(1) }
         }
     }
@@ -276,19 +289,30 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         folderTarget = null
         if (hovered != null) { delay(650); folderTarget = hovered; haptic.performHapticFeedback(HapticFeedbackType.LongPress) }
     }
-    val edge = drag?.let {
-        when { it.position.x < workspaceBounds.left + 26 * density.density -> -1
-            it.position.x > workspaceBounds.right - 26 * density.density -> 1
+    val dragPosition = drag?.position ?: widgetDrag?.position
+    val edge = dragPosition?.let {
+        when { it.x < workspaceBounds.left + 26 * density.density -> -1
+            it.x > workspaceBounds.right - 26 * density.density -> 1
             else -> 0 }
     } ?: 0
-    LaunchedEffect(edge, pager.currentPage, drag?.entry?.id) {
-        if (drag != null && edge != 0) {
+    LaunchedEffect(edge, pager.currentPage, drag?.entry?.id, widgetDrag?.placement?.id) {
+        if ((drag != null || widgetDrag != null) && edge != 0) {
             delay(650)
             val target = (pager.currentPage + edge).coerceIn(1, homePages)
             if (target != pager.currentPage) { folderTarget = null; pager.animateScrollToPage(target) }
         }
     }
     val drop by rememberUpdatedState<() -> Unit>({
+        widgetDrag?.let { session ->
+            if (workspaceBounds.contains(session.position)) {
+                val width = workspaceBounds.width - 36 * density.density
+                val column = ((session.position.x - workspaceBounds.left - 18 * density.density) / (width / GRID_COLUMNS)).toInt()
+                val row = ((session.position.y - workspaceBounds.top) / (rowHeight * density.density)).toInt()
+                widgets.placeOnHome(session.placement.copy(page = pager.currentPage - 1,
+                    column = column.coerceIn(0, GRID_COLUMNS - session.placement.columns), row = row.coerceAtLeast(0)))
+                revealWidget = session.placement.id
+            }
+        }
         drag?.let { session ->
             val entry = session.entry
             val target = ui.layout.home.firstOrNull { it.id == folderTarget }
@@ -307,11 +331,18 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                 }
             }
         }
-        drag = null; folderTarget = null
+        drag = null; widgetDrag = null; folderTarget = null
     })
     val startDrag by rememberUpdatedState<(Offset) -> Unit>({ point ->
         val global = point + rootPosition
         val id = cellBounds.entries.firstOrNull { it.value.contains(global) }?.key
+        if (id?.startsWith("widget:") == true) {
+            val widgetId = id.removePrefix("widget:").toIntOrNull()
+            homeGrid.flatMap { it.widgets }.firstOrNull { it.id == widgetId }?.let {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                widgetDrag = WidgetDragSession(it, global)
+            }
+        }
         val entry = ui.layout.home.firstOrNull { it.id == id } ?: id?.takeIf { it in ui.layout.dock }?.let(HomeEntry::App)
         if (entry != null) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); drag = DragSession(entry, global) }
     })
@@ -320,14 +351,19 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val currentSheet by rememberUpdatedState(sheet)
     val gestureModifier = if (modalPresent || launching || !onHomePage) Modifier else if (editing) Modifier.pointerInput(editing) {
         detectDragGesturesAfterLongPress(onDragStart = { startDrag(it) },
-            onDrag = { change, amount -> if (drag != null) { change.consume(); drag = drag?.let { it.copy(position = it.position + amount) } } },
-            onDragEnd = { drop() }, onDragCancel = { drag = null; folderTarget = null })
+            onDrag = { change, amount -> if (drag != null || widgetDrag != null) {
+                change.consume()
+                drag = drag?.let { it.copy(position = it.position + amount) }
+                widgetDrag = widgetDrag?.let { it.copy(position = it.position + amount) }
+            } },
+            onDragEnd = { drop() }, onDragCancel = { drag = null; widgetDrag = null; folderTarget = null })
     } else Modifier.pointerInput(editing) {
         // Observe before the home scroll container. It otherwise owns vertical
         // drags even when all rows fit, preventing the Spotlight gesture.
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
             if (currentSheet != null || currentPage !in 1..currentHomePages) return@awaitEachGesture
+            if (cellBounds.any { (id, bounds) -> id.startsWith("widget:") && bounds.contains(down.position + rootPosition) }) return@awaitEachGesture
             while (true) {
                 val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: break
                 if (!change.pressed) break
@@ -389,45 +425,26 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                     .onSizeChanged { if (onHomePage) { workspaceSize = it; workspaceWasEditing = editing } }
                     .onGloballyPositioned { workspaceBounds = it.boundsInRoot() }) {
                     if (!ui.ready) CircularProgressIndicator(Modifier.align(Alignment.Center), color = Color.White)
-                    else HorizontalPager(pager, Modifier.fillMaxSize(), userScrollEnabled = drag == null && !modalPresent && !launching,
+                    else HorizontalPager(pager, Modifier.fillMaxSize(), userScrollEnabled = drag == null && widgetDrag == null && !modalPresent && !launching,
                         flingBehavior = PagerDefaults.flingBehavior(pager, snapAnimationSpec = LauncherMotion.panel()),
                         key = { page -> when (page) { 0 -> "today"; homePages + 1 -> "library"; else -> "home:$page" } },
                         beyondViewportPageCount = 0) { page ->
                         when (page) {
                             0 -> TodayPage(now, widgets, suggestions, apps, onSearch = ::openSearch,
-                                onSettings = { sheet = Sheet.Settings }, onWidgets = { sheet = Sheet.Widgets },
+                                onSettings = { sheet = Sheet.Settings }, onWidgets = { widgetGalleryHomePage = null; sheet = Sheet.Widgets },
                                 onClock = { system(AlarmClock.ACTION_SHOW_ALARMS) },
-                                onCalendar = ::openCalendar, onLaunch = ::launch)
+                                onCalendar = ::openCalendar, onLaunch = ::launch, onEditWidget = { sheet = Sheet.Widget(it) })
                             homePages + 1 -> AppLibrary(ui.apps, apps, suggestions, { sheet = Sheet.LibrarySearch }, ::launch,
                                 ::actions, { title, records, bounds -> folderAnchor = origin(bounds); sheet = Sheet.Category(title, records) })
                             else -> {
-                                val index = page - 1
-                                val capacity = if (index == 0) firstCapacity else geometry.pageSize
-                                val begin = if (index == 0) 0 else firstCapacity + (index - 1) * geometry.pageSize
-                                val entries = ui.layout.home.drop(begin).take(capacity)
-                                Column(Modifier.fillMaxSize().padding(horizontal = 18.dp).verticalScroll(rememberScrollState())) {
-                                    if (index == 0 && withWidgets) HomeWidgets(now, Modifier.height((rowHeight * 2).dp),
-                                        onClock = { system(AlarmClock.ACTION_SHOW_ALARMS) }, onCalendar = ::openCalendar)
-                                    repeat(capacity / GRID_COLUMNS) { row ->
-                                        Row(Modifier.fillMaxWidth().height(rowHeight.dp)) {
-                                            repeat(GRID_COLUMNS) { column ->
-                                                val entry = entries.getOrNull(row * GRID_COLUMNS + column)
-                                                if (entry == null) Spacer(Modifier.weight(1f).fillMaxHeight())
-                                                else key(entry.id) {
-                                                    LauncherTile(entry, apps, geometry.iconSize.dp, appearance.showLabels,
-                                                        Modifier.weight(1f).fillMaxHeight().testTag("home_entry:${entry.id}"), editing, drag?.entry?.id == entry.id,
-                                                        onClick = { openEntry(entry, it) }, onActions = { actionTarget = AppActionTarget(entry, it) },
-                                                        onBounds = { cellBounds[entry.id] = it }, onRemove = {
-                                                            if (entry is HomeEntry.App) model.removeApp(entry.id) else model.dissolve(entry.id)
-                                                        })
-                                                    DisposableEffect(entry.id) { onDispose { cellBounds.remove(entry.id) } }
-                                                }
-                                            }
-                                        }
-                                    }
-                                    if (entries.isEmpty() && !withWidgets) Text("Swipe left to see your apps", color = Color.White.copy(alpha = .7f),
-                                        fontSize = 14.sp, modifier = Modifier.padding(top = 40.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                                }
+                                val grid = homeGrid.getOrNull(page - 1) ?: HomeGridPage(emptyList(), emptyList(), false)
+                                HomeWorkspace(grid, geometry.rows, rowHeight, geometry.iconSize, appearance.showLabels,
+                                    editing, drag?.entry?.id, widgetDrag?.placement?.id, apps, widgets, now,
+                                    { system(AlarmClock.ACTION_SHOW_ALARMS) }, ::openCalendar, openEntry,
+                                    { entry, bounds -> actionTarget = AppActionTarget(entry, bounds) },
+                                    { entry -> if (entry is HomeEntry.App) model.removeApp(entry.id) else model.dissolve(entry.id) },
+                                    { sheet = Sheet.Widget(it) },
+                                    { id, bounds -> if (bounds == null) cellBounds.remove(id) else cellBounds[id] = bounds })
                             }
                         }
                     }
@@ -470,7 +487,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
             if (editing && !modalPresent) Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 18.dp),
                 horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 GlassPanel(radius = 20f) { Text("Add Widgets", color = Color.White, fontSize = 13.sp,
-                    modifier = Modifier.clickable { sheet = Sheet.Widgets }.padding(horizontal = 14.dp, vertical = 10.dp)) }
+                    modifier = Modifier.testTag("add_home_widgets").clickable { widgetGalleryHomePage = pager.currentPage - 1; sheet = Sheet.Widgets }.padding(horizontal = 14.dp, vertical = 10.dp)) }
                 Row {
                     IconButton(onClick = { sheet = Sheet.Settings }, modifier = Modifier.testTag("settings_button")) { Icon(Icons.Outlined.Settings, "Settings", tint = LocalGlassContentColor.current) }
                     GlassPanel(radius = 20f) { Text("Done", color = Color.White, fontWeight = FontWeight.SemiBold,
@@ -481,6 +498,16 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                 val px = with(density) { geometry.iconSize.dp.toPx() }
                 EntryIcon(session.entry, apps, geometry.iconSize.dp, Modifier.offset {
                     IntOffset((session.position.x - rootPosition.x - px / 2).roundToInt(), (session.position.y - rootPosition.y - px / 2).roundToInt()) })
+            }
+            widgetDrag?.let { session ->
+                GlassPanel(Modifier.offset {
+                    IntOffset((session.position.x - rootPosition.x - 75.dp.toPx()).roundToInt(),
+                        (session.position.y - rootPosition.y - 50.dp.toPx()).roundToInt())
+                }.size(150.dp, 100.dp), radius = 24f) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Move Widget", color = LocalGlassContentColor.current)
+                    }
+                }
             }
             // Scrim stays in screen space while the panel grows from its icon.
             Box(Modifier.fillMaxSize().then(if (sheet != null && !opaqueScreen) Modifier.pointerInput(sheet) {
@@ -496,7 +523,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                     Sheet.Controls -> SurfaceKind.Controls
                     else -> SurfaceKind.Page
                 }
-            }, origin = folderAnchor, onClose = ::closeSurface, progressChanged = { surfaceProgress = it }) { current ->
+            }, origin = folderAnchor, onClose = ::closeSurface, progressChanged = { surfaceProgress = it }, forward = navigatingForward) { current ->
                 Box(Modifier.fillMaxSize().then(if (actionTarget != null || choiceSheet != null) Modifier.clearAndSetSemantics {} else Modifier)
                     .graphicsLayer {
                         val r = if (appearance.reducedEffects) 0f else menuBlur.value * 9.dp.toPx()
@@ -523,7 +550,14 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                                 { model.discardPhoto(); sheet = Sheet.Settings }, model::savePhoto) }
                         }
                         Sheet.Widgets -> WidgetGallery(widgets, appearance.showWidgets, { model.appearance(ui.layout.appearance.copy(showWidgets = it)) },
-                            onConfigureWidget, ::closeSurface, model::message)
+                            onConfigureWidget, ::closeSurface, model::message, widgetGalleryHomePage)
+                        is Sheet.Widget -> WidgetEditor(widgets, current.id,
+                            homeGrid.flatMap { it.widgets }.firstOrNull { it.id == current.id }, homeGrid.size,
+                            (pager.currentPage - 1).coerceIn(0, homeGrid.lastIndex),
+                            onHome = { widgets.placeOnHome(it); closeSurface(); revealWidget = it.id },
+                            onToday = { widgets.moveToToday(current.id); closeSurface(); revealWidget = current.id },
+                            onRemove = { widgets.remove(current.id); closeSurface() },
+                            onConfigure = { onConfigureWidget(widgets.host, current.id) {} }, onClose = ::closeSurface)
                         Sheet.Licenses -> LicensesSheet(::closeSurface)
                         Sheet.Controls -> ControlCenter(MaterialTheme.colorScheme.background.luminance() < .5f, { sheet = null }, ::system,
                             { model.appearance(ui.layout.appearance.copy(interfaceStyle = if (it) 2 else 1)) }, { pushPage(Sheet.Settings) }, { pushPage(Sheet.Widgets) })

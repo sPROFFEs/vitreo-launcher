@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
   <application>
+    <receiver android:name="dev.vitreo.launcher.WidgetFixtureProvider" android:label="Vitreo Test Widget"
+        android:enabled="false" android:exported="true">
+      <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_fixture" />
+    </receiver>
     <!-- Instrumentation-only fixture: the same runtime alias pattern used by icon pickers. -->
     <activity android:name="dev.vitreo.launcher.CatalogFixtureActivity" android:exported="true" />
     <activity-alias android:name="dev.vitreo.launcher.CatalogDefaultIcon"

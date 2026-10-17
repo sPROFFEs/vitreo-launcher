@@ -25,7 +25,7 @@ import java.util.Date
 @Composable
 fun TodayPage(now: Long, widgets: WidgetController, suggestions: List<AppRecord>, apps: Map<String, AppRecord>,
     onSearch: () -> Unit, onSettings: () -> Unit, onWidgets: () -> Unit, onClock: () -> Unit,
-    onCalendar: () -> Unit, onLaunch: (String, androidx.compose.ui.geometry.Rect?) -> Unit) {
+    onCalendar: () -> Unit, onLaunch: (String, androidx.compose.ui.geometry.Rect?) -> Unit, onEditWidget: (Int) -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 21.dp).testTag("today_page")) {
         Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Today", Modifier.weight(1f), fontSize = 34.sp, fontWeight = FontWeight.Bold, color = LocalGlassContentColor.current)
@@ -51,7 +51,7 @@ fun TodayPage(now: Long, widgets: WidgetController, suggestions: List<AppRecord>
             }
         }
         Spacer(Modifier.height(18.dp))
-        widgets.ids.forEach { id -> androidx.compose.runtime.key(id) { NativeWidget(widgets, id); Spacer(Modifier.height(10.dp)) } }
+        widgets.todayIds.forEach { id -> androidx.compose.runtime.key(id) { NativeWidget(widgets, id) { onEditWidget(id) }; Spacer(Modifier.height(10.dp)) } }
         TextButton(onClick = onWidgets, modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = 15.dp)) {
             Text("Add Widgets", color = Color.White, fontSize = 15.sp)
         }

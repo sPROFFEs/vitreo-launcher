@@ -56,13 +56,15 @@ internal fun renderWidgetPreview(context: Context, info: AppWidgetProviderInfo, 
             info.profile, AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN) }.getOrNull()
         if (generated != null) render(generated)?.let { return it }
     }
-    if (info.previewLayout != 0) render(RemoteViews(info.provider.packageName, info.previewLayout))?.let { return it }
+    // Some preview layouts depend on a window/clock tick and draw only their
+    // hands when detached. A supplied image is complete and needs no live host.
     if (info.previewImage != 0) runCatching { info.loadPreviewImage(themed, context.resources.displayMetrics.densityDpi)
         ?.let { drawable ->
             val scale = minOf(width.toFloat() / drawable.intrinsicWidth.coerceAtLeast(1), height.toFloat() / drawable.intrinsicHeight.coerceAtLeast(1))
             drawable.toBitmap((drawable.intrinsicWidth * scale).toInt().coerceAtLeast(1),
                 (drawable.intrinsicHeight * scale).toInt().coerceAtLeast(1))
         } }.getOrNull()?.let { return it }
+    if (info.previewLayout != 0) render(RemoteViews(info.provider.packageName, info.previewLayout))?.let { return it }
     return null
 }
 
@@ -71,7 +73,8 @@ fun WidgetPreview(info: AppWidgetProviderInfo) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val dark = MaterialTheme.colorScheme.background.luminance() < .5f
-    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 14.dp).clip(RoundedCornerShape(22.dp))
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 20.dp, bottom = 8.dp)
+        .testTag("widget_preview_well:${info.provider.flattenToString()}").clip(RoundedCornerShape(22.dp))
         .background(MaterialTheme.colorScheme.background)) {
         // Render to the provider's aspect ratio, then fit the passive bitmap inside
         // the card. Tall / wide provider layouts keep all their content visible.
@@ -84,7 +87,7 @@ fun WidgetPreview(info: AppWidgetProviderInfo) {
             // Inflate/draw Android Views on Main. The result is a passive bitmap: preview taps cannot launch an app.
             value = withContext(Dispatchers.Main.immediate) { renderWidgetPreview(context, info, renderWidth, renderHeight, dark) }
         }
-        Box(Modifier.fillMaxWidth().height(height).clip(RoundedCornerShape(22.dp)).padding(10.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxWidth().height(height).clip(RoundedCornerShape(22.dp)).padding(18.dp), contentAlignment = Alignment.Center) {
             if (preview != null) Image(checkNotNull(preview).asImageBitmap(), "${info.loadLabel(context.packageManager)} widget preview",
                 Modifier.fillMaxSize().testTag("widget_preview:${info.provider.flattenToString()}"), contentScale = ContentScale.Fit)
             else Column(horizontalAlignment = Alignment.CenterHorizontally) {

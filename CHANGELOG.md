@@ -1,5 +1,16 @@
 # Cambios
 
+## 0.5.0 — Widgets en Home y movimiento — 2026-10-17
+
+- Widgets Android en Home y Today, tamaños Small/Medium/Large, cambio de página, arrastre en edición y traslado entre vistas sin volver a vincularlos.
+- Cuadrícula que reserva rectángulos de widgets y redistribuye las apps sin eliminarlas. Conserva tamaño/página al reiniciar y migra los widgets anteriores a Today.
+- Más margen superior/interior en el catálogo; preferencia por imágenes completas del proveedor frente a layouts que dependen de un host vivo. Los widgets solo notifican cambios de tamaño cuando cambian sus dimensiones.
+- Cierres interactivos con velocidad, cancelación al invertir el gesto y continuidad del muelle. Navegación de ajustes y More/Back con dirección coherente; movimiento de celdas al cambiar el tamaño del widget.
+- Pulsación/edición de iconos e indicador segmentado animados en la capa de dibujo, sin recomposición o layout por fotograma. Se mantienen movimiento reducido y ahorro de batería.
+- Contactos usa una agenda vectorial original con pestañas de color; se conservan los otros 22 recursos de SVG Stack y sus licencias.
+- README reorganizado, referencias de movimiento y guía de pruebas físicas actualizadas. Retirados logs/manifiesto de la preparación inicial y helper de creación de repositorios obsoleto.
+- Regresiones de empaquetado de cuadrícula, vinculación y persistencia, redimensionado y cambio de vista, márgenes de catálogo y capturas sincronizadas con el fotograma actual.
+
 ## 0.4.1 — Iconos, widgets y catálogo — 2026-10-17
 
 - 23 recursos de iconos de SVG Stack, con fuentes, hashes y atribución CC BY 4.0 incluidos; reloj y calendario mantienen hora y fecha reales.

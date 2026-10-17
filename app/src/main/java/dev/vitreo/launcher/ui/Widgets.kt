@@ -106,44 +106,66 @@ fun HomeWidgets(now: Long, modifier: Modifier = Modifier, onClock: () -> Unit, o
 }
 
 @Composable
-fun NativeWidget(controller: WidgetController, id: Int) {
+fun NativeWidget(controller: WidgetController, id: Int, onEdit: () -> Unit) {
+    Column(Modifier.fillMaxWidth()) {
+        NativeWidgetContent(controller, id)
+        WidgetCaption(controller, id, onEdit)
+    }
+}
+
+@Composable
+internal fun WidgetCaption(controller: WidgetController, id: Int, onEdit: () -> Unit) {
+    val context = LocalContext.current
+    val label = controller.manager.getAppWidgetInfo(id)?.loadLabel(context.packageManager).orEmpty()
+    Row(Modifier.fillMaxWidth().height(30.dp).padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, Modifier.weight(1f), fontSize = 12.sp, maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, color = LocalGlassContentColor.current)
+        IconButton(onClick = onEdit, modifier = Modifier.size(30.dp).testTag("edit_widget:$id")) {
+            Icon(Icons.Outlined.MoreHoriz, "Edit $label widget", Modifier.size(19.dp), tint = LocalGlassContentColor.current)
+        }
+    }
+}
+
+/** The same host is used on Home and Today. A fixed Home rectangle fits the whole
+ * provider minimum before scaling, so oversized RemoteViews never escape the card. */
+@Composable
+internal fun NativeWidgetContent(controller: WidgetController, id: Int, modifier: Modifier = Modifier, fitToBounds: Boolean = false) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val provider = controller.manager.getAppWidgetInfo(id) ?: return
-    Column(Modifier.fillMaxWidth()) {
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val width = maxWidth.value.toInt()
-            val fit = minOf(1f, width * density.density / provider.minWidth.coerceAtLeast(1))
-            // A tall provider needs its advertised minimum height; truncating it to
-            // 360dp lets its fixed-size RemoteViews overlap the next Today card.
-            val renderHeight = maxOf(140f / fit, provider.minHeight / density.density).coerceAtMost(1600f)
-            val height = renderHeight * fit
-            AndroidView(factory = {
-                WidgetHostContainer(context).apply {
-                    addView(controller.host.createView(context, id, provider).apply { setPadding(0, 0, 0, 0) },
-                        FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
-                }
-            }, modifier = Modifier.fillMaxWidth().height(height.dp).testTag("native_widget:$id"), update = { container ->
-                val view = container.getChildAt(0) as android.appwidget.AppWidgetHostView
-                val renderWidth = width / fit
-                val pixelsWide = (renderWidth * density.density).roundToInt()
-                val pixelsHigh = (renderHeight * density.density).roundToInt()
-                if (view.layoutParams.width != pixelsWide || view.layoutParams.height != pixelsHigh) {
-                    view.layoutParams = FrameLayout.LayoutParams(pixelsWide, pixelsHigh)
-                }
-                view.pivotX = 0f; view.pivotY = 0f
-                view.scaleX = fit; view.scaleY = fit
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val width = maxWidth.value.coerceAtLeast(1f)
+        val minWidth = (provider.minWidth / density.density).coerceAtLeast(1f)
+        val minHeight = (provider.minHeight / density.density).coerceIn(1f, 1600f)
+        val height = if (fitToBounds) maxHeight.value.coerceAtLeast(1f)
+            else maxOf(140f, minHeight * minOf(1f, width / minWidth))
+        val fit = minOf(1f, width / minWidth, height / minHeight).coerceAtLeast(.01f)
+        val renderWidth = (width / fit).roundToInt().coerceAtLeast(1)
+        val renderHeight = (height / fit).roundToInt().coerceAtLeast(1)
+        AndroidView(factory = {
+            WidgetHostContainer(context).apply {
+                addView(controller.host.createView(context, id, provider).apply { setPadding(0, 0, 0, 0) },
+                    FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+            }
+        }, modifier = Modifier.fillMaxWidth().height(height.dp).testTag("native_widget:$id"), update = { container ->
+            val view = container.getChildAt(0) as android.appwidget.AppWidgetHostView
+            val pixelsWide = (renderWidth * density.density).roundToInt()
+            val pixelsHigh = (renderHeight * density.density).roundToInt()
+            if (view.layoutParams.width != pixelsWide || view.layoutParams.height != pixelsHigh) {
+                view.layoutParams = FrameLayout.LayoutParams(pixelsWide, pixelsHigh)
+            }
+            view.pivotX = 0f; view.pivotY = 0f
+            view.scaleX = fit; view.scaleY = fit
+            // RemoteViews updates/layout are expensive; the Home clock must not
+            // send another provider resize broadcast every second.
+            val dimensions = renderWidth to renderHeight
+            if (view.tag != dimensions) {
+                view.tag = dimensions
                 view.updateAppWidgetSize(Bundle().apply {
                     putInt(AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY, AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN)
-                }, renderWidth.toInt(), renderHeight.toInt(), renderWidth.toInt(), renderHeight.toInt())
-            })
-        }
-        Row(Modifier.fillMaxWidth().padding(start = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(provider.loadLabel(context.packageManager), Modifier.weight(1f), fontSize = 12.sp, color = LocalGlassContentColor.current.copy(alpha = .85f))
-            IconButton(onClick = { controller.remove(id) }, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Outlined.RemoveCircleOutline, "Remove Widget", Modifier.size(19.dp), tint = LocalGlassContentColor.current.copy(alpha = .85f))
+                }, renderWidth, renderHeight, renderWidth, renderHeight)
             }
-        }
+        }, onRelease = { it.removeAllViews() })
     }
 }
 
@@ -167,10 +189,13 @@ internal class WidgetHostContainer(context: android.content.Context) : FrameLayo
 
 @Composable
 fun WidgetGallery(controller: WidgetController, showHomeWidgets: Boolean, onToggleHome: (Boolean) -> Unit,
-    onConfigure: (AppWidgetHost, Int, (Boolean) -> Unit) -> Unit, onClose: () -> Unit, onError: (String) -> Unit) {
+    onConfigure: (AppWidgetHost, Int, (Boolean) -> Unit) -> Unit, onClose: () -> Unit, onError: (String) -> Unit,
+    initialHomePage: Int? = 0) {
     val context = LocalContext.current
     val providers = remember { controller.providers() }
     var query by remember { mutableStateOf("") }
+    var destinationHome by remember { mutableStateOf(initialHomePage != null) }
+    var size by remember { mutableIntStateOf(0) }
     val filtered = remember(providers, query) { providers.filter {
         dev.vitreo.launcher.core.searchKey(query) in dev.vitreo.launcher.core.searchKey(it.loadLabel(context.packageManager))
     } }
@@ -200,8 +225,16 @@ fun WidgetGallery(controller: WidgetController, showHomeWidgets: Boolean, onTogg
                     HomeWidgets(LocalHomeClock.current, Modifier.height(190.dp), {}, {})
                 }
                 IosGroup { IosToggleRow("Clock & Calendar on Home", showHomeWidgets, onChange = onToggleHome) }
+                IosSectionLabel("Add to")
+                IosSegmented(listOf("Home Screen", "Today"), if (destinationHome) 0 else 1,
+                    Modifier.testTag("widget_destination")) { destinationHome = it == 0 }
+                if (destinationHome) {
+                    IosSectionLabel("Size")
+                    IosSegmented(listOf("Small", "Medium", "Large"), size, Modifier.testTag("gallery_widget_size")) { size = it }
+                }
                 IosSectionLabel("Widgets from your apps")
-                Text("Add widgets to Today, to the left of Home.", fontSize = 13.sp,
+                Text(if (destinationHome) "Add to Home page ${(initialHomePage ?: 0) + 1}. Apps make room automatically."
+                    else "Add widgets to Today, to the left of Home.", fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 17.dp, bottom = 8.dp))
                 IosGroup {
                     Row(Modifier.padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -212,7 +245,7 @@ fun WidgetGallery(controller: WidgetController, showHomeWidgets: Boolean, onTogg
                             decorationBox = { inner -> if (query.isEmpty()) Text("Search Widgets", color = MaterialTheme.colorScheme.onSurfaceVariant); inner() })
                     }
                 }
-                if (controller.ids.size >= 8) Text("You have 8 widgets. Remove one from Today to add another.", fontSize = 13.sp,
+                if (controller.ids.size >= 8) Text("You have 8 widgets. Remove one to add another.", fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(12.dp))
             }
             items(filtered, key = { it.provider.flattenToString() }) { info ->
@@ -220,7 +253,8 @@ fun WidgetGallery(controller: WidgetController, showHomeWidgets: Boolean, onTogg
                     WidgetPreview(info)
                     IosRow(info.loadLabel(context.packageManager), "Add", enabled = controller.ids.size < 8 && controller.pendingId < 0) {
                         try {
-                            val id = controller.beginAdd() ?: return@IosRow
+                            val id = controller.beginAdd(if (destinationHome) initialHomePage ?: 0 else null,
+                                columns = if (size == 0) 2 else 4, rows = if (size == 2) 4 else 2) ?: return@IosRow
                             if (controller.manager.bindAppWidgetIdIfAllowed(id, info.provider)) configure(id)
                             else bind.launch(Intent(AppWidgetManager.ACTION_APPWIDGET_BIND)
                                 .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
@@ -228,7 +262,7 @@ fun WidgetGallery(controller: WidgetController, showHomeWidgets: Boolean, onTogg
                                 .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER_PROFILE, info.profile))
                         } catch (_: Exception) { controller.cancelAdd(); onError("Could not add this widget.") }
                     }
-                    Text("${info.targetCellWidth.coerceAtLeast(1)} × ${info.targetCellHeight.coerceAtLeast(1)} · Today", fontSize = 12.sp,
+                    Text(if (destinationHome) "${if (size == 0) 2 else 4} × ${if (size == 2) 4 else 2} · Home Screen" else "Today", fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 17.dp, bottom = 14.dp))
                 }
             }

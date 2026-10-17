@@ -52,3 +52,5 @@ por SHA; no se ha incluido su código dentro de Vitreo.
 Liquid Touch no se incorpora. Backdrop tampoco es una dependencia. No hay
 fuentes comerciales, APKs upstream ni una clave privada de firma
 compartida en el repositorio.
+
+El icono de Contactos (`drawable/ios_contacts.xml`) es una ilustración vectorial original de Vitreo: agenda gris con pestañas de color, bajo la licencia MIT del proyecto. Sustituye al icono azul de SVG Stack utilizado en 0.4.1.

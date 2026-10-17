@@ -1,0 +1,13 @@
+<!-- Original Vitreo address-book artwork; MIT, see LICENSE. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="500dp" android:height="500dp" android:viewportWidth="500" android:viewportHeight="500">
+    <path android:fillColor="#E8E6E1" android:pathData="M0,0H500V500H0Z" />
+    <path android:fillColor="#CCC9C3" android:pathData="M0,0H65V500H0Z" />
+    <path android:fillColor="#D9D6D0" android:pathData="M65,0H77V500H65Z" />
+    <path android:fillColor="#F0A84C" android:pathData="M450,56H500V150H450Z" />
+    <path android:fillColor="#78B8C6" android:pathData="M450,156H500V250H450Z" />
+    <path android:fillColor="#A3B698" android:pathData="M450,256H500V350H450Z" />
+    <path android:fillColor="#AAA2BA" android:pathData="M450,356H500V450H450Z" />
+    <path android:fillColor="#8C8A86" android:pathData="M262,103a69,69 0,1 0,0 138a69,69 0,1 0,0 -138M142,370C142,302 187,270 262,270C337,270 382,302 382,370V389C382,397 376,403 368,403H156C148,403 142,397 142,389Z" />
+    <path android:fillColor="#FFFFFF" android:fillAlpha="0.38" android:pathData="M80,0H450V7H80Z" />
+</vector>

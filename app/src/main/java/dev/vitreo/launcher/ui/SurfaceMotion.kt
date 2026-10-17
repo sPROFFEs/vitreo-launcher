@@ -11,6 +11,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.*
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -32,11 +33,15 @@ enum class SurfaceKind { Folder, Category, Search, Controls, Page }
  * Keep the outgoing content alive until its last frame, including a folder's icon and page position. */
 @Composable
 fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: TransformOrigin,
-    onClose: () -> Unit, progressChanged: (Float) -> Unit = {}, content: @Composable (T) -> Unit) {
+    onClose: () -> Unit, progressChanged: (Float) -> Unit = {}, forward: Boolean = true, content: @Composable (T) -> Unit) {
     var retained by remember { mutableStateOf(target) }
     val displayed = target ?: retained
     val progress = remember { Animatable(0f) }
-    var pull by remember { mutableFloatStateOf(0f) }
+    var fingerProgress by remember { mutableStateOf<Float?>(null) }
+    var releaseVelocity by remember { mutableFloatStateOf(0f) }
+    var dismissDown by remember { mutableStateOf(false) }
+    var handoffProgress by remember { mutableFloatStateOf(1f) }
+    var translationCorrection by remember { mutableFloatStateOf(0f) }
     val reduced = LocalGlass.current.appearance.reducedEffects
     val close by rememberUpdatedState(onClose)
     val scope = rememberCoroutineScope()
@@ -49,7 +54,7 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
                 // A frame clock can stop midway through a sheet animation behind another app.
                 // Settle offscreen, so returning cannot expose an invisible modal barrier.
                 progress.snapTo(if (currentTarget == null) 0f else 1f)
-                retained = currentTarget; pull = 0f
+                retained = currentTarget; fingerProgress = null; releaseVelocity = 0f; dismissDown = false
             }
         }
         lifecycle.addObserver(observer)
@@ -57,12 +62,17 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
     }
     LaunchedEffect(target, reduced) {
         if (target != null) retained = target
+        fingerProgress?.let { progress.snapTo(it); fingerProgress = null }
+        val velocity = releaseVelocity
+        releaseVelocity = 0f
         progress.animateTo(if (target != null) 1f else 0f,
-            if (reduced) tween(120) else if (target == null) LauncherMotion.close() else LauncherMotion.panel())
+            if (reduced) tween(120) else if (target == null) LauncherMotion.close() else LauncherMotion.panel(),
+            initialVelocity = if (reduced) 0f else velocity)
+        dismissDown = false
         if (target == null) retained = null
     }
-    // Notify only the draw layer's state; the workspace does not recompose with each frame.
-    LaunchedEffect(Unit) { snapshotFlow { (progress.value * (1f - pull)).coerceIn(0f, 1f) }.collect(progressChanged) }
+    // Scrim/blur use bounded opacity; geometry keeps the spring's small overshoot.
+    LaunchedEffect(Unit) { snapshotFlow { (fingerProgress ?: progress.value).coerceIn(0f, 1f) }.collect(progressChanged) }
     if (displayed != null) {
         val style = kind(displayed)
         val gesture = if (style == SurfaceKind.Page || reduced || target == null) Modifier else Modifier.pointerInput(style) {
@@ -71,29 +81,65 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
                 // Scrolling app grids and text fields keep their gestures. The header is a dismissal handle.
                 if (down.position.y > 170 * density && style != SurfaceKind.Folder) return@awaitEachGesture
                 var dragging = false
+                var released = false
                 var delta = 0f
-                do {
-                    val event = awaitPointerEvent(PointerEventPass.Final)
-                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                    if (!change.pressed) break
-                    val distance = change.position - down.position
-                    if (!dragging && (change.isConsumed || abs(distance.x) > abs(distance.y))) break
-                    if (distance.y > viewConfiguration.touchSlop) dragging = true
+                var start = 1f
+                val tracker = VelocityTracker().apply { addPosition(down.uptimeMillis, down.position) }
+                try {
+                    do {
+                        val event = awaitPointerEvent(PointerEventPass.Final)
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        tracker.addPosition(change.uptimeMillis, change.position)
+                        if (!change.pressed) { released = change.changedToUpIgnoreConsumed(); break }
+                        val distance = change.position - down.position
+                        if (!dragging && (change.isConsumed || abs(distance.x) > abs(distance.y))) break
+                        if (!dragging && distance.y > viewConfiguration.touchSlop) {
+                            dragging = true
+                            start = progress.value
+                            handoffProgress = start
+                            val openingTravel = when (style) {
+                                SurfaceKind.Search -> -65 * density
+                                SurfaceKind.Controls -> -size.height * .3f
+                                else -> 0f
+                            }
+                            val closingTravel = when (style) {
+                                SurfaceKind.Search -> size.height * .22f
+                                SurfaceKind.Controls -> size.height * .3f
+                                else -> 0f
+                            }
+                            translationCorrection = (1f - start) * (openingTravel - closingTravel)
+                            dismissDown = true
+                            scope.launch { progress.stop() }
+                        }
+                        if (dragging) {
+                            change.consume()
+                            delta = distance.y.coerceAtLeast(0f)
+                            fingerProgress = (start - delta / (size.height * .65f)).coerceIn(.05f, 1.05f)
+                        }
+                    } while (true)
+                } finally {
                     if (dragging) {
-                        change.consume()
-                        delta = distance.y.coerceAtLeast(0f)
-                        pull = (delta / (size.height * .65f)).coerceIn(0f, .85f)
+                        val velocity = if (released) tracker.calculateVelocity().y else 0f
+                        val dismiss = released && dev.vitreo.launcher.core.shouldDismissSurface(delta / density, velocity / density)
+                        val normalized = (-velocity / (size.height * .65f)).coerceIn(-8f, 8f)
+                        scope.launch {
+                            val value = fingerProgress ?: progress.value
+                            progress.snapTo(value)
+                            fingerProgress = null
+                            if (dismiss && currentTarget != null) {
+                                releaseVelocity = normalized
+                                close()
+                            } else if (currentTarget != null) {
+                                progress.animateTo(1f, LauncherMotion.panel(), initialVelocity = normalized)
+                                dismissDown = false
+                            }
+                        }
                     }
-                } while (true)
-                if (dragging) scope.launch {
-                    progress.snapTo(progress.value * (1f - pull)); pull = 0f
-                    if (delta > 78 * density) close()
-                    else progress.animateTo(1f, LauncherMotion.panel())
                 }
             }
         }
         Box(Modifier.fillMaxSize().then(gesture).graphicsLayer {
-            val p = (progress.value * (1f - pull)).coerceIn(0f, 1f)
+            val p = (fingerProgress ?: progress.value).coerceIn(-.05f, 1.06f)
             alpha = (p * 2.5f).coerceIn(0f, 1f)
             if (!reduced) {
                 val start = when (style) {
@@ -104,17 +150,24 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
                 scaleX = start + (1f - start) * p; scaleY = scaleX
                 transformOrigin = if (style == SurfaceKind.Folder || style == SurfaceKind.Category) origin else TransformOrigin.Center
                 translationY = when (style) {
-                    SurfaceKind.Search -> -(1f - p) * 65 * density
-                    SurfaceKind.Controls -> -(1f - p) * size.height * .3f
+                    SurfaceKind.Search -> (1f - p) * if (dismissDown) size.height * .22f else -65 * density
+                    SurfaceKind.Controls -> (1f - p) * size.height * if (dismissDown) .3f else -.3f
                     SurfaceKind.Page -> (1f - p) * size.height * .16f
                     else -> 0f
+                }
+                if (dismissDown && translationCorrection != 0f) {
+                    // Preserve the visible position if a drag interrupts entry.
+                    // The correction vanishes at either resting endpoint.
+                    val blend = if (p <= handoffProgress) p / handoffProgress.coerceAtLeast(.001f)
+                        else (1f - p) / (1f - handoffProgress).coerceAtLeast(.001f)
+                    translationY += translationCorrection * blend
                 }
             }
         }) {
             AnimatedContent(displayed, transitionSpec = {
                 if (reduced) fadeIn(tween(100)) togetherWith fadeOut(tween(100))
-                else (fadeIn(tween(150)) + slideInHorizontally(LauncherMotion.panel()) { it / 9 }) togetherWith
-                    (fadeOut(tween(120)) + slideOutHorizontally(LauncherMotion.close()) { -it / 12 })
+                else (fadeIn(tween(150)) + slideInHorizontally(LauncherMotion.panel()) { if (forward) it / 7 else -it / 10 }) togetherWith
+                    (fadeOut(tween(120)) + slideOutHorizontally(LauncherMotion.close()) { if (forward) -it / 10 else it / 7 })
             }, label = "surface navigation") { content(it) }
         }
     }

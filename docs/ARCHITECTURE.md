@@ -1,4 +1,4 @@
-# Arquitectura de Vitreo 0.4.x
+# Arquitectura de Vitreo 0.5.x
 
 ## Flujo de datos
 
@@ -37,11 +37,20 @@ Los paneles respetan Reducir movimiento y la salida de búsqueda cierra el tecla
 ## Widgets y datos locales
 
 `WidgetController` usa un `AppWidgetHost` y preferencias privadas para los IDs
-vinculados de Hoy. Solo ofrece proveedores visibles para la pantalla de inicio.
+vinculados de Home y Today. Las colocaciones de Home (página, celda y tamaño)
+se guardan junto a los IDs, sin introducir IDs locales en LauncherState. Solo ofrece proveedores visibles para la pantalla de inicio.
 Una solicitud de alta conserva un ID pendiente; no admite otra hasta completarla
 o cancelarla. Cada resultado de configuración se contrasta con ese ID, por lo
 que un resultado tardío no completa una solicitud posterior. Cerrar la galería
 cancela y libera el pendiente. Los IDs no se exportan en las copias portables.
+
+`HomeGrid` reserva primero los rectángulos de widgets y el espacio del reloj/calendario
+integrado; después distribuye apps en orden por las celdas libres. Si una página no
+tiene espacio, continúa en la siguiente. Cambiar orientación, tamaño de icono o
+escala de texto vuelve a calcular el espacio sin eliminar entradas. La preferencia
+de tamaño se conserva aunque una ventana pequeña necesite menos filas. Los IDs
+anteriores sin colocación de Home se migran a Today. Mover o redimensionar no libera
+ni vuelve a vincular el ID. Solo Remove Widget libera el recurso del host.
 
 El reloj y calendario integrados usan la hora y fecha locales. El ticker funciona
 solo mientras la actividad está visible, cada segundo o cada minuto en modo
@@ -50,9 +59,14 @@ desde Vitreo y no consultan el historial global de otras apps.
 
 El host de cada widget tiene recorte nativo por outline y por sus límites; no
 depende solo del clip de Compose para encerrar RemoteViews. Respeta la altura
-mínima y escala proporcionalmente si el ancho mínimo supera el disponible.
+mínima y escala proporcionalmente si su tamaño mínimo supera el rectángulo disponible. Los cambios de opciones de
+tamaño solo se envían cuando cambian sus dimensiones, no en cada tick del reloj.
 La galería renderiza el diseño a su proporción original y ajusta el bitmap dentro
-de la tarjeta; no asigna un ID para la previsualización.
+de la tarjeta, con margen exterior e interior. Prioriza las previsualizaciones
+generadas de Android 15 y las imágenes suministradas sobre layouts que pueden
+depender de un host vivo; no asigna un ID para la previsualización.
+
+El movimiento y sus referencias están descritos en [MOTION.md](MOTION.md).
 
 ## Material de cristal
 

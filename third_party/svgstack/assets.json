@@ -152,12 +152,5 @@
     "image": "https://svgstack.com/media/img/youtube-music-ios-app-icon-EtUa061458.webp",
     "file": "app/src/main/res/drawable-nodpi/ios_youtube_music.webp",
     "sha256": "d8055346ca15003829aca0da587dd3da2bca25fc7c99dad0e8838d5b6ce46ab8"
-  },
-  {
-    "key": "contacts",
-    "source": "https://svgstack.com/icon/ios-26-contacts-icon-4044",
-    "image": "https://svgstack.com/media/img/ios-26-contacts-icon-CTe2169030.webp",
-    "file": "app/src/main/res/drawable-nodpi/ios_contacts.webp",
-    "sha256": "20a6758f4eb33a43b0e39fbd66b1e138fecb678909c68acbe19b2fd451ba9ccd"
   }
 ]

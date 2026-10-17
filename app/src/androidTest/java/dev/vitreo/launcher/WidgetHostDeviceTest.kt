@@ -10,6 +10,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import dev.vitreo.launcher.data.WidgetController
+import dev.vitreo.launcher.core.HomeWidgetPlacement
 import dev.vitreo.launcher.ui.renderWidgetPreview
 import org.junit.Assert.*
 import org.junit.Assume.assumeNotNull
@@ -85,5 +86,30 @@ class WidgetHostDeviceTest {
             widgets.remove(id)
             automation.dropShellPermissionIdentity()
         }
+    }
+
+    @Test fun homeWidgetSizePageAndTodayMigrationSurviveControllerRecreation() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val widgets = WidgetController(context)
+        val provider = checkNotNull(widgets.providers().firstOrNull())
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        automation.adoptShellPermissionIdentity(Manifest.permission.BIND_APPWIDGET)
+        val id = checkNotNull(widgets.beginAdd(homePage = 2, columns = 4, rows = 2))
+        try {
+            assertTrue(widgets.manager.bindAppWidgetIdIfAllowed(id, provider.provider))
+            assertTrue(widgets.finishAdd(id, true))
+            val restored = WidgetController(context)
+            assertEquals(HomeWidgetPlacement(id, 2, columns = 4), restored.homePlacements.single { it.id == id })
+            assertFalse(id in restored.todayIds)
+            restored.placeOnHome(HomeWidgetPlacement(id, 1, columns = 4, rows = 4))
+            assertEquals(4, WidgetController(context).homePlacements.single { it.id == id }.rows)
+            restored.moveToToday(id)
+            val today = WidgetController(context)
+            assertTrue(id in today.todayIds)
+            assertTrue(today.homePlacements.none { it.id == id })
+            assertNotNull(today.manager.getAppWidgetInfo(id))
+            today.remove(id)
+            assertNull(today.manager.getAppWidgetInfo(id))
+        } finally { widgets.remove(id); automation.dropShellPermissionIdentity() }
     }
 }
