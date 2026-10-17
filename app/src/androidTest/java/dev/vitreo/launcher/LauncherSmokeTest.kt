@@ -133,9 +133,15 @@ class LauncherSmokeTest {
 
 
     private fun returnHome() {
+        val delivered = java.util.UUID.randomUUID().toString()
+        val marker = "dev.vitreo.launcher.test.HOME_DELIVERY"
         compose.runOnUiThread { compose.activity.startActivity(Intent(compose.activity, MainActivity::class.java)
-            .setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            .setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            .putExtra(marker, delivered)) }
         compose.waitUntil(10_000) {
+            // An already visible Home is not proof that Android delivered the
+            // new intent. Do not finish the scenario with that delivery pending.
+            compose.activity.intent.getStringExtra(marker) == delivered &&
             compose.onAllNodesWithTag("launcher_root").fetchSemanticsNodes(atLeastOneRootRequired = false)
                 .any { it.config.getOrNull(DockVisibilityKey) == 1f } &&
                 compose.onAllNodesWithTag("control_center").fetchSemanticsNodes().isEmpty() &&
