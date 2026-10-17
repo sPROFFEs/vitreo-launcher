@@ -226,7 +226,7 @@ fun WidgetGallery(controller: WidgetController, showHomeWidgets: Boolean, onTogg
     DisposableEffect(controller) { onDispose { controller.cancelAdd() } }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).safeDrawingPadding()) {
         SheetHeader("Widgets", onClose, "widgets_title")
-        LazyColumn(Modifier.weight(1f).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(Modifier.weight(1f).padding(horizontal = 20.dp).testTag("widget_catalog"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
                 Text("Add what matters", fontSize = 28.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 15.dp))
                 CompositionLocalProvider(LocalGlassContentColor provides MaterialTheme.colorScheme.onSurface) {

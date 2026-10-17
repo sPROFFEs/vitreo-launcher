@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
     private var appReturnSerial by mutableIntStateOf(0)
     private var leftForApp = false
     private var defaultHome by mutableStateOf(false)
-    private var stoppedOnce = false
+    private var pendingHomeReveal = false
     private var homeFocusedOnce = false
     private var homeRevealSerial by mutableIntStateOf(0)
     private val widgetConfigurations = WidgetConfigurationRequests()
@@ -42,7 +42,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         homeRevealSerial = savedInstanceState?.getInt("homeRevealSerial") ?: 0
-        stoppedOnce = savedInstanceState != null
+        pendingHomeReveal = savedInstanceState != null
         enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT))
         setContent {
@@ -60,8 +60,8 @@ class MainActivity : ComponentActivity() {
         model.homeRole(defaultHome)
         model.refresh()
     }
-    override fun onStop() { stoppedOnce = true; super.onStop() }
-    override fun onPause() { stoppedOnce = true; super.onPause() }
+    override fun onStop() { pendingHomeReveal = true; super.onStop() }
+    override fun onPause() { pendingHomeReveal = true; super.onPause() }
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putInt("homeRevealSerial", homeRevealSerial)
         super.onSaveInstanceState(outState)
@@ -73,7 +73,7 @@ class MainActivity : ComponentActivity() {
         if (hasFocus) {
             revealHomeWhenFocused()
             homeFocusedOnce = true
-        } else if (homeFocusedOnce) stoppedOnce = true
+        } else if (homeFocusedOnce) pendingHomeReveal = true
         if (hasFocus && defaultHome && model.systemBackgroundVisible.value) runCatching {
             android.app.WallpaperManager.getInstance(this).setWallpaperOffsets(window.decorView.windowToken, .5f, .5f)
         }
@@ -81,8 +81,8 @@ class MainActivity : ComponentActivity() {
     private fun revealHomeWhenFocused() {
         // RESUMED can precede the visible window while Android still animates
         // its Recents card. Start the icon arrival with actual input focus.
-        if (stoppedOnce && hasWindowFocus() && lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
-            stoppedOnce = false
+        if (pendingHomeReveal && hasWindowFocus() && lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
+            pendingHomeReveal = false
             homeRevealSerial++
         }
     }

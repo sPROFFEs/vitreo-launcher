@@ -297,6 +297,13 @@ def main() -> None:
             "nativeScreens": native_screens,
             "physicalGrapheneOsTested": False}, indent=2) + "\n")
     finally:
+        if not result_path.exists():
+            try:
+                # Failed instrumentation must retain the screens captured before
+                # its assertion, even though optimized smoke never started.
+                adb("pull", "/sdcard/Android/data/dev.vitreo.launcher.debug/files/review", str(output / "native-failure"))
+            except Exception as exc:
+                (output / "native-screens-unavailable.txt").write_text(type(exc).__name__)
         try:
             (output / "logcat.txt").write_text(adb("logcat", "-d", "-t", "3000"))
         except Exception as exc:

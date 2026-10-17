@@ -2,27 +2,27 @@ package dev.vitreo.launcher
 
 import android.app.WallpaperManager
 import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
 import android.view.WindowManager
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.AndroidComposeTestRule
-import androidx.lifecycle.Lifecycle
+import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.core.app.ApplicationProvider
-import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import dev.vitreo.launcher.ui.HomeRevealSerialKey
 import dev.vitreo.launcher.ui.LauncherReadyKey
 import org.junit.Assert.*
 import org.junit.After
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.ExternalResource
 import org.junit.rules.RuleChain
 import org.junit.runner.RunWith
+import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
+import androidx.test.runner.lifecycle.Stage
 import java.io.File
 
 @RunWith(AndroidJUnit4::class)
@@ -49,25 +49,36 @@ class HomeIntegrationTest {
         }
         override fun after() = restore()
     }
-    private val compose = AndroidComposeTestRule(
-        ActivityScenarioRule<MainActivity>(Intent(context, MainActivity::class.java)
-            .setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)),
-        activityProvider = { rule ->
-            var activity: MainActivity? = null
-            rule.scenario.onActivity { activity = it }
-            checkNotNull(activity)
-        }
-    )
+    private val compose = createEmptyComposeRule()
     @get:Rule val rules: RuleChain = RuleChain.outerRule(home).around(compose)
 
-    // Runs inside the Compose rule, before ActivityScenario closes. Android
-    // must have another HOME available when the test finishes its root task.
-    @After fun restoreHomeBeforeClosingActivity() = home.restore()
+    // Instrumentation.startActivitySync always sets an explicit component.
+    // AOSP ActivityRecord therefore assigns a standard task to that launch,
+    // even with CATEGORY_HOME. The shell's implicit HOME gets the real task type.
+    @Before fun launchSystemHome() {
+        shell("am start -W -a android.intent.action.MAIN -c android.intent.category.HOME -f 0x10008000")
+    }
+    @After fun restoreHomeAndCloseActivity() {
+        home.restore()
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            Stage.values().flatMap { ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(it) }
+                .filterIsInstance<MainActivity>().distinct().forEach { it.finishAndRemoveTask() }
+        }
+    }
+    private fun activity(): MainActivity {
+        var found: MainActivity? = null
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            found = listOf(Stage.RESUMED, Stage.STARTED, Stage.CREATED, Stage.PAUSED, Stage.STOPPED)
+                .flatMap { ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(it) }
+                .filterIsInstance<MainActivity>().firstOrNull()
+        }
+        return checkNotNull(found) { "System HOME has no MainActivity instance" }
+    }
 
     private fun awaitReady() {
         compose.waitUntil(20_000) {
-            compose.activityRule.scenario.state == Lifecycle.State.RESUMED && runCatching {
-                compose.activity.hasWindowFocus() && compose.onAllNodesWithTag("launcher_root")
+            runCatching {
+                activity().hasWindowFocus() && compose.onAllNodesWithTag("launcher_root")
                     .fetchSemanticsNodes(atLeastOneRootRequired = false).any { it.config[LauncherReadyKey] }
             }.getOrDefault(false)
         }
@@ -76,7 +87,7 @@ class HomeIntegrationTest {
 
     @Test fun recentsReturnUsesSharedSystemWallpaperAndRevealsHomeWithoutChangingItsLayout() {
         awaitReady()
-        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val model = ViewModelProvider(activity())[LauncherViewModel::class.java]
         val original = model.ui.value.layout.appearance
         val placed = model.ui.value.layout.placedApps()
         val manager = WallpaperManager.getInstance(context)
@@ -85,7 +96,7 @@ class HomeIntegrationTest {
         service.flags = service.flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
         automation.serviceInfo = service
         try {
-            compose.runOnUiThread { model.appearance(original.copy(syncWallpaper = true, wallpaperDim = .23f)) }
+            compose.runOnUiThread { model.appearance(original.copy(syncWallpaper = true)) }
             compose.waitUntil(20_000) { model.systemBackgroundVisible.value }
             val wallpaperId = manager.getWallpaperId(WallpaperManager.FLAG_SYSTEM)
             assertTrue(wallpaperId > 0)
@@ -95,19 +106,20 @@ class HomeIntegrationTest {
                 shell("input keyevent KEYCODE_APP_SWITCH")
                 try {
                     compose.waitUntil(15_000) {
-                        // API 31 can leave HOME resumed under Recents. Verify the
-                        // focused Recents window, rather than assuming ON_STOP.
+                        // Overview uses an input consumer, so Android can report
+                        // no focused window and keep HOME resumed underneath.
+                        // Accessibility windows contain only visible surfaces.
                         shell("dumpsys window").lineSequence().any {
-                            "mCurrentFocus" in it && "RecentsActivity" in it
-                        } && automation.windows.any {
+                            "RecentsActivity" in it
+                        } && !runCatching { activity().hasWindowFocus() }.getOrDefault(true) && automation.windows.any {
                             it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION &&
-                                it.isFocused && it.root?.packageName?.toString() != context.packageName
+                                it.root?.packageName?.toString() == "com.google.android.apps.nexuslauncher"
                         }
                     }
                 } catch (failure: Throwable) {
                     android.util.Log.e("VitreoRecentsTest", "Focus=" + shell("dumpsys window").lineSequence()
                         .filter { "mCurrentFocus" in it || "mFocusedApp" in it }.joinToString() +
-                        "; lifecycle=" + compose.activityRule.scenario.state + "; windows=" + automation.windows.joinToString {
+                        "; windows=" + automation.windows.joinToString {
                             "${it.type}:${it.isFocused}:${it.root?.packageName}"
                         }, failure)
                     throw failure
@@ -119,17 +131,17 @@ class HomeIntegrationTest {
                     compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[HomeRevealSerialKey] > before
                 }
                 assertSame("Wallpaper color changes retain the ViewModel", model,
-                    ViewModelProvider(compose.activity)[LauncherViewModel::class.java])
+                    ViewModelProvider(activity())[LauncherViewModel::class.java])
                 assertEquals(placed, model.ui.value.layout.placedApps())
                 assertTrue(model.systemBackgroundVisible.value)
-                assertTrue(compose.activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER != 0)
+                assertTrue(activity().window.attributes.flags and WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER != 0)
                 assertEquals("Return must not rewrite the wallpaper", wallpaperId, manager.getWallpaperId(WallpaperManager.FLAG_SYSTEM))
             }
             // PixelCopy waits for the Compose frame; UiAutomation includes the
             // separate Android wallpaper surface behind the transparent window.
             compose.onRoot().captureToImage().asAndroidBitmap()
             val screenshot = checkNotNull(automation.takeScreenshot())
-            val directory = checkNotNull(compose.activity.getExternalFilesDir("review"))
+            val directory = checkNotNull(activity().getExternalFilesDir("review"))
             check(directory.isDirectory || directory.mkdirs())
             File(directory, "recents-return.png").outputStream().use { screenshot.compress(Bitmap.CompressFormat.PNG, 100, it) }
             compose.runOnUiThread { model.appearance(model.ui.value.layout.appearance.copy(syncWallpaper = false)) }

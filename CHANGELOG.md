@@ -1,6 +1,6 @@
 # Cambios
 
-## 0.5.1 — Tema Cyberpunk y packs de iconos — 2026-10-17
+## 0.5.1 — Cyberpunk y regreso integrado a Home — 2026-10-17
 
 - Regreso desde Recientes con iconos que entran radialmente desde fuera de la pantalla, sin cambiar sus celdas ni animar el fondo con el escritorio; widgets con entrada vertical suave.
 - Fondo compartido con Android Home cuando Vitreo es predeterminado, incluyendo foto, recorte, oscurecimiento y Cyberpunk. Ventana integrada con la superficie de wallpaper del sistema y fallback local con transición. Sync with Android Home se puede desactivar; se añade el permiso normal SET_WALLPAPER.

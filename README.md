@@ -130,3 +130,8 @@ show live local time/date. Other apps retain their own icons. All source URLs,
 hashes and notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and in
 the APK's Open source licenses screen. Apple/iOS are design references; Vitreo is
 an independent Android project.
+
+The optional Cyberpunk theme includes 23 [Arcticons](https://github.com/Arcticons-Team/Arcticons)
+app glyphs (CC BY-SA 4.0), 13 [CYBERCORE](https://github.com/sebyx07/cybercore-css)
+control glyphs (MIT) and [Rajdhani](https://github.com/google/fonts/tree/main/ofl/rajdhani)
+fonts (SIL OFL 1.1). Commercial icon-pack artwork and game assets are not bundled.

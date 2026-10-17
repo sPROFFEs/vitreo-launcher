@@ -211,7 +211,9 @@ class LauncherSmokeTest {
             compose.onNodeWithText("Edit Home Screen").performClick()
             compose.onNodeWithTag("add_home_widgets").performClick()
             compose.onNodeWithTag("widget_search").performScrollTo().performTextInput("Vitreo Test Widget")
-            compose.onNode(hasText("Vitreo Test Widget") and hasClickAction() and !hasSetTextAction()).performScrollTo().performClick()
+            val addWidget = hasText("Vitreo Test Widget") and hasClickAction() and !hasSetTextAction()
+            compose.onNodeWithTag("widget_catalog").performScrollToNode(addWidget)
+            compose.onNode(addWidget).performClick()
             compose.waitUntil(10_000) {
                 context.getSharedPreferences("today-widgets", Context.MODE_PRIVATE).getString("ids", "").orEmpty()
                     .split(',').mapNotNull(String::toIntOrNull).any { it !in before }
