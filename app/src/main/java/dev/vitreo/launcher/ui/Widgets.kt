@@ -135,8 +135,10 @@ internal fun NativeWidgetContent(controller: WidgetController, id: Int, modifier
     val provider = controller.manager.getAppWidgetInfo(id) ?: return
     BoxWithConstraints(modifier.fillMaxWidth()) {
         val width = maxWidth.value.coerceAtLeast(1f)
-        val minWidth = (provider.minWidth / density.density).coerceAtLeast(1f)
-        val minHeight = (provider.minHeight / density.density).coerceIn(1f, 1600f)
+        val resizeWidth = fitToBounds && provider.resizeMode and AppWidgetProviderInfo.RESIZE_HORIZONTAL != 0 && provider.minResizeWidth > 0
+        val resizeHeight = fitToBounds && provider.resizeMode and AppWidgetProviderInfo.RESIZE_VERTICAL != 0 && provider.minResizeHeight > 0
+        val minWidth = ((if (resizeWidth) provider.minResizeWidth else provider.minWidth) / density.density).coerceAtLeast(1f)
+        val minHeight = ((if (resizeHeight) provider.minResizeHeight else provider.minHeight) / density.density).coerceIn(1f, 1600f)
         val height = if (fitToBounds) maxHeight.value.coerceAtLeast(1f)
             else maxOf(140f, minHeight * minOf(1f, width / minWidth))
         val fit = minOf(1f, width / minWidth, height / minHeight).coerceAtLeast(.01f)
@@ -163,7 +165,7 @@ internal fun NativeWidgetContent(controller: WidgetController, id: Int, modifier
                 view.tag = dimensions
                 view.updateAppWidgetSize(Bundle().apply {
                     putInt(AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY, AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN)
-                }, renderWidth, renderHeight, renderWidth, renderHeight)
+                }, listOf(android.util.SizeF(renderWidth.toFloat(), renderHeight.toFloat())))
             }
         }, onRelease = { it.removeAllViews() })
     }

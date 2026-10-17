@@ -32,8 +32,9 @@ no exige modificar componentes del sistema.
 - Alterna apps y HOME repetidamente con las animaciones del sistema activadas.
 - Exporta un backup, cambia la distribución e impórtalo. El fondo de foto no viaja en la copia.
 - Cierra el proceso y reinicia el teléfono: revisa que los cambios guardados permanezcan.
-- Instala una app nueva y elimina otra: la nueva se añade, la no disponible conserva
-  su referencia hasta que la quites. No se desinstalan apps al quitar accesos.
+- Instala y desinstala una app de prueba: se añade al instalar y desaparece de Home/dock/carpetas al desinstalar. Comprueba también una actualización: debe conservar su posición.
+- Desinstala una app con Vitreo cerrado, vuelve y comprueba que no quede su acceso. Una app solo temporalmente no disponible conserva su posición.
+- Quitar un acceso desde Vitreo no desinstala la app.
 
 Prueba después texto grande, orientación horizontal, navegación por gestos y de
 tres botones. Los perfiles de trabajo y el espacio privado están fuera de alcance;

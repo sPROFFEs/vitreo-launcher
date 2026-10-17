@@ -8,8 +8,7 @@ No existe afiliación con Apple, GrapheneOS, SVG Stack o Folio.
 
 ## Arte de iconos de SVG Stack
 
-23 imágenes WebP del conjunto [Apple IOS Icon Set](https://svgstack.com/collections/apple-ios-icon-set)
-y Contacts de [IOS 26 Liquid Glass Icon Set](https://svgstack.com/collections/ios-26-liquid-glass-icon-set),
+22 imágenes WebP del conjunto [Apple IOS Icon Set](https://svgstack.com/collections/apple-ios-icon-set),
 publicadas por [SVG Stack](https://svgstack.com), según su [política CC BY 4.0](https://svgstack.com/page/license).
 Se conservan sin modificar; el launcher aplica máscara, tamaño y tratamientos de
 color, y superpone hora y fecha actuales. Procedencia y hashes por recurso en
@@ -36,8 +35,8 @@ Fuentes primarias para revisar sus avisos:
 - Material Icons: https://github.com/google/material-design-icons/blob/master/LICENSE
 
 Las dependencias se descargan de Google Maven/Maven Central al compilar, no se
-incluyen como binarios en este ZIP. Antes de una distribución pública estable,
-revisar el árbol realmente resuelto y los avisos de sus versiones transitivas:
+incluyen como binarios en el repositorio. Para revisar el árbol resuelto y los
+avisos de sus versiones transitivas:
 `bash gradlew :app:dependencies --configuration releaseRuntimeClasspath`.
 La configuración de empaquetado combina los avisos META-INF comunes en lugar de
 eliminarlos. Este documento no sustituye esa verificación de dependencias.

@@ -38,7 +38,7 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
     val displayed = target ?: retained
     val progress = remember { Animatable(0f) }
     var fingerProgress by remember { mutableStateOf<Float?>(null) }
-    var releaseVelocity by remember { mutableFloatStateOf(0f) }
+    var releaseVelocity by remember { mutableStateOf<Float?>(null) }
     var dismissDown by remember { mutableStateOf(false) }
     var handoffProgress by remember { mutableFloatStateOf(1f) }
     var translationCorrection by remember { mutableFloatStateOf(0f) }
@@ -54,7 +54,7 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
                 // A frame clock can stop midway through a sheet animation behind another app.
                 // Settle offscreen, so returning cannot expose an invisible modal barrier.
                 progress.snapTo(if (currentTarget == null) 0f else 1f)
-                retained = currentTarget; fingerProgress = null; releaseVelocity = 0f; dismissDown = false
+                retained = currentTarget; fingerProgress = null; releaseVelocity = null; dismissDown = false
             }
         }
         lifecycle.addObserver(observer)
@@ -63,8 +63,8 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
     LaunchedEffect(target, reduced) {
         if (target != null) retained = target
         fingerProgress?.let { progress.snapTo(it); fingerProgress = null }
-        val velocity = releaseVelocity
-        releaseVelocity = 0f
+        val velocity = releaseVelocity ?: progress.velocity
+        releaseVelocity = null
         progress.animateTo(if (target != null) 1f else 0f,
             if (reduced) tween(120) else if (target == null) LauncherMotion.close() else LauncherMotion.panel(),
             initialVelocity = if (reduced) 0f else velocity)
@@ -96,7 +96,6 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
                         if (!dragging && distance.y > viewConfiguration.touchSlop) {
                             dragging = true
                             start = progress.value
-                            handoffProgress = start
                             val openingTravel = when (style) {
                                 SurfaceKind.Search -> -65 * density
                                 SurfaceKind.Controls -> -size.height * .3f
@@ -107,7 +106,12 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
                                 SurfaceKind.Controls -> size.height * .3f
                                 else -> 0f
                             }
-                            translationCorrection = (1f - start) * (openingTravel - closingTravel)
+                            val previousBlend = if (start <= handoffProgress) start / handoffProgress.coerceAtLeast(.001f)
+                                else (1f - start) / (1f - handoffProgress).coerceAtLeast(.001f)
+                            val visibleTranslation = (1f - start) * (if (dismissDown) closingTravel else openingTravel) +
+                                if (dismissDown) translationCorrection * previousBlend else 0f
+                            translationCorrection = visibleTranslation - (1f - start) * closingTravel
+                            handoffProgress = start
                             dismissDown = true
                             scope.launch { progress.stop() }
                         }

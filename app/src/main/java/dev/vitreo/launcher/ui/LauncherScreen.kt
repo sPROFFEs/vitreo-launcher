@@ -552,7 +552,10 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                         Sheet.Widgets -> WidgetGallery(widgets, appearance.showWidgets, { model.appearance(ui.layout.appearance.copy(showWidgets = it)) },
                             onConfigureWidget, ::closeSurface, model::message, widgetGalleryHomePage)
                         is Sheet.Widget -> WidgetEditor(widgets, current.id,
-                            homeGrid.flatMap { it.widgets }.firstOrNull { it.id == current.id }, homeGrid.size,
+                            homeGrid.flatMap { it.widgets }.firstOrNull { it.id == current.id }?.let { cell ->
+                                val saved = widgets.homePlacements.first { it.id == current.id }
+                                cell.copy(columns = saved.columns, rows = saved.rows)
+                            }, homeGrid.size,
                             (pager.currentPage - 1).coerceIn(0, homeGrid.lastIndex),
                             onHome = { widgets.placeOnHome(it); closeSurface(); revealWidget = it.id },
                             onToday = { widgets.moveToToday(current.id); closeSurface(); revealWidget = current.id },

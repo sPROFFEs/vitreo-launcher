@@ -13,6 +13,7 @@ import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Process
+import android.os.Build
 import androidx.core.graphics.drawable.toBitmap
 import java.text.Collator
 import java.util.Locale
@@ -100,6 +101,29 @@ class AppCatalog(private val context: Context) {
             .sortedWith { a, b -> collator.compare(a.label, b.label).takeIf { it != 0 } ?: a.id.compareTo(b.id) }
         artwork.keys.retainAll(live)
         return records
+    }
+
+    /** Confirm removal separately from a missing launcher activity. */
+    @Suppress("DEPRECATION")
+    fun confirmedRemovedPackages(known: Set<String>, apps: List<AppRecord>, unavailable: Set<String> = emptySet()): Set<String> {
+        // Also clean old ghosts after the launcher was stopped during uninstall.
+        // Both package APIs must confirm absence; disabled apps, alias changes,
+        // update/storage transitions and query errors keep their placements.
+        if (queryStats.queryFailure != "none") return emptySet()
+        val live = apps.mapTo(mutableSetOf()) { it.packageName }
+        val launcher = context.getSystemService(LauncherApps::class.java)
+        fun absent(query: () -> Any?): Boolean = try { query() == null }
+            catch (_: PackageManager.NameNotFoundException) { true }
+            catch (_: Exception) { false }
+        return known.map { it.substringBefore('/') }.distinct().filterTo(mutableSetOf()) { name ->
+            name !in live && name !in unavailable && absent {
+                launcher.getApplicationInfo(name, PackageManager.MATCH_DISABLED_COMPONENTS, Process.myUserHandle())
+            } && absent {
+                if (Build.VERSION.SDK_INT >= 35) context.packageManager.getApplicationInfo(name,
+                    PackageManager.ApplicationInfoFlags.of(PackageManager.MATCH_DISABLED_COMPONENTS.toLong() or PackageManager.MATCH_ARCHIVED_PACKAGES))
+                else context.packageManager.getApplicationInfo(name, PackageManager.MATCH_DISABLED_COMPONENTS)
+            }
+        }
     }
 
     /** Preserve placement when an app swaps its launcher alias to change its icon. */

@@ -144,3 +144,11 @@ workflow** sobre la rama deseada. El script de smoke borra datos y cambia HOME
 únicamente en un emulador desechable. La guía de pruebas físicas está en
 [docs/TESTING.md](docs/TESTING.md); el diseño de movimiento en
 [docs/MOTION.md](docs/MOTION.md).
+
+La matriz también compila `:uninstallFixture:assembleDebug`, una APK Java mínima
+de `test-fixtures/uninstall-app`. `device_smoke.py` comprueba antes que el destino
+sea un emulador desechable y copia esta APK a `/data/local/tmp/`. La prueba instala,
+actualiza y desinstala exclusivamente `dev.vitreo.fixture.uninstall`; comprueba Home,
+dock, carpetas y recientes. No toca apps de usuario ni se distribuye ese fixture
+con la release. Una prueba separada comprueba la limpieza de paquetes ausentes al
+refrescar y la conservación de alias deshabilitados y paquetes en actualización.

@@ -2,6 +2,8 @@
 
 ## 0.5.0 — Widgets en Home y movimiento — 2026-10-17
 
+- Desinstalar elimina automáticamente los accesos de Home, dock, carpetas y sugerencias. Las actualizaciones conservan su posición; una comprobación al refrescar limpia fantasmas de desinstalaciones ocurridas con el launcher cerrado.
+
 - Widgets Android en Home y Today, tamaños Small/Medium/Large, cambio de página, arrastre en edición y traslado entre vistas sin volver a vincularlos.
 - Cuadrícula que reserva rectángulos de widgets y redistribuye las apps sin eliminarlas. Conserva tamaño/página al reiniciar y migra los widgets anteriores a Today.
 - Más margen superior/interior en el catálogo; preferencia por imágenes completas del proveedor frente a layouts que dependen de un host vivo. Los widgets solo notifican cambios de tamaño cuando cambian sus dimensiones.

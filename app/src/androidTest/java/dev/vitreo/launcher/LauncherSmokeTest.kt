@@ -108,8 +108,11 @@ class LauncherSmokeTest {
             compose.onNodeWithText("Edit Home Screen").performClick()
             compose.onNodeWithTag("add_home_widgets").performClick()
             compose.onNodeWithTag("widget_search").performScrollTo().performTextInput("Vitreo Test Widget")
-            compose.onNodeWithText("Vitreo Test Widget").performScrollTo().performClick()
-            compose.waitUntil(10_000) { WidgetController(context).ids.any { it !in before } }
+            compose.onNode(hasText("Vitreo Test Widget") and hasClickAction() and !hasSetTextAction()).performScrollTo().performClick()
+            compose.waitUntil(10_000) {
+                context.getSharedPreferences("today-widgets", Context.MODE_PRIVATE).getString("ids", "").orEmpty()
+                    .split(',').mapNotNull(String::toIntOrNull).any { it !in before }
+            }
             id = WidgetController(context).ids.first { it !in before }
             compose.onNodeWithTag("home_widget:$id").assertIsDisplayed()
             compose.onNodeWithTag("native_widget:$id").assertIsDisplayed()
@@ -447,6 +450,41 @@ class LauncherSmokeTest {
         .executeShellCommand(command).use { descriptor ->
             java.io.FileInputStream(descriptor.fileDescriptor).bufferedReader().use { it.readText() }
         }
+
+    @Test fun uninstallRemovesAllGhostsButAnApkUpdatePreservesPlacement() {
+        awaitReady()
+        assertEquals("This scenario only changes a disposable emulator", "1", shell("getprop ro.kernel.qemu").trim())
+        val fixture = "dev.vitreo.fixture.uninstall"
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        try {
+            assertTrue(shell("pm install -r /data/local/tmp/vitreo-uninstall-fixture.apk").contains("Success"))
+            compose.waitUntil(15_000) { model.ui.value.apps.count { it.packageName == fixture } == 3 }
+            val ids = model.ui.value.apps.filter { it.packageName == fixture }.map { it.id }
+            val partner = model.ui.value.layout.home.filterIsInstance<dev.vitreo.launcher.core.HomeEntry.App>().first { it.id !in ids }.id
+            compose.runOnUiThread {
+                model.dockDrop(ids[0], 0)
+                model.folder(ids[1], partner)
+                model.recordLaunch(ids[2])
+            }
+            val placed = model.ui.value.layout
+            val oldRecord = model.ui.value.apps.first { it.id == ids[0] }
+            assertTrue(placed.dock.contains(ids[0]))
+            assertTrue(placed.home.any { it is dev.vitreo.launcher.core.HomeEntry.Folder && ids[1] in it.apps })
+            assertTrue(placed.home.any { it.id == ids[2] })
+            assertTrue(shell("pm install -r /data/local/tmp/vitreo-uninstall-fixture.apk").contains("Success"))
+            compose.waitUntil(15_000) { model.ui.value.apps.any { it.id == ids[0] && it !== oldRecord } }
+            assertEquals("APK replacement must preserve the Dock", placed.dock, model.ui.value.layout.dock)
+            assertEquals("APK replacement must preserve Home and folders", placed.home, model.ui.value.layout.home)
+            assertTrue(shell("pm uninstall $fixture").contains("Success"))
+            compose.waitUntil(15_000) {
+                val ui = model.ui.value
+                ui.apps.none { it.packageName == fixture } && ui.layout.placedApps().none { it in ids } &&
+                    ui.layout.knownApps.none { it in ids } && ui.recentApps.none { it in ids }
+            }
+            assertTrue("The surviving folder app must remain on Home", model.ui.value.layout.home.any { it.id == partner })
+            ids.forEach { compose.onNodeWithTag("home_entry:$it").assertDoesNotExist() }
+        } finally { shell("pm uninstall $fixture") }
+    }
 
     private fun awaitFocusedWindow(packageName: String) {
         val automation = InstrumentationRegistry.getInstrumentation().uiAutomation

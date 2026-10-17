@@ -10,7 +10,14 @@ de iconos. Si un componente desaparece y otro del mismo paquete apunta a la mism
 actividad, se remapea su acceso conservando el dock, carpeta o posición de inicio.
 El núcleo `LayoutOps` mantiene una lista ordenada de entradas, carpetas y cuatro
 plazas de dock. `LauncherState.sanitized()` limita tamaños, elimina duplicados y
-sanea la apariencia. Una app ausente conserva su acceso hasta que se quite.
+sanea la apariencia. Una actividad temporalmente ausente conserva su posición. Una desinstalación
+confirmada elimina todas las actividades de ese paquete de Home, dock, carpetas,
+knownApps y sugerencias. Las carpetas de una sola app se convierten en accesos y las
+vacías desaparecen. LauncherApps distingue la desinstalación de una actualización;
+los broadcasts PACKAGE_REMOVED con EXTRA_REPLACING no borran la distribución.
+Al refrescar también se contrastan los paquetes ausentes con LauncherApps y
+PackageManager: solo se limpian cuando ambas APIs confirman su ausencia, sin
+borrar apps deshabilitadas, archivadas, en actualización o con errores de consulta.
 Antes de lanzar se comprueba su componente contra el catálogo actual; una copia
 no puede introducir intent URIs ejecutables.
 
@@ -61,6 +68,8 @@ El host de cada widget tiene recorte nativo por outline y por sus límites; no
 depende solo del clip de Compose para encerrar RemoteViews. Respeta la altura
 mínima y escala proporcionalmente si su tamaño mínimo supera el rectángulo disponible. Los cambios de opciones de
 tamaño solo se envían cuando cambian sus dimensiones, no en cada tick del reloj.
+En Home se respetan los mínimos redimensionables del proveedor y se usa la API de
+tamaños exactos de Android 12 para que RemoteViews pueda elegir su diseño adaptable.
 La galería renderiza el diseño a su proporción original y ajusta el bitmap dentro
 de la tarjeta, con margen exterior e interior. Prioriza las previsualizaciones
 generadas de Android 15 y las imágenes suministradas sobre layouts que pueden

@@ -5,3 +5,5 @@ dependencyResolutionManagement {
 }
 rootProject.name = "Vitreo"
 include(":app")
+include(":uninstallFixture")
+project(":uninstallFixture").projectDir = file("test-fixtures/uninstall-app")

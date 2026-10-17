@@ -4,7 +4,9 @@ import android.graphics.Color as AndroidColor
 import android.view.View
 import android.widget.FrameLayout
 import android.appwidget.AppWidgetProviderInfo
+import android.appwidget.AppWidgetManager
 import android.content.ComponentName
+import android.content.pm.PackageManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.geometry.Offset
@@ -32,24 +34,33 @@ class WidgetPresentationDeviceTest {
     @get:Rule val compose = createComposeRule()
 
     @Test fun catalogPreviewHasClearSpaceAboveAndAroundItsContent() {
-        val resourceContext = InstrumentationRegistry.getInstrumentation().context
-        val provider = ComponentName(resourceContext.packageName, "PreviewFixture")
-        val info = AppWidgetProviderInfo().apply {
-            this.provider = provider
-            label = "Preview fixture"
-            previewLayout = resourceContext.resources.getIdentifier("widget_preview_fixture", "layout", resourceContext.packageName)
-            minWidth = 320; minHeight = 160
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val provider = ComponentName(instrumentation.context.packageName, WidgetFixtureProvider::class.java.name)
+        val automation = instrumentation.uiAutomation
+        automation.adoptShellPermissionIdentity("android.permission.CHANGE_COMPONENT_ENABLED_STATE")
+        try {
+            context.packageManager.setComponentEnabledSetting(provider, PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP)
+            var info: AppWidgetProviderInfo? = null
+            compose.waitUntil(10_000) {
+                info = AppWidgetManager.getInstance(context).installedProviders.firstOrNull { it.provider == provider }
+                info != null
+            }
+            val registered = checkNotNull(info)
+            compose.setContent { IosGroup(Modifier.testTag("gallery_card")) { WidgetPreview(registered) } }
+            val tag = "widget_preview:${provider.flattenToString()}"
+            compose.waitUntil(10_000) { compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty() }
+            val card = compose.onNodeWithTag("gallery_card").fetchSemanticsNode().boundsInRoot
+            val preview = compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot
+            val density = context.resources.displayMetrics.density
+            assertTrue("Preview touches the top of its card", preview.top - card.top >= 37f * density)
+            assertTrue(preview.left - card.left >= 35f * density)
+            assertTrue(card.right - preview.right >= 35f * density)
+            assertTrue(card.bottom - preview.bottom >= 25f * density)
+        } finally {
+            context.packageManager.setComponentEnabledSetting(provider, PackageManager.COMPONENT_ENABLED_STATE_DEFAULT, PackageManager.DONT_KILL_APP)
+            automation.dropShellPermissionIdentity()
         }
-        compose.setContent { IosGroup(Modifier.testTag("gallery_card")) { WidgetPreview(info) } }
-        val tag = "widget_preview:${provider.flattenToString()}"
-        compose.waitUntil(10_000) { compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty() }
-        val card = compose.onNodeWithTag("gallery_card").fetchSemanticsNode().boundsInRoot
-        val preview = compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot
-        val density = resourceContext.resources.displayMetrics.density
-        assertTrue("Preview touches the top of its card", preview.top - card.top >= 37f * density)
-        assertTrue(preview.left - card.left >= 35f * density)
-        assertTrue(card.right - preview.right >= 35f * density)
-        assertTrue(card.bottom - preview.bottom >= 25f * density)
     }
 
     @Test fun oversizedNativeContentStaysInsideItsRoundedWidgetCard() {

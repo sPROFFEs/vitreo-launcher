@@ -43,6 +43,8 @@ remain bounded. Outgoing content lives until its last frame. A drag stops the
 in-flight spring and resumes from the visible value, using the finger's velocity.
 Search/Control Center follow a downward dismissal instead of moving against it.
 Provider resize options are sent only when the widget's rendered size changes.
+Home widgets respect provider resize minima and report their exact dp size with
+Android 12's size-list API, as described in [flexible widget layouts](https://developer.android.com/develop/ui/views/appwidgets/layouts).
 
 On activity stop, modal progress settles offscreen so an interrupted frame clock
 cannot leave an invisible touch barrier. Battery Saver and Reduce Motion use the

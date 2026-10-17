@@ -62,19 +62,45 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private var wallpaperJob: Job? = null
     private var loaded = false
     private val launcherApps = app.getSystemService(LauncherApps::class.java)
+    private val removedPackages = mutableSetOf<String>()
+    private val unavailablePackages = mutableSetOf<String>()
     private val appChanges = object : LauncherApps.Callback() {
-        private fun changed(packages: Array<out String>) {
+        private fun changed(packages: Array<out String>, user: UserHandle) {
+            if (user != android.os.Process.myUserHandle()) return
             packages.forEach(catalog::invalidate)
             refresh()
         }
-        override fun onPackageAdded(packageName: String, user: UserHandle) = changed(arrayOf(packageName))
-        override fun onPackageRemoved(packageName: String, user: UserHandle) = changed(arrayOf(packageName))
-        override fun onPackageChanged(packageName: String, user: UserHandle) = changed(arrayOf(packageName))
-        override fun onPackagesAvailable(packageNames: Array<out String>, user: UserHandle, replacing: Boolean) = changed(packageNames)
-        override fun onPackagesUnavailable(packageNames: Array<out String>, user: UserHandle, replacing: Boolean) = changed(packageNames)
+        override fun onPackageAdded(packageName: String, user: UserHandle) {
+            if (user == android.os.Process.myUserHandle()) { removedPackages.remove(packageName); unavailablePackages.remove(packageName) }
+            changed(arrayOf(packageName), user)
+        }
+        override fun onPackageRemoved(packageName: String, user: UserHandle) {
+            // LauncherApps explicitly distinguishes removal from an update.
+            if (user == android.os.Process.myUserHandle()) removedPackages.add(packageName)
+            changed(arrayOf(packageName), user)
+        }
+        override fun onPackageChanged(packageName: String, user: UserHandle) = changed(arrayOf(packageName), user)
+        override fun onPackagesAvailable(packageNames: Array<out String>, user: UserHandle, replacing: Boolean) {
+            if (user == android.os.Process.myUserHandle()) unavailablePackages.removeAll(packageNames.toSet())
+            changed(packageNames, user)
+        }
+        override fun onPackagesUnavailable(packageNames: Array<out String>, user: UserHandle, replacing: Boolean) {
+            if (user == android.os.Process.myUserHandle()) unavailablePackages.addAll(packageNames)
+            changed(packageNames, user)
+        }
     }
     private val receiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) { refresh() }
+        override fun onReceive(context: Context?, intent: Intent?) {
+            intent?.data?.schemeSpecificPart?.let { name ->
+                when (intent.action) {
+                    Intent.ACTION_PACKAGE_REMOVED -> if (intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)) unavailablePackages.add(name)
+                        else removedPackages.add(name)
+                    Intent.ACTION_PACKAGE_ADDED, Intent.ACTION_PACKAGE_REPLACED -> { removedPackages.remove(name); unavailablePackages.remove(name) }
+                }
+                catalog.invalidate(name)
+            }
+            refresh()
+        }
     }
 
     private val powerReceiver = object : BroadcastReceiver() {
@@ -117,20 +143,26 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         catalogJob?.cancel()
         catalogJob = viewModelScope.launch {
             try {
-                val (apps, replacements) = withContext(Dispatchers.IO) {
+                val explicitRemovals = removedPackages.toSet()
+                val unavailable = unavailablePackages.toSet()
+                val known = _ui.value.layout.knownApps
+                val (apps, replacements, removed) = withContext(Dispatchers.IO) {
                     val records = catalog.load()
-                    records to catalog.aliasReplacements(_ui.value.layout.knownApps, records)
+                    val removed = explicitRemovals + catalog.confirmedRemovedPackages(known, records, unavailable)
+                    val remaining = records.filterNot { it.packageName in removed }
+                    Triple(remaining, catalog.aliasReplacements(known, remaining), removed)
                 }
                 ensureActive()
                 val installed = if (_ui.value.layout.initialized) apps.map { it.id }
                     else catalog.preferredDock(apps) + apps.map { it.id }
-                val merged = LayoutOps.reconcile(LayoutOps.remapApps(_ui.value.layout, replacements), installed.distinct())
+                val merged = LayoutOps.reconcile(LayoutOps.remapApps(LayoutOps.removePackages(_ui.value.layout, removed), replacements), installed.distinct())
                 val saving = app.getSystemService(PowerManager::class.java)?.isPowerSaveMode == true
                 val before = _ui.value
-                val recent = before.recentApps.map { replacements[it] ?: it }.distinct()
+                val recent = before.recentApps.map { replacements[it] ?: it }.filterNot { it.substringBefore('/') in removed }.distinct()
                 _ui.value = before.copy(layout = merged, apps = apps, ready = true, powerSaver = saving, recentApps = recent)
                 if (recent != before.recentApps) recentPreferences.edit().putString("apps", recent.joinToString("|")).apply()
                 if (merged != before.layout) saves.trySend(merged)
+                removedPackages.removeAll(removed)
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 _ui.value = _ui.value.copy(ready = true)

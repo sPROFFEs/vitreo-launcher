@@ -1,6 +1,18 @@
 package dev.vitreo.launcher.core
 
 object LayoutOps {
+    /** Only confirmed package removals. A temporarily missing activity/alias is insufficient. */
+    fun removePackages(state: LauncherState, packages: Set<String>): LauncherState {
+        if (packages.isEmpty()) return state
+        fun removed(id: String) = id.substringBefore('/') in packages
+        return state.copy(dock = state.dock.filterNot(::removed), home = state.home.mapNotNull {
+            when (it) {
+                is HomeEntry.App -> it.takeUnless { removed(it.id) }
+                is HomeEntry.Folder -> it.copy(apps = it.apps.filterNot(::removed))
+            }
+        }, knownApps = state.knownApps.filterNot(::removed).toSet()).sanitized()
+    }
+
     fun remapApps(state: LauncherState, replacements: Map<String, String>): LauncherState {
         if (replacements.isEmpty()) return state
         val valid = replacements.filter { (from, to) -> isAppId(from) && isAppId(to) }

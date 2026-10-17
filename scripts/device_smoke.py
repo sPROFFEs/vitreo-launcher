@@ -133,6 +133,10 @@ def main() -> None:
     result_path = output / "smoke-result.json"
     result_path.unlink(missing_ok=True)
     try:
+        fixtures = list((ROOT / "test-fixtures/uninstall-app/build/outputs/apk/debug").glob("*.apk"))
+        if len(fixtures) != 1:
+            raise RuntimeError("Build :uninstallFixture:assembleDebug before device smoke tests.")
+        adb("push", str(fixtures[0]), "/data/local/tmp/vitreo-uninstall-fixture.apk")
         count = run_instrumentation()
         native_screens = ["category-light", "category-dark", "settings-dark", "wallpaper-fit", "app-menu", "app-menu-more", "alphabetical-library", "installed-icon", "large-icons", "home-widget-small", "home-widget-medium"]
         if args.api >= 33:

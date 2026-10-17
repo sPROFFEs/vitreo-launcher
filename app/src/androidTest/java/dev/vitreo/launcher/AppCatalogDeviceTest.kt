@@ -79,4 +79,15 @@ class AppCatalogDeviceTest {
         first.filter { it.packageName != selected.packageName }.forEach { assertSame(it, again[it.id]) }
         assertEquals(first.map { it.id }.toSet(), again.keys)
     }
+
+    @Test fun coldRefreshConfirmsMissingPackagesWithoutDeletingDisabledAliasesOrUpdates() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val catalog = AppCatalog(instrumentation.targetContext)
+        val apps = catalog.load()
+        val missing = "dev.vitreo.fixture.definitelyabsent"
+        val disabledAlias = instrumentation.context.packageName + "/dev.vitreo.launcher.CatalogDefaultIcon"
+        val known = setOf("$missing/Main", disabledAlias)
+        assertEquals(setOf(missing), catalog.confirmedRemovedPackages(known, apps))
+        assertEquals(emptySet<String>(), catalog.confirmedRemovedPackages(known, apps, setOf(missing)))
+    }
 }

@@ -28,6 +28,7 @@ Debug and Preview are separate apps with separate data and test signatures.
 - **Today:** swipe right from the first Home page for widgets and recent suggestions.
 - **Search:** tap Search or swipe down. Search locally by app name or package.
 - **App Library:** swipe past the last Home page. Open a category or use the alphabetical index.
+- **Uninstalling:** confirmed removals clear Home, Dock, folders and suggestions automatically. APK updates preserve placement.
 - **App actions:** hold an icon for shortcuts, folders, Dock and Edit Home Screen.
 - **Settings:** use the gear in Today or in Edit Home Screen. Choose icon size up to
   84 dp, icon artwork/treatment, appearance, wallpaper and Motion & Glass options.
@@ -42,6 +43,8 @@ Debug and Preview are separate apps with separate data and test signatures.
 4. Tap the **…** below a widget to change its size or page, move it between Home
    and Today, or remove it. In edit mode, hold and drag a Home widget; pause at an
    edge to change pages. A trailing page is available during a widget drag.
+
+**Configure Widget** is available when the provider supports reconfiguration.
 
 Apps make room around widget rectangles. Page and size survive app restarts;
 existing Today widgets stay in Today after upgrading. Up to eight native widgets
