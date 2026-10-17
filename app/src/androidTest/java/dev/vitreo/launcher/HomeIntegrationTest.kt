@@ -56,6 +56,9 @@ class HomeIntegrationTest {
     // AOSP ActivityRecord therefore assigns a standard task to that launch,
     // even with CATEGORY_HOME. The shell's implicit HOME gets the real task type.
     @Before fun launchSystemHome() {
+        // Keep a real non-HOME task in Overview. A fresh emulator can otherwise
+        // exercise an empty/task-removal transition instead of an app switch.
+        check(shell("am start -W -a android.settings.SETTINGS").contains("Status: ok"))
         shell("am start -W -a android.intent.action.MAIN -c android.intent.category.HOME -f 0x10008000")
     }
     @After fun restoreHomeAndCloseActivity() {
@@ -109,9 +112,7 @@ class HomeIntegrationTest {
                         // Overview uses an input consumer, so Android can report
                         // no focused window and keep HOME resumed underneath.
                         // Accessibility windows contain only visible surfaces.
-                        shell("dumpsys window").lineSequence().any {
-                            "RecentsActivity" in it
-                        } && !runCatching { activity().hasWindowFocus() }.getOrDefault(true) && automation.windows.any {
+                        !runCatching { activity().hasWindowFocus() }.getOrDefault(true) && automation.windows.any {
                             it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION &&
                                 it.root?.packageName?.toString() == "com.google.android.apps.nexuslauncher"
                         }
@@ -124,6 +125,9 @@ class HomeIntegrationTest {
                         }, failure)
                     throw failure
                 }
+                // Verify the actual surface once, without repeatedly taking
+                // WindowManager's global dump lock during its opening animation.
+                assertTrue(shell("dumpsys window").contains("RecentsActivity"))
                 automation.waitForIdle(200, 5_000)
                 shell("input keyevent KEYCODE_HOME")
                 awaitReady()

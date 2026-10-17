@@ -98,6 +98,12 @@ class LauncherSmokeTest {
     private fun returnHome() {
         compose.runOnUiThread { compose.activity.startActivity(Intent(compose.activity, MainActivity::class.java)
             .setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithTag("launcher_root").fetchSemanticsNodes(atLeastOneRootRequired = false)
+                .any { it.config.getOrNull(DockVisibilityKey) == 1f } &&
+                compose.onAllNodesWithTag("control_center").fetchSemanticsNodes().isEmpty() &&
+                compose.onAllNodesWithTag("search_field").fetchSemanticsNodes().isEmpty()
+        }
         compose.waitForIdle()
     }
     private fun openControlsFromEdge() {
@@ -249,6 +255,7 @@ class LauncherSmokeTest {
             assertEquals(next, audio.getStreamVolume(AudioManager.STREAM_MUSIC))
             compose.onNodeWithTag("control_slider:Home brightness").performSemanticsAction(SemanticsActions.SetProgress) { it(.35f) }
             assertEquals(.35f, model.ui.value.layout.appearance.homeBrightness, .001f)
+            compose.waitForIdle() // Window attributes change in the following composition commit.
             compose.runOnUiThread { assertEquals(.35f, compose.activity.window.attributes.screenBrightness, .001f) }
             compose.onNodeWithTag("system_brightness").performClick()
             assertEquals(-1f, model.ui.value.layout.appearance.homeBrightness, .001f)
