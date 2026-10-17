@@ -11,11 +11,16 @@ import android.os.Build
 import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
 import android.net.Uri
+import android.media.AudioManager
+import dev.vitreo.launcher.core.DEFAULT_TODAY_SECTIONS
+import dev.vitreo.launcher.core.DEFAULT_CONTROL_SHORTCUTS
+import dev.vitreo.launcher.ui.DockVisibilityKey
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.*
@@ -88,6 +93,186 @@ class LauncherSmokeTest {
         it.config.getOrNull(SemanticsProperties.TestTag)?.startsWith("home_entry:") == true
     }).fetchSemanticsNodes().sortedWith(compareBy({ it.boundsInRoot.top }, { it.boundsInRoot.left }))
         .map { it.config[SemanticsProperties.TestTag] }
+
+
+    private fun returnHome() {
+        compose.runOnUiThread { compose.activity.startActivity(Intent(compose.activity, MainActivity::class.java)
+            .setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        compose.waitForIdle()
+    }
+    private fun openControlsFromEdge() {
+        val startY = with(compose.density) { 100.dp.toPx() }
+        val distance = with(compose.density) { 65.dp.toPx() }
+        compose.onNodeWithTag("home_workspace").performTouchInput {
+            swipe(Offset(width * .8f, startY), Offset(width * .8f, startY + distance), 400)
+        }
+        compose.onNodeWithTag("control_center").assertIsDisplayed()
+    }
+    private fun openLibrary() {
+        repeat(10) {
+            if (runCatching { compose.onNodeWithTag("app_library").assertIsDisplayed() }.isFailure)
+                compose.onNodeWithTag("home_workspace").performTouchInput { swipeLeft() }
+        }
+        compose.onNodeWithTag("app_library").assertIsDisplayed()
+    }
+
+    @Test fun dockTracksPagerInBothDirectionsWithoutRepackingHome() {
+        awaitReady()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val placed = model.ui.value.layout.placedApps()
+        val rows = compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[HomeRowsKey]
+        fun visibility() = compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[DockVisibilityKey]
+        fun intermediate(towardsToday: Boolean) {
+            compose.onNodeWithTag("home_workspace").performTouchInput {
+                down(Offset(width * .5f, height * .45f))
+                moveTo(Offset(width * (if (towardsToday) .83f else .77f), height * .45f), delayMillis = 250)
+            }
+            try {
+                assertTrue("Dock must follow the finger, got ${visibility()}", visibility() > .05f && visibility() < .95f)
+                if (towardsToday) captureEvidence("animated-dock")
+                compose.onNodeWithTag("home_workspace").performTouchInput {
+                    moveTo(Offset(width * .5f, height * .45f), delayMillis = 300)
+                }
+            } finally { compose.onNodeWithTag("home_workspace").performTouchInput { up() } }
+        }
+        intermediate(true)
+        assertEquals(1f, visibility(), .01f)
+        compose.onNodeWithTag("home_workspace").performTouchInput { swipeRight() }
+        assertEquals(0f, visibility(), .01f)
+        returnHome()
+        openLibrary()
+        assertEquals(0f, visibility(), .01f)
+        intermediate(false)
+        assertEquals(0f, visibility(), .01f)
+        returnHome()
+        assertEquals(1f, visibility(), .01f)
+        assertEquals(rows, compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[HomeRowsKey])
+        assertEquals(placed, model.ui.value.layout.placedApps())
+    }
+
+    @Test fun todayCardsCanBeReorderedRemovedRestoredAndMovedHome() {
+        awaitReady()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val original = model.ui.value.layout.appearance
+        try {
+            compose.runOnUiThread { model.appearance(original.copy(todaySections = DEFAULT_TODAY_SECTIONS, hiddenTodaySections = emptySet(), showWidgets = false)) }
+            compose.onNodeWithTag("home_workspace").performTouchInput { swipeRight() }
+            compose.onNodeWithTag("edit_today").performClick()
+            compose.onNodeWithTag("today_page").performScrollToNode(hasTestTag("today_up:suggestions"))
+            compose.onNodeWithTag("today_up:suggestions").performClick()
+            assertEquals("suggestions", model.ui.value.layout.appearance.todaySections.first())
+            captureEvidence("today-customized")
+            for (id in listOf("clock_calendar", "suggestions")) {
+                compose.onNodeWithTag("today_page").performScrollToNode(hasTestTag("remove_today:$id"))
+                compose.onNodeWithTag("remove_today:$id").performClick()
+            }
+            assertEquals(setOf("clock_calendar", "suggestions"), model.ui.value.layout.appearance.hiddenTodaySections)
+            assertTrue(!model.ui.value.layout.appearance.showWidgets)
+            compose.activityRule.scenario.recreate()
+            awaitReady()
+            compose.onNodeWithTag("home_workspace").performTouchInput { swipeRight() }
+            compose.onNodeWithTag("today_section:clock_calendar").assertDoesNotExist()
+            compose.onNodeWithTag("today_section:suggestions").assertDoesNotExist()
+            compose.onNodeWithTag("edit_today").performClick()
+            compose.onNodeWithTag("today_page").performScrollToNode(hasTestTag("reset_today"))
+            compose.onNodeWithTag("reset_today").performClick()
+            assertEquals(DEFAULT_TODAY_SECTIONS, model.ui.value.layout.appearance.todaySections)
+            assertTrue(model.ui.value.layout.appearance.hiddenTodaySections.isEmpty())
+            compose.onNodeWithTag("today_page").performScrollToNode(hasTestTag("today_move_home"))
+            compose.onNodeWithTag("today_move_home").performClick()
+            assertTrue(model.ui.value.layout.appearance.showWidgets)
+            assertTrue("clock_calendar" in model.ui.value.layout.appearance.hiddenTodaySections)
+        } finally { compose.runOnUiThread { model.appearance(original) } }
+    }
+
+    @Test fun controlsOpenFromEveryPageDismissUpwardAndCanBeDisabled() {
+        awaitReady()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val original = model.ui.value.layout.appearance
+        try {
+            compose.runOnUiThread { model.appearance(original.copy(controlCenter = true)) }
+            openControlsFromEdge()
+            compose.onNodeWithContentDescription("Internet settings").assertIsDisplayed()
+            compose.onNodeWithTag("control_slider:Media volume").assertIsDisplayed()
+            captureEvidence("control-center")
+            compose.onNodeWithTag("control_center").performTouchInput {
+                swipe(Offset(width * .5f, height - 20f), Offset(width * .5f, height * .55f), 350)
+            }
+            compose.onNodeWithTag("control_center").assertDoesNotExist()
+            compose.onNodeWithTag("home_workspace").performTouchInput { swipeRight() }
+            compose.onNodeWithTag("today_controls").performClick()
+            compose.onNodeWithTag("control_center").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Close").performClick()
+            compose.onNodeWithTag("today_page").assertIsDisplayed()
+            returnHome()
+            openLibrary()
+            openControlsFromEdge()
+            compose.onNodeWithContentDescription("Close").performClick()
+            compose.onNodeWithTag("app_library").assertIsDisplayed()
+            returnHome()
+            openSettings()
+            compose.onNodeWithText("Control Center").performClick()
+            compose.onNodeWithTag("control_center_switch").performClick()
+            assertTrue(!model.ui.value.layout.appearance.controlCenter)
+            compose.onNodeWithText("Done").performClick()
+            compose.onNodeWithTag("today_controls").assertDoesNotExist()
+            returnHome()
+            val startY = with(compose.density) { 100.dp.toPx() }
+            compose.onNodeWithTag("home_workspace").performTouchInput {
+                swipe(Offset(width * .8f, startY), Offset(width * .8f, startY + 220f), 400)
+            }
+            compose.onNodeWithTag("control_center").assertDoesNotExist()
+            compose.onNodeWithTag("search_field").assertExists()
+            compose.activityRule.scenario.recreate()
+            awaitReady()
+            assertTrue(!model.ui.value.layout.appearance.controlCenter)
+        } finally { compose.runOnUiThread { model.appearance(original) } }
+    }
+
+    @Test fun controlsChangeRealVolumeAndPersistHomeBrightnessAndShortcuts() {
+        awaitReady()
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val qemu = instrumentation.uiAutomation.executeShellCommand("getprop ro.kernel.qemu").use { fd ->
+            java.io.FileInputStream(fd.fileDescriptor).bufferedReader().use { it.readText().trim() }
+        }
+        check(qemu == "1") // Never change a personal device's media volume in CI fixtures.
+        val audio = compose.activity.getSystemService(AudioManager::class.java)
+        val oldVolume = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
+        val maximum = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val original = model.ui.value.layout.appearance
+        try {
+            compose.runOnUiThread { model.appearance(original.copy(controlCenter = true, homeBrightness = -1f, controlShortcuts = DEFAULT_CONTROL_SHORTCUTS)) }
+            openControlsFromEdge()
+            val next = if (oldVolume < maximum) oldVolume + 1 else oldVolume - 1
+            compose.onNodeWithTag("control_slider:Media volume").performSemanticsAction(SemanticsActions.SetProgress) { it(next.toFloat() / maximum) }
+            assertEquals(next, audio.getStreamVolume(AudioManager.STREAM_MUSIC))
+            compose.onNodeWithTag("control_slider:Home brightness").performSemanticsAction(SemanticsActions.SetProgress) { it(.35f) }
+            assertEquals(.35f, model.ui.value.layout.appearance.homeBrightness, .001f)
+            compose.runOnUiThread { assertEquals(.35f, compose.activity.window.attributes.screenBrightness, .001f) }
+            compose.onNodeWithTag("system_brightness").performClick()
+            assertEquals(-1f, model.ui.value.layout.appearance.homeBrightness, .001f)
+            compose.onNodeWithTag("control_slider:Home brightness").performSemanticsAction(SemanticsActions.SetProgress) { it(.35f) }
+            compose.onNodeWithTag("edit_controls").performClick()
+            compose.onNodeWithTag("control_option:camera").performScrollTo().performClick()
+            compose.onNodeWithTag("control_option:nfc").performScrollTo().performClick()
+            compose.onNodeWithContentDescription("Move NFC up").performScrollTo().performClick()
+            assertTrue("camera" !in model.ui.value.layout.appearance.controlShortcuts)
+            assertTrue(model.ui.value.layout.appearance.controlShortcuts.indexOf("nfc") < model.ui.value.layout.appearance.controlShortcuts.lastIndex)
+            captureEvidence("control-center-edit")
+            compose.onNodeWithTag("edit_controls").performClick()
+            compose.onNodeWithTag("control:Camera").assertDoesNotExist()
+            compose.activityRule.scenario.recreate()
+            awaitReady()
+            assertEquals(.35f, model.ui.value.layout.appearance.homeBrightness, .001f)
+            assertTrue("camera" !in model.ui.value.layout.appearance.controlShortcuts)
+            assertTrue("nfc" in model.ui.value.layout.appearance.controlShortcuts)
+            compose.runOnUiThread { assertEquals(.35f, compose.activity.window.attributes.screenBrightness, .001f) }
+        } finally {
+            audio.setStreamVolume(AudioManager.STREAM_MUSIC, oldVolume, 0)
+            compose.runOnUiThread { model.appearance(original) }
+        }
+    }
 
     @Test fun cyberpunkThemeAppliesAcrossHomeLibraryAndMenusWithoutChangingLayout() {
         awaitReady()
@@ -240,9 +425,11 @@ class LauncherSmokeTest {
             compose.onNodeWithTag("edit_widget:$id").performClick()
             compose.onNodeWithText("Today", useUnmergedTree = true).performClick()
             compose.onNodeWithTag("today_page").assertIsDisplayed()
-            compose.onNodeWithTag("native_widget:$id").performScrollTo().assertIsDisplayed()
+            compose.onNodeWithTag("today_page").performScrollToNode(hasTestTag("native_widget:$id"))
+            compose.onNodeWithTag("native_widget:$id").assertIsDisplayed()
             assertTrue(id in WidgetController(context).todayIds)
-            compose.onNodeWithTag("edit_widget:$id").performScrollTo().performClick()
+            compose.onNodeWithTag("today_page").performScrollToNode(hasTestTag("edit_widget:$id"))
+            compose.onNodeWithTag("edit_widget:$id").performClick()
             compose.onNodeWithText("Remove Widget").performScrollTo().performClick()
             assertTrue(id !in WidgetController(context).ids)
             assertEquals(null, manager.getAppWidgetInfo(id))
@@ -406,6 +593,7 @@ class LauncherSmokeTest {
     @Test fun widgetGalleryOpensFromToday() {
         awaitReady()
         compose.onNodeWithTag("home_workspace").performTouchInput { swipeRight() }
+        compose.onNodeWithTag("today_page").performScrollToNode(hasTestTag("today_add_widgets"))
         compose.onNodeWithContentDescription("Add Widgets").performClick()
         compose.onNodeWithTag("widgets_title").assertExists()
         compose.onNodeWithText("Clock & Calendar on Home").assertExists()

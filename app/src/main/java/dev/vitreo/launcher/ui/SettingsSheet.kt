@@ -42,7 +42,7 @@ import kotlin.math.roundToInt
 
 private enum class SettingsPage(val title: String) {
     Root("Settings"), Home("Home Screen"), Wallpaper("Wallpaper"), Glass("Motion & Glass"),
-    Backup("Layout & Backup"), About("About Vitreo"), Themes("Themes & Icons")
+    Backup("Layout & Backup"), About("About Vitreo"), Themes("Themes & Icons"), Controls("Control Center")
 }
 
 @Composable
@@ -55,7 +55,7 @@ private fun SettingsFootnote(text: String) {
 fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: () -> Unit,
     onAppearance: (Appearance) -> Unit, onSetHome: () -> Unit, onPhoto: () -> Unit, onEditPhoto: () -> Unit,
     photoBusy: Boolean, onExport: () -> Unit, onImport: () -> Unit, onDiagnostics: () -> Unit, onRefresh: () -> Unit,
-    onReset: () -> Unit, onLicenses: () -> Unit, onWidgets: () -> Unit) {
+    onReset: () -> Unit, onLicenses: () -> Unit, onWidgets: () -> Unit, onControls: () -> Unit) {
     var page by rememberSaveable { mutableStateOf(SettingsPage.Root) }
     var confirmation by remember { mutableStateOf<String?>(null) }
     val a = ui.layout.appearance
@@ -100,6 +100,7 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                             IosRow("Home Screen", "Icons & appearance") { page = SettingsPage.Home }; IosDivider()
                             IosRow("Wallpaper", if (a.usePhoto) "Photo" else "Collection") { page = SettingsPage.Wallpaper }; IosDivider()
                             IosRow("Motion & Glass") { page = SettingsPage.Glass }; IosDivider()
+                            IosRow("Control Center", if (a.controlCenter) "On" else "Off") { page = SettingsPage.Controls }; IosDivider()
                             IosRow("Widgets", onClick = onWidgets)
                         }
                         IosSectionLabel("General")
@@ -113,7 +114,7 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                             IosRow("About Vitreo", BuildConfig.VERSION_NAME) { page = SettingsPage.About }; IosDivider()
                             IosRow("Open source licenses", onClick = onLicenses)
                         }
-                        SettingsFootnote("Swipe down on Home for Search. Swipe down from the upper right for Control Center.")
+                        SettingsFootnote("Swipe down on Home for Search. Control Center opens with a short downward swipe from the upper-right area below Android's status bar.")
                     }
                     SettingsPage.Home -> {
                         HomeAppearancePreview(ui)
@@ -146,6 +147,24 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                             IosToggleRow("Clock & Calendar on Home", a.showWidgets) { onAppearance(a.copy(showWidgets = it)) }
                         }
                         SettingsFootnote("Press and hold an app to rearrange Home, create folders or move apps to the dock.")
+                    }
+                    SettingsPage.Controls -> {
+                        IosSectionLabel("Access")
+                        IosGroup {
+                            IosToggleRow("Enable Control Center", a.controlCenter, modifier = Modifier.testTag("control_center_switch")) {
+                                onAppearance(a.copy(controlCenter = it))
+                            }
+                            IosDivider()
+                            IosRow("Open Control Center", enabled = a.controlCenter, onClick = onControls)
+                        }
+                        SettingsFootnote("Available on Home, Today and App Library. Swipe down from the upper-right area below the status bar, or tap the controls button in Today. Swipe up from the panel's bottom handle to close it.")
+                        IosSectionLabel("Controls")
+                        SettingsFootnote("Media volume and flashlight use Android's public controls. Network, Focus, rotation and device shortcuts open Android settings. Playback buttons send commands to Android's current media player without reading track metadata.")
+                        SettingsFootnote("Brightness applies to Vitreo only. Use Display settings for system brightness. No camera recording, notification access or overlay service is used.")
+                        IosGroup {
+                            IosRow("Use system brightness", if (a.homeBrightness < 0) "Selected" else "Reset") { onAppearance(a.copy(homeBrightness = -1f)) }
+                        }
+                        SettingsFootnote("Turn Control Center off to remove its gesture and Today button. Android's own Quick Settings remain available from the status bar.")
                     }
                     SettingsPage.Glass -> {
                         if (a.themePreset == 1) {

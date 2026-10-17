@@ -47,6 +47,29 @@ class StateCodecTest {
         assertEquals("", state.appearance.iconPack)
         assertTrue(state.appearance.iconOverrides.isEmpty())
         assertTrue(state.appearance.syncWallpaper)
+        assertTrue(state.appearance.controlCenter)
+        assertEquals(DEFAULT_CONTROL_SHORTCUTS, state.appearance.controlShortcuts)
+        assertEquals(DEFAULT_TODAY_SECTIONS, state.appearance.todaySections)
+        assertTrue(state.appearance.hiddenTodaySections.isEmpty())
+        assertEquals(-1f, state.appearance.homeBrightness)
+    }
+    @Test fun controlAndTodayCustomizationSurvivesBackupWithoutChangingApps() {
+        val state = LauncherState(initialized = true, home = listOf(HomeEntry.App(a)), dock = listOf(b),
+            appearance = Appearance(controlCenter = false, controlShortcuts = listOf("timer", "camera", "nfc"),
+                homeBrightness = .35f, todaySections = listOf("widgets", "suggestions", "clock_calendar"),
+                hiddenTodaySections = setOf("clock_calendar"))).sanitized()
+        assertEquals(state, StateCodec.decode(StateCodec.encode(state)))
+        assertEquals(listOf(b, a), StateCodec.decode(StateCodec.encode(state)).placedApps())
+    }
+    @Test fun unknownCardsAndControlsCannotHideNativeWidgetsOrCreateArbitraryActions() {
+        val a = Appearance(controlShortcuts = listOf("intent://bad", "camera", "camera", "shell"),
+            todaySections = listOf("widgets", "widgets", "unknown"), hiddenTodaySections = setOf("widgets", "suggestions", "bad"),
+            homeBrightness = Float.NaN).sanitized()
+        assertEquals(listOf("camera"), a.controlShortcuts)
+        assertEquals(listOf("widgets", "clock_calendar", "suggestions"), a.todaySections)
+        assertEquals(setOf("suggestions"), a.hiddenTodaySections)
+        assertEquals(-1f, a.homeBrightness)
+        assertEquals(.02f, a.copy(homeBrightness = 0f).sanitized().homeBrightness)
     }
     @Test fun cyberThemeAndExternalIconReferencesSurviveBackupWithoutChangingPlacement() {
         val state = LauncherState(initialized = true, home = listOf(HomeEntry.App(a)), dock = listOf(b),

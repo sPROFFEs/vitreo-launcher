@@ -33,6 +33,22 @@ no exige modificar componentes del sistema.
 - Abre Recientes y vuelve a Home: los iconos entran desde los bordes sin recolocar
   las celdas; el fondo permanece en la superficie del sistema. Repite con foto,
   dimming y Cyberpunk. Sync with Android Home solo aplica siendo launcher predeterminado.
+- Arrastra despacio entre Home/Today y Home/Library, invierte a mitad y completa
+  en ambos sentidos: dock y Search se deslizan/desvanecen sin cambiar las filas de Home.
+- Today → Edit: mueve Suggestions antes del reloj con flechas y asas, quita ambas
+  tarjetas y recupéralas. Traslada Clock & Calendar a Home y reinicia. Cambia el orden
+  de dos widgets Android desde sus menús; sus tamaños y vinculaciones se conservan.
+- Abre Control Center con un gesto corto desde arriba a la derecha, empezando debajo
+  de la barra de Android, en las tres vistas. Usa también su botón de Today y ciérralo
+  hacia arriba desde el asa inferior; desplazar su contenido no debe cerrarlo.
+- Cambia volumen multimedia y comprueba el volumen de Android; cambia Home brightness
+  y sal a otra app para comprobar su alcance. Restablece Use system brightness.
+- Prueba reproducción con un reproductor activo, linterna libre/ocupada y accesos a
+  temporizador, cámara, calculadora y paneles Android. Un acceso sin app compatible
+  debe avisar. Redes/Focus/rotación abren ajustes, no simulan un interruptor concedido.
+- Edita los accesos del panel, reinicia y restaura sus valores predeterminados.
+  Desactívalo en Settings → Control Center: desaparece el botón de Today y ese gesto
+  ya no abre el panel; Android Quick Settings sigue funcionando.
 - Exporta un backup, cambia la distribución e impórtalo. El fondo de foto no viaja en la copia.
 - Cierra el proceso y reinicia el teléfono: revisa que los cambios guardados permanezcan.
 - Instala y desinstala una app de prueba: se añade al instalar y desaparece de Home/dock/carpetas al desinstalar. Comprueba también una actualización: debe conservar su posición.

@@ -44,6 +44,11 @@ object StateCodec {
                 put("themePreset", s.appearance.themePreset)
                 put("cyberEffects", s.appearance.cyberEffects)
                 put("syncWallpaper", s.appearance.syncWallpaper)
+                put("controlCenter", s.appearance.controlCenter)
+                put("controlShortcuts", JSONArray(s.appearance.controlShortcuts))
+                put("homeBrightness", s.appearance.homeBrightness.toDouble())
+                put("todaySections", JSONArray(s.appearance.todaySections))
+                put("hiddenTodaySections", JSONArray(s.appearance.hiddenTodaySections.toList()))
                 put("iconPack", s.appearance.iconPack)
                 put("iconOverrides", JSONObject().apply {
                     s.appearance.iconOverrides.forEach { (id, icon) ->
@@ -95,6 +100,11 @@ object StateCodec {
                 themePreset = a.optInt("themePreset", 0),
                 cyberEffects = a.optBoolean("cyberEffects", true),
                 syncWallpaper = a.optBoolean("syncWallpaper", true),
+                controlCenter = a.optBoolean("controlCenter", true),
+                controlShortcuts = a.optJSONArray("controlShortcuts")?.let { strings(it, 32) } ?: DEFAULT_CONTROL_SHORTCUTS,
+                homeBrightness = a.optDouble("homeBrightness", -1.0).toFloat(),
+                todaySections = a.optJSONArray("todaySections")?.let { strings(it, 32) } ?: DEFAULT_TODAY_SECTIONS,
+                hiddenTodaySections = a.optJSONArray("hiddenTodaySections")?.let { strings(it, 32).toSet() }.orEmpty(),
                 iconPack = a.optString("iconPack", ""),
                 iconOverrides = a.optJSONObject("iconOverrides")?.let { overrides ->
                     require(overrides.length() <= MAX_ITEMS) { "Too many icon overrides." }

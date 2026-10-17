@@ -44,6 +44,11 @@ data class Appearance(
     val iconPack: String = "",
     val iconOverrides: Map<String, IconOverride> = emptyMap(),
     val syncWallpaper: Boolean = true,
+    val controlCenter: Boolean = true,
+    val controlShortcuts: List<String> = DEFAULT_CONTROL_SHORTCUTS,
+    val homeBrightness: Float = -1f,
+    val todaySections: List<String> = DEFAULT_TODAY_SECTIONS,
+    val hiddenTodaySections: Set<String> = emptySet(),
 ) {
     fun sanitized() = copy(
         iconSize = if (iconSize.isFinite()) iconSize.coerceIn(MIN_ICON_SIZE, MAX_ICON_SIZE) else 60f,
@@ -56,6 +61,10 @@ data class Appearance(
         photoTransform = photoTransform.sanitized(),
         wallpaperDim = if (wallpaperDim.isFinite()) wallpaperDim.coerceIn(0f, .6f) else .12f,
         themePreset = themePreset.coerceIn(0, 1),
+        controlShortcuts = controlShortcuts.filter { it in CONTROL_SHORTCUTS }.distinct().take(CONTROL_SHORTCUTS.size),
+        homeBrightness = if (homeBrightness.isFinite() && homeBrightness >= 0f) homeBrightness.coerceIn(.02f, 1f) else -1f,
+        todaySections = (todaySections.filter { it in DEFAULT_TODAY_SECTIONS } + DEFAULT_TODAY_SECTIONS).distinct(),
+        hiddenTodaySections = hiddenTodaySections.intersect(setOf("clock_calendar", "suggestions")),
         iconPack = iconPack.takeIf(::isPackageName).orEmpty(),
         iconOverrides = iconOverrides.entries.asSequence().filter { isAppId(it.key) && it.value.valid() }
             .take(MAX_ITEMS).associate { it.toPair() },

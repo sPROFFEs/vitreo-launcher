@@ -79,6 +79,28 @@ depender de un host vivo; no asigna un ID para la previsualización.
 
 El movimiento y sus referencias están descritos en [MOTION.md](MOTION.md).
 
+## Today y Control Center
+
+`Appearance` conserva `todaySections`, `hiddenTodaySections`, `controlCenter`,
+`controlShortcuts` y `homeBrightness`. `sanitized` limita las claves a tarjetas y
+acciones conocidas; no admite URIs ejecutables. Las copias anteriores reciben los
+valores predeterminados. El orden de los widgets nativos se guarda en la lista de
+IDs privada de `WidgetController`, sin cambiar las colocaciones de Home.
+
+Today usa una LazyColumn con claves estables para secciones y widgets; no anida
+RemoteViews en una columna gigante. El dock está siempre compuesto sobre el pager,
+con progreso continuo en la capa gráfica. Cada Home reserva su altura antes de
+medir la cuadrícula, incluso cuando el dock sale de pantalla.
+
+`ControlCenterController` concentra AudioManager, CameraManager y lecturas de
+Settings. Los callbacks/observadores se registran mientras el panel está visible y
+la actividad iniciada y se retiran al cerrar/detener. La cámara se descubre en IO;
+la linterna no abre una sesión de captura. TorchCallback confirma el estado y el
+volumen se vuelve a leer después de escribirlo. Los servicios pueden rechazar una
+operación: la UI conserva el estado real y muestra un mensaje. El brillo se prueba
+en la ventana durante el arrastre y se guarda al soltar, sin escribir Settings.System.
+No se añaden permisos de cámara, red, notificaciones o modificación global de ajustes.
+
 ## Material de cristal
 
 `HomeBackground` compone una sola imagen para el fallback local y Android Home.

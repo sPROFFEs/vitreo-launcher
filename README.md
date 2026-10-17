@@ -32,6 +32,11 @@ stays on Android's own surface; Reduce Motion removes the icon arrival effect.
 
 - **Home:** swipe between pages. Four app columns, folders and a four-slot glass dock.
 - **Today:** swipe right from the first Home page for widgets and recent suggestions.
+  Tap **Edit** to reorder or remove built-in cards and restore them later.
+- **Control Center:** swipe down briefly in the upper-right area, below Android's
+  status bar, on Home, Today or App Library. Today also has a dedicated button.
+  Swipe up from the panel's bottom handle to close it. Enable/disable it in
+  **Settings → Control Center**.
 - **Search:** tap Search or swipe down. Search locally by app name or package.
 - **App Library:** swipe past the last Home page. Open a category or use the alphabetical index.
 - **Uninstalling:** confirmed removals clear Home, Dock, folders and suggestions automatically. APK updates preserve placement.
@@ -47,7 +52,7 @@ stays on Android's own surface; Reduce Motion removes the icon arrival effect.
 2. Tap **Add Widgets**. Choose **Home Screen** or **Today**, and a size for Home.
 3. Find a widget and tap **Add**. Accept Android's binding/configuration dialog if requested.
 4. Tap the **…** below a widget to change its size or page, move it between Home
-   and Today, or remove it. In edit mode, hold and drag a Home widget; pause at an
+   and Today, reorder it within Today, or remove it. In edit mode, hold and drag a Home widget; pause at an
    edge to change pages. A trailing page is available during a widget drag.
 
 **Configure Widget** is available when the provider supports reconfiguration.
@@ -58,8 +63,29 @@ can be added. Large provider layouts are fitted proportionally and clipped insid
 rounded native containers. Catalog previews are passive and never bind a widget.
 Widget IDs belong to this installation and are excluded from portable backups.
 
-The built-in Clock & Calendar pair can be toggled separately. Native widgets come
+**Today → Edit** moves Clock & Calendar, Suggestions and the native-widget group
+using handles or arrows. Remove either built-in card, restore it with its switch
+or **Restore Default Cards**, or move Clock & Calendar to Home. Removing Today's
+copy leaves Home's setting intact. Home's Clock & Calendar can also be toggled
+separately in Settings. Native widgets come
 from installed Android apps; their content and network use belong to their providers.
+
+## Control Center
+
+Connectivity and media cards, Focus, appearance, vertical brightness/volume
+sliders and editable shortcuts follow an iOS-inspired layout. **Edit** adds,
+removes or reorders shortcuts; **Restore Default Controls** resets them.
+
+Media volume changes Android's actual music stream. Playback buttons send system
+media commands; no track metadata or notification access is requested. Flashlight
+uses the public torch API when the device makes it available. Timer, Calculator,
+Camera and Music launch suitable installed apps. Network, rotation, Focus, cast,
+NFC and battery controls open Android's settings or panels.
+
+**Home brightness** affects Vitreo's window; **Use system brightness** restores
+Android's value. It does not change other apps' brightness. Disabling Vitreo's
+Control Center removes its gesture/button; Android's Quick Settings stays available.
+See [Control Center](docs/CONTROL_CENTER.md) for platform behavior and references.
 
 ## Themes and icon packs
 
@@ -77,7 +103,8 @@ for coverage, supported formats, credits and motion controls.
 Panels open from their source and retain their content during dismissal. Dragging
 can cancel or complete a close using distance and velocity. Press feedback, icon
 editing and segmented controls animate in the drawing layer; Home cells spring
-into their new positions when widget space changes. The design references and
+into their new positions when widget space changes. The Dock follows the pager's
+fractional position in both directions; Home keeps the same grid space throughout. The design references and
 implementation choices are documented in [Motion](docs/MOTION.md).
 
 Android 13+ uses a custom AGSL effect over Vitreo's own wallpaper. Android 12 uses

@@ -32,6 +32,8 @@ Compose's native springs and gesture velocity are used directly.
 | Context menu | Spring, damping 0.78, stiffness 650; anchored to the source icon |
 | Panel close | Critically damped spring, stiffness 700 |
 | Drag dismissal | Finger-driven progress, velocity passed into the settling spring; short downward flicks can close, upward reversals cancel |
+| Dock / pager | Fractional page progress controls translation and smoothstep opacity; Home reserves a fixed footer, so its cells never jump |
+| Today editing | Stable card/widget keys and animated LazyColumn placement; drag handles or accessible order arrows |
 | Home rearrangement | Stable app/widget keys, animated placement offsets; widget rectangles reserve cells before apps flow around them |
 | Settings navigation | Forward/back horizontal direction follows the page history |
 | Menu More / Back | Directional content transition with a spring size change |
@@ -41,7 +43,9 @@ Compose's native springs and gesture velocity are used directly.
 Surface geometry retains the small spring overshoot; opacity and backdrop blur
 remain bounded. Outgoing content lives until its last frame. A drag stops the
 in-flight spring and resumes from the visible value, using the finger's velocity.
-Search/Control Center follow a downward dismissal instead of moving against it.
+Search follows a downward dismissal. Control Center enters from above and closes
+upward from its bottom handle; scrolling inside its body keeps priority. Reduced
+motion removes surface translation while retaining the dismissal gesture.
 Provider resize options are sent only when the widget's rendered size changes.
 Home widgets respect provider resize minima and report their exact dp size with
 Android 12's size-list API, as described in [flexible widget layouts](https://developer.android.com/develop/ui/views/appwidgets/layouts).

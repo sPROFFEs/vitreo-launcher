@@ -88,6 +88,15 @@ class WidgetController(context: Context) {
         save()
     }
     fun moveToToday(id: Int) { homePlacements.removeAll { it.id == id }; save() }
+    fun moveInToday(id: Int, delta: Int) {
+        val today = todayIds
+        val index = today.indexOf(id)
+        val target = index + delta
+        if (index < 0 || target !in today.indices) return
+        val destination = ids.indexOf(today[target])
+        ids.remove(id); ids.add(destination, id)
+        save()
+    }
     fun remove(id: Int) { ids.remove(id); homePlacements.removeAll { it.id == id }; host.deleteAppWidgetId(id); save() }
     fun refresh() {
         if (ids.removeAll { manager.getAppWidgetInfo(it) == null }) {

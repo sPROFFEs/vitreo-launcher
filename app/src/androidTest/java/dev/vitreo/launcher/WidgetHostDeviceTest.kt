@@ -88,6 +88,37 @@ class WidgetHostDeviceTest {
         }
     }
 
+    @Test fun todayOrderPersistsWithoutMovingHomeWidgets() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val widgets = WidgetController(context)
+        val provider = checkNotNull(widgets.providers().firstOrNull())
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        check(automation.executeShellCommand("getprop ro.kernel.qemu").use { fd ->
+            java.io.FileInputStream(fd.fileDescriptor).bufferedReader().use { it.readText().trim() }
+        } == "1")
+        automation.adoptShellPermissionIdentity(Manifest.permission.BIND_APPWIDGET)
+        val allocated = mutableListOf<Int>()
+        try {
+            repeat(3) {
+                val id = widgets.host.allocateAppWidgetId(); allocated.add(id)
+                assertTrue(widgets.manager.bindAppWidgetIdIfAllowed(id, provider.provider))
+                assertTrue(widgets.add(id))
+            }
+            val (first, home, third) = allocated
+            widgets.placeOnHome(HomeWidgetPlacement(home, 2))
+            val placement = widgets.homePlacements.toList()
+            widgets.moveInToday(third, -1)
+            assertEquals(listOf(third, first), widgets.todayIds.filter { it in allocated })
+            val restored = WidgetController(context)
+            assertEquals(widgets.todayIds, restored.todayIds)
+            assertEquals(placement, restored.homePlacements.toList())
+            restored.moveInToday(restored.todayIds.first(), -1)
+            assertEquals(widgets.todayIds, restored.todayIds)
+            restored.moveInToday(home, -1)
+            assertEquals(placement, restored.homePlacements.toList())
+        } finally { allocated.forEach(widgets::remove); automation.dropShellPermissionIdentity() }
+    }
+
     @Test fun homeWidgetSizePageAndTodayMigrationSurviveControllerRecreation() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val widgets = WidgetController(context)

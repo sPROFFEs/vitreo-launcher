@@ -18,7 +18,7 @@ import dev.vitreo.launcher.data.WidgetController
 @Composable
 internal fun WidgetEditor(controller: WidgetController, id: Int, placement: HomeWidgetPlacement?, homePages: Int,
     defaultPage: Int, onHome: (HomeWidgetPlacement) -> Unit, onToday: () -> Unit, onRemove: () -> Unit,
-    onConfigure: () -> Unit, onClose: () -> Unit) {
+    onConfigure: () -> Unit, onClose: () -> Unit, onMoveToday: (Int) -> Unit) {
     val context = LocalContext.current
     val provider = controller.manager.getAppWidgetInfo(id)
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).safeDrawingPadding().testTag("widget_editor")) {
@@ -50,6 +50,14 @@ internal fun WidgetEditor(controller: WidgetController, id: Int, placement: Home
                 }
                 Text("In Edit Home Screen, hold and drag a widget to place it. Pause at the edge to change pages. Apps make room automatically.",
                     fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp))
+            }
+            if (placement == null) {
+                val position = controller.todayIds.indexOf(id)
+                IosSectionLabel("Order in Today")
+                IosGroup {
+                    IosRow("Move Up", enabled = position > 0) { onMoveToday(-1) }; IosDivider()
+                    IosRow("Move Down", enabled = position >= 0 && position < controller.todayIds.lastIndex) { onMoveToday(1) }
+                }
             }
             IosSectionLabel("Widget")
             IosGroup {

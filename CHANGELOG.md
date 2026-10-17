@@ -1,5 +1,14 @@
 # Cambios
 
+## 0.5.2 — Dock continuo, Today editable y Control Center — 2026-10-17
+
+- Dock e indicador inferior siguen el desplazamiento entre Home, Today y App Library con deslizamiento y opacidad continuos. Home reserva su espacio sin recolocar las apps al aparecer o desaparecer.
+- Today permite reordenar Clock & Calendar, Suggestions y el grupo de widgets con asas o flechas, quitar y recuperar las tarjetas integradas y trasladar Clock & Calendar a Home. Los widgets Android tienen orden propio persistente y conservan su vinculación.
+- Control Center opcional, accesible con un gesto corto desde la zona superior derecha en las tres vistas o con el botón de Today. Cierre hacia arriba desde su borde inferior y activación en Settings → Control Center.
+- Nueva composición de conectividad, reproducción, Focus, aspecto y deslizadores verticales. Volumen multimedia real, brillo limitado a la ventana de Vitreo, linterna cuando el hardware está disponible y accesos a temporizador, calculadora, cámara y paneles Android.
+- Editor para añadir, quitar, ordenar y restablecer accesos del panel; preferencias incluidas en copias compatibles con versiones anteriores. No se añaden permisos; conectividad, Focus y rotación abren las pantallas oficiales del sistema.
+- Regresiones de progreso intermedio del dock, persistencia de Today, acceso/cierre/desactivación del panel, volumen Android, brillo de ventana y orden de widgets.
+
 ## 0.5.1 — Cyberpunk y regreso integrado a Home — 2026-10-17
 
 - Regreso desde Recientes con iconos que entran radialmente desde fuera de la pantalla, sin cambiar sus celdas ni animar el fondo con el escritorio; widgets con entrada vertical suave.

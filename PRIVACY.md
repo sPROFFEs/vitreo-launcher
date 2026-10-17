@@ -22,6 +22,22 @@ Cada widget pertenece a su app proveedora, que conserva sus propias políticas d
 red y permisos. Los IDs, páginas y tamaños de widgets se guardan localmente, aparte de las copias exportables; los widgets
 se añaden de nuevo en otro dispositivo.
 
+## Control Center
+
+El panel es opcional y no añade permisos al manifiesto. Mientras está visible lee
+volumen multimedia, batería, brillo del sistema y, cuando Android lo permite,
+indicadores de modo avión/Wi-Fi/Bluetooth. No consulta SSID, redes cercanas,
+notificaciones, metadatos de canciones ni historial de reproducción. Los listeners
+de ajustes, reproducción y linterna se retiran al cerrar el panel o detener la actividad.
+
+El volumen modifica el canal multimedia de Android. Los botones de reproducción
+envían comandos al reproductor que el sistema seleccione. La linterna usa la API
+pública sin abrir una sesión de cámara ni capturar imágenes. Los accesos a redes,
+Focus y ajustes del dispositivo abren pantallas del sistema. El brillo de Home
+modifica únicamente la ventana de Vitreo. Se guardan localmente sus preferencias,
+los accesos elegidos y el orden/visibilidad de las tarjetas de Today; estos ajustes
+forman parte de la copia portable. Los IDs de widgets siguen siendo locales.
+
 ## Imágenes, copias y diagnóstico
 
 La opción **Sync with Android Home** está activada por defecto y solo se aplica

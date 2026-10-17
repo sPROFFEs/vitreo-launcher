@@ -82,11 +82,14 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
     LaunchedEffect(Unit) { snapshotFlow { (fingerProgress ?: progress.value).coerceIn(0f, 1f) }.collect(progressChanged) }
     if (displayed != null) {
         val style = kind(displayed)
-        val gesture = if (style == SurfaceKind.Page || reduced || target == null) Modifier else Modifier.pointerInput(style, cyber) {
+        val gesture = if (style == SurfaceKind.Page || target == null) Modifier else Modifier.pointerInput(style, cyber) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
                 // Scrolling app grids and text fields keep their gestures. The header is a dismissal handle.
-                if (down.position.y > 170 * density && style != SurfaceKind.Folder) return@awaitEachGesture
+                if (style == SurfaceKind.Controls) {
+                    if (down.position.y < size.height - 100 * density) return@awaitEachGesture
+                } else if (down.position.y > 170 * density && style != SurfaceKind.Folder) return@awaitEachGesture
+                val direction = if (style == SurfaceKind.Controls) -1f else 1f
                 var dragging = false
                 var released = false
                 var delta = 0f
@@ -100,7 +103,7 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
                         if (!change.pressed) { released = change.changedToUpIgnoreConsumed(); break }
                         val distance = change.position - down.position
                         if (!dragging && (change.isConsumed || abs(distance.x) > abs(distance.y))) break
-                        if (!dragging && distance.y > viewConfiguration.touchSlop) {
+                        if (!dragging && distance.y * direction > viewConfiguration.touchSlop) {
                             dragging = true
                             start = progress.value
                             val openingTravel = when (style) {
@@ -110,7 +113,7 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
                             }
                             val closingTravel = when (style) {
                                 SurfaceKind.Search -> size.height * .22f
-                                SurfaceKind.Controls -> size.height * .3f
+                                SurfaceKind.Controls -> -size.height * .3f
                                 else -> 0f
                             }
                             val previousBlend = if (start <= handoffProgress) start / handoffProgress.coerceAtLeast(.001f)
@@ -124,13 +127,13 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
                         }
                         if (dragging) {
                             change.consume()
-                            delta = distance.y.coerceAtLeast(0f)
+                            delta = (distance.y * direction).coerceAtLeast(0f)
                             fingerProgress = (start - delta / (size.height * .65f)).coerceIn(.05f, 1.05f)
                         }
                     } while (true)
                 } finally {
                     if (dragging) {
-                        val velocity = if (released) tracker.calculateVelocity().y else 0f
+                        val velocity = if (released) tracker.calculateVelocity().y * direction else 0f
                         val dismiss = released && dev.vitreo.launcher.core.shouldDismissSurface(delta / density, velocity / density)
                         val normalized = (-velocity / (size.height * .65f)).coerceIn(-8f, 8f)
                         scope.launch {
@@ -162,7 +165,7 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
                 transformOrigin = if (style == SurfaceKind.Folder || style == SurfaceKind.Category) origin else TransformOrigin.Center
                 translationY = when (style) {
                     SurfaceKind.Search -> (1f - p) * if (dismissDown) size.height * .22f else -65 * density
-                    SurfaceKind.Controls -> (1f - p) * size.height * if (dismissDown) .3f else -.3f
+                    SurfaceKind.Controls -> (1f - p) * size.height * -.3f
                     SurfaceKind.Page -> (1f - p) * size.height * .16f
                     else -> 0f
                 }

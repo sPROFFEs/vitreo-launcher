@@ -63,6 +63,7 @@ import dev.vitreo.launcher.data.WidgetController
 import dev.vitreo.launcher.graphics.Viewport
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.roundToInt
 import kotlin.math.abs
 
@@ -71,6 +72,7 @@ val AppReturnSerialKey = SemanticsPropertyKey<Int>("AppReturnSerial")
 val AppOpeningKey = SemanticsPropertyKey<Boolean>("AppOpening")
 val HomeRowsKey = SemanticsPropertyKey<Int>("HomeRows")
 val HomeRevealSerialKey = SemanticsPropertyKey<Int>("HomeRevealSerial")
+val DockVisibilityKey = SemanticsPropertyKey<Float>("DockVisibility")
 private sealed interface Sheet {
     data object Search : Sheet
     data object LibrarySearch : Sheet
@@ -118,6 +120,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     var surfaceProgress by remember { mutableFloatStateOf(0f) }
     val modalPresent = sheet != null || actionTarget != null || choiceSheet != null
     var editing by remember { mutableStateOf(false) }
+    var todayEditing by remember { mutableStateOf(false) }
     var viewport by remember { mutableStateOf(Viewport()) }
     var rootPosition by remember { mutableStateOf(Offset.Zero) }
     var workspaceSize by remember { mutableStateOf(IntSize(1080, 1800)) }
@@ -188,6 +191,16 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         }
     }
     val onHomePage = pager.currentPage in 1..homePages
+    val footerHeight = (maxOf(91f, geometry.iconSize + 28f) + 51f).dp
+    val dockVisibility = remember { Animatable(1f) }
+    val dockHidden by remember { derivedStateOf { dockVisibility.value <= .001f } }
+    LaunchedEffect(pager, homePages, appearance.reducedEffects) {
+        snapshotFlow { homeChromeVisibility(pager.currentPage + pager.currentPageOffsetFraction, homePages) to pager.isScrollInProgress }
+            .collectLatest { (visible, followingFinger) ->
+                if (followingFinger || appearance.reducedEffects) dockVisibility.snapTo(visible)
+                else dockVisibility.animateTo(visible, LauncherMotion.close())
+            }
+    }
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let { model.preparePhoto(it) } }
     LaunchedEffect(photoDraft) {
         if (photoDraft != null) sheet = Sheet.Wallpaper
@@ -206,7 +219,16 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     fun openSearch() { editing = false; sheet = Sheet.Search }
     fun system(action: String) {
         try { context.startActivity(Intent(action)) }
-        catch (_: Exception) { model.message("No app is available for this action.") }
+        catch (_: Exception) {
+            val fallback = when (action) {
+                "android.settings.TETHER_SETTINGS" -> Settings.ACTION_WIRELESS_SETTINGS
+                "android.settings.ZEN_MODE_SETTINGS" -> Settings.ACTION_SOUND_SETTINGS
+                else -> null
+            }
+            if (fallback != null) runCatching { context.startActivity(Intent(fallback)) }
+                .onFailure { model.message("No app is available for this action.") }
+            else model.message("No app is available for this action.")
+        }
     }
     fun launch(id: String, source: Rect? = null) {
         if (launching) return
@@ -215,6 +237,21 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
             launching = true; actionTarget = null; editing = false
             scope.launch { departure.animateTo(1f, if (appearance.reducedEffects) tween(0) else tween(240)) }
         }
+    }
+    fun utility(kind: String) {
+        val action = when (kind) {
+            "timer" -> AlarmClock.ACTION_SHOW_TIMERS
+            "alarms" -> AlarmClock.ACTION_SHOW_ALARMS
+            else -> null
+        }
+        sheet = null
+        if (action != null) {
+            try { context.startActivity(Intent(action)); return } catch (_: Exception) { /* Fall back to the app catalog. */ }
+        }
+        val family = when (kind) { "timer", "alarms" -> "clock"; else -> kind }
+        val app = ui.apps.firstOrNull { family in searchKey(it.label) || family in it.packageName.lowercase() }
+        if (app != null) launch(app.id)
+        else model.message("No $family app is available in this profile.")
     }
     fun actions(id: String, source: Rect?) {
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -226,7 +263,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     } ?: TransformOrigin.Center
     fun pushPage(next: Sheet) {
         navigatingForward = true
-        if (next == Sheet.Widgets) widgetGalleryHomePage = (pager.currentPage - 1).coerceIn(0, homePages - 1)
+        if (next == Sheet.Widgets) widgetGalleryHomePage = if (pager.currentPage in 1..homePages) pager.currentPage - 1 else null
         sheet?.let { if (it != next) pageHistory.add(it) }
         sheet = next
     }
@@ -267,7 +304,16 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     SideEffect {
         (context as? Activity)?.let { activity -> WindowCompat.getInsetsController(activity.window, localView).apply {
             isAppearanceLightStatusBars = lightChrome; isAppearanceLightNavigationBars = lightChrome
-        } }
+        }
+            if (sheet != Sheet.Controls && activity.window.attributes.screenBrightness != appearance.homeBrightness)
+                activity.window.attributes = activity.window.attributes.apply { screenBrightness = appearance.homeBrightness }
+        }
+    }
+    LaunchedEffect(appearance.controlCenter, sheet) {
+        if (!appearance.controlCenter) {
+            pageHistory.removeAll { it == Sheet.Controls }
+            if (sheet == Sheet.Controls) sheet = null
+        }
     }
     LaunchedEffect(systemBackground) {
         if (systemBackground) runCatching {
@@ -278,11 +324,12 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     LaunchedEffect(sheet, actionTarget) {
         if (sheet != Sheet.Search && sheet != Sheet.LibrarySearch || actionTarget != null) { focusManager.clearFocus(); keyboard?.hide() }
     }
-    LaunchedEffect(homeSerial) { sheet = null; pageHistory.clear(); savedPages.removeState("settings"); actionTarget = null; choiceSheet = null; actionReturn = null; model.discardPhoto(); editing = false; drag = null; widgetDrag = null; focusManager.clearFocus(); keyboard?.hide(); pager.scrollToPage(1) }
+    LaunchedEffect(homeSerial) { sheet = null; pageHistory.clear(); savedPages.removeState("settings"); actionTarget = null; choiceSheet = null; actionReturn = null; model.discardPhoto(); editing = false; todayEditing = false; drag = null; widgetDrag = null; focusManager.clearFocus(); keyboard?.hide(); pager.scrollToPage(1) }
     var previousHomePages by remember { mutableIntStateOf(homePages) }
     LaunchedEffect(pager.currentPage, homePages, editing) {
         val shrank = homePages < previousHomePages
         previousHomePages = homePages
+        if (pager.currentPage != 0) todayEditing = false
         if (editing && shrank && pager.currentPage > homePages) pager.scrollToPage(homePages)
         else if (pager.currentPage !in 1..homePages) { editing = false; drag = null; widgetDrag = null; folderTarget = null }
     }
@@ -290,6 +337,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         when {
             modalPresent -> closeSurface()
             editing -> { editing = false; drag = null; widgetDrag = null }
+            todayEditing -> todayEditing = false
             pager.currentPage != 1 -> scope.launch { pager.animateScrollToPage(1) }
         }
     }
@@ -374,7 +422,9 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val currentPage by rememberUpdatedState(pager.currentPage)
     val currentHomePages by rememberUpdatedState(homePages)
     val currentSheet by rememberUpdatedState(sheet)
-    val gestureModifier = if (modalPresent || launching || !onHomePage) Modifier else if (editing) Modifier.pointerInput(editing) {
+    val controlsEnabled by rememberUpdatedState(appearance.controlCenter)
+    val currentTodayEditing by rememberUpdatedState(todayEditing)
+    val gestureModifier = if (modalPresent || launching) Modifier else if (editing) Modifier.pointerInput(editing) {
         detectDragGesturesAfterLongPress(onDragStart = { startDrag(it) },
             onDrag = { change, amount -> if (drag != null || widgetDrag != null) {
                 change.consume()
@@ -387,16 +437,18 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         // drags even when all rows fit, preventing the Spotlight gesture.
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            if (currentSheet != null || currentPage !in 1..currentHomePages) return@awaitEachGesture
-            if (cellBounds.any { (id, bounds) -> id.startsWith("widget:") && bounds.contains(down.position + rootPosition) }) return@awaitEachGesture
+            if (currentSheet != null) return@awaitEachGesture
+            val controls = controlsEnabled && !(currentTodayEditing && currentPage == 0) && down.position.y < 180.dp.toPx() && down.position.x > size.width * .58f
+            if (!controls && currentPage !in 1..currentHomePages) return@awaitEachGesture
+            if (!controls && cellBounds.any { (id, bounds) -> id.startsWith("widget:") && bounds.contains(down.position + rootPosition) }) return@awaitEachGesture
             while (true) {
                 val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: break
                 if (!change.pressed) break
                 val distance = change.position - down.position
                 if (abs(distance.x) > viewConfiguration.touchSlop && abs(distance.x) > abs(distance.y)) break
-                if (distance.y > 50.dp.toPx() && distance.y > abs(distance.x)) {
+                if (distance.y > (if (controls) 24.dp else 50.dp).toPx() && distance.y > abs(distance.x)) {
                     change.consume()
-                    sheet = if (down.position.y < 100.dp.toPx() && down.position.x > size.width * .65f) Sheet.Controls else Sheet.Search
+                    sheet = if (controls) Sheet.Controls else Sheet.Search
                     break
                 }
             }
@@ -415,6 +467,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
             this[AppReturnSerialKey] = appReturnSerial
             this[AppOpeningKey] = launching
             this[HomeRevealSerialKey] = homeRevealSerial
+            this[DockVisibilityKey] = dockVisibility.value
         }
             .then(gestureModifier).onGloballyPositioned { coordinates ->
                 val screen = IntArray(2); val window = IntArray(2)
@@ -428,7 +481,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
             }) {
             background?.let { Image(it.asImageBitmap(), null, Modifier.fillMaxSize().graphicsLayer { alpha = localBackgroundAlpha.value }, contentScale = ContentScale.Crop) }
             if (appearance.themePreset == 1) Box(Modifier.fillMaxSize().testTag("cyber_backdrop"))
-            Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.displayCutout))
+            Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.displayCutout))
                 .padding(top = if (editing) 42.dp else 9.dp)
                 .then(if (modalPresent) Modifier.clearAndSetSemantics {} else Modifier)
                 .graphicsLayer {
@@ -441,42 +494,54 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                     val blurRadius = if (appearance.reducedEffects || opaqueScreen) 0f else maxOf(surfaceProgress, menuBlur.value) * 20.dp.toPx()
                     renderEffect = if (blurRadius > .05f) BlurEffect(blurRadius, blurRadius, TileMode.Clamp) else null
                 }) {
-                Box(Modifier.weight(1f).fillMaxWidth().testTag("home_workspace")
+                Box(Modifier.fillMaxSize().testTag("home_workspace")
                     .pointerInput(onHomePage, modalPresent) {
                         detectTapGestures(onLongPress = { if (!modalPresent && onHomePage) {
                             editing = true; haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         } })
-                    }
-                    // Today/Library use the space left by the hidden dock;
-                    // their height must not change the home page count.
-                    .onSizeChanged { if (onHomePage) { workspaceSize = it; workspaceWasEditing = editing } }
-                    .onGloballyPositioned { workspaceBounds = it.boundsInRoot() }) {
+                    }) {
+                    // Measure one stationary Home rectangle. Measuring each pager child
+                    // would let an offscreen page overwrite the drag/drop coordinates.
+                    Box(Modifier.fillMaxSize().padding(bottom = footerHeight)
+                        .onSizeChanged { workspaceSize = it; workspaceWasEditing = editing }
+                        .onGloballyPositioned { workspaceBounds = it.boundsInRoot() })
                     if (!ui.ready) CircularProgressIndicator(Modifier.align(Alignment.Center), color = Color.White)
                     else HorizontalPager(pager, Modifier.fillMaxSize(), userScrollEnabled = drag == null && widgetDrag == null && !modalPresent && !launching,
                         flingBehavior = PagerDefaults.flingBehavior(pager, snapAnimationSpec = LauncherMotion.panel()),
                         key = { page -> when (page) { 0 -> "today"; homePages + 1 -> "library"; else -> "home:$page" } },
                         beyondViewportPageCount = 0) { page ->
                         when (page) {
-                            0 -> TodayPage(now, widgets, suggestions, apps, onSearch = ::openSearch,
+                            0 -> TodayPage(now, widgets, suggestions, apps, ui.layout.appearance, model::appearance,
+                                todayEditing, { todayEditing = it }, onSearch = ::openSearch,
                                 onSettings = { sheet = Sheet.Settings }, onWidgets = { widgetGalleryHomePage = null; sheet = Sheet.Widgets },
+                                onControls = { if (appearance.controlCenter) sheet = Sheet.Controls },
                                 onClock = { system(AlarmClock.ACTION_SHOW_ALARMS) },
                                 onCalendar = ::openCalendar, onLaunch = ::launch, onEditWidget = { sheet = Sheet.Widget(it) })
                             homePages + 1 -> AppLibrary(ui.apps, apps, suggestions, { sheet = Sheet.LibrarySearch }, ::launch,
                                 ::actions, { title, records, bounds -> folderAnchor = origin(bounds); sheet = Sheet.Category(title, records) })
                             else -> {
                                 val grid = homeGrid.getOrNull(page - 1) ?: HomeGridPage(emptyList(), emptyList(), false)
-                                HomeWorkspace(grid, geometry.rows, rowHeight, geometry.iconSize, appearance.showLabels,
+                                Box(Modifier.fillMaxSize().padding(bottom = footerHeight)) {
+                                    HomeWorkspace(grid, geometry.rows, rowHeight, geometry.iconSize, appearance.showLabels,
                                     editing, drag?.entry?.id, widgetDrag?.placement?.id, apps, widgets, now,
                                     { system(AlarmClock.ACTION_SHOW_ALARMS) }, ::openCalendar, openEntry,
                                     { entry, bounds -> actionTarget = AppActionTarget(entry, bounds) },
                                     { entry -> if (entry is HomeEntry.App) model.removeApp(entry.id) else model.dissolve(entry.id) },
                                     { sheet = Sheet.Widget(it) },
                                     { id, bounds -> if (bounds == null) cellBounds.remove(id) else cellBounds[id] = bounds })
+                                }
                             }
                         }
                     }
                 }
-                if (onHomePage) {
+                Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                    .semantics { this[DockVisibilityKey] = dockVisibility.value }
+                    .then(if (dockHidden) Modifier.clearAndSetSemantics {} else Modifier)
+                    .graphicsLayer {
+                        val p = dockVisibility.value
+                        alpha = p * p * (3f - 2f * p)
+                        translationY = (1f - p) * size.height
+                    }) {
                     Box(Modifier.fillMaxWidth().height(46.dp), contentAlignment = Alignment.Center) {
                         if (editing || pager.isScrollInProgress) GlassPanel(radius = 20f, tint = .12f) {
                             Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -570,7 +635,8 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                             { backupExport.launch("vitreo-layout-${BuildConfig.VERSION_NAME}.json") },
                             { backupImport.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
                             { reportExport.launch("vitreo-diagnostics-${BuildConfig.VERSION_NAME}.json") }, model::refresh, model::resetLayout,
-                            { pushPage(Sheet.Licenses) }, { pushPage(Sheet.Widgets) })
+                            { pushPage(Sheet.Licenses) }, { pushPage(Sheet.Widgets) },
+                            { if (appearance.controlCenter) pushPage(Sheet.Controls) })
                         }
                         Sheet.Wallpaper -> {
                             var cachedDraft by remember { mutableStateOf(photoDraft) }
@@ -589,12 +655,12 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                             onHome = { widgets.placeOnHome(it); closeSurface(); revealWidget = it.id },
                             onToday = { widgets.moveToToday(current.id); closeSurface(); revealWidget = current.id },
                             onRemove = { widgets.remove(current.id); closeSurface() },
-                            onConfigure = { onConfigureWidget(widgets.host, current.id) {} }, onClose = ::closeSurface)
+                            onConfigure = { onConfigureWidget(widgets.host, current.id) {} }, onClose = ::closeSurface,
+                            onMoveToday = { widgets.moveInToday(current.id, it); closeSurface() })
                         Sheet.Licenses -> LicensesSheet(::closeSurface)
                         is Sheet.IconPicker -> IconPickerSheet(model, ui, current.app, ::closeSurface)
-                        Sheet.Controls -> ControlCenter(MaterialTheme.colorScheme.background.luminance() < .5f, { sheet = null }, ::system,
-                            { model.appearance(if (appearance.themePreset == 1) ui.layout.appearance.copy(cyberEffects = !appearance.cyberEffects)
-                                else ui.layout.appearance.copy(interfaceStyle = if (it) 2 else 1)) }, { pushPage(Sheet.Settings) }, { pushPage(Sheet.Widgets) })
+                        Sheet.Controls -> ControlCenter(ui.layout.appearance, MaterialTheme.colorScheme.background.luminance() < .5f, model::appearance,
+                            ::closeSurface, ::system, ::utility, { pushPage(Sheet.Settings) }, { pushPage(Sheet.Widgets) }, model::message)
                         is Sheet.Folder -> {
                             val live = ui.layout.home.filterIsInstance<HomeEntry.Folder>().find { it.id == current.id }
                             var snapshot by remember(current.id) { mutableStateOf(live) }
