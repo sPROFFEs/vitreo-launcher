@@ -43,6 +43,7 @@ import dev.vitreo.launcher.data.WidgetController
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.After
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -65,12 +66,48 @@ class LauncherSmokeTest {
     )
     private fun awaitReady() {
         val activity = compose.activity
-        compose.waitUntil(timeoutMillis = 20_000) {
-            val nodes = compose.onAllNodesWithTag("launcher_root").fetchSemanticsNodes(atLeastOneRootRequired = false)
-            activity.hasWindowFocus() && compose.activityRule.scenario.state == Lifecycle.State.RESUMED &&
-                nodes.any { it.config.contains(LauncherReadyKey) && it.config[LauncherReadyKey] }
+        try {
+            compose.waitUntil(timeoutMillis = 20_000) {
+                val nodes = compose.onAllNodesWithTag("launcher_root").fetchSemanticsNodes(atLeastOneRootRequired = false)
+                activity.hasWindowFocus() && compose.activityRule.scenario.state == Lifecycle.State.RESUMED &&
+                    nodes.any { it.config.contains(LauncherReadyKey) && it.config[LauncherReadyKey] }
+            }
+            compose.waitForIdle()
+        } catch (failure: Throwable) {
+            val model = ViewModelProvider(activity)[LauncherViewModel::class.java]
+            val roots = compose.onAllNodesWithTag("launcher_root").fetchSemanticsNodes(atLeastOneRootRequired = false)
+            val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+            val focus = automation.executeShellCommand("dumpsys window").use { fd ->
+                java.io.FileInputStream(fd.fileDescriptor).bufferedReader().use { reader ->
+                    reader.lineSequence().filter { "mCurrentFocus" in it || "mFocusedApp" in it }.joinToString()
+                }
+            }
+            android.util.Log.e("VitreoReadyTest", "state=${compose.activityRule.scenario.state}; focus=${activity.hasWindowFocus()}; " +
+                "ready=${model.ui.value.ready}; frame=${model.wallpaper.value != null}; background=${model.background.value != null}; " +
+                "roots=${roots.map { it.config.getOrNull(LauncherReadyKey) }}; $focus", failure)
+            val directory = checkNotNull(activity.getExternalFilesDir("review")); directory.mkdirs()
+            val image = File(directory, "readiness-failure.png")
+            if (!image.exists()) automation.takeScreenshot()?.let { bitmap ->
+                image.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            }
+            throw failure
         }
-        compose.waitForIdle()
+    }
+
+    @After fun dismissSearchAndImeBeforeScenarioCloses() {
+        // ActivityScenario finishes its task using another activity. Hide the
+        // search IME and settle our own window first, so its pending focus/input
+        // connection cannot leak into the next independently created scenario.
+        if (compose.activityRule.scenario.state != Lifecycle.State.DESTROYED) {
+            returnHome()
+            val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+            automation.serviceInfo = checkNotNull(automation.serviceInfo).apply {
+                flags = flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            }
+            compose.waitUntil(5_000) { automation.windows.none {
+                it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD
+            } }
+        }
     }
     private fun captureEvidence(name: String) {
         compose.waitForIdle()
