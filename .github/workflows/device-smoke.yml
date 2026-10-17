@@ -36,7 +36,7 @@ jobs:
       - name: Build debug tests and optimized Preview (no signing secrets)
         run: bash gradlew --no-daemon --console=plain :app:assembleDebug :app:assembleDebugAndroidTest :app:assemblePreview :uninstallFixture:assembleDebug
       - name: Instrumentation and optimized APK launch
-        uses: ReactiveCircus/android-emulator-runner@1dcd0090116d15e7c562f8db72807de5e036a4ed
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         with:
           api-level: ${{ matrix.api }}
           target: google_apis
