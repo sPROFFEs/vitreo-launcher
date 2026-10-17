@@ -164,6 +164,14 @@ class LauncherSmokeTest {
             compose.runOnUiThread { model.appearance(original.copy(todaySections = DEFAULT_TODAY_SECTIONS, hiddenTodaySections = emptySet(), showWidgets = false)) }
             compose.onNodeWithTag("home_workspace").performTouchInput { swipeRight() }
             compose.onNodeWithTag("edit_today").performClick()
+            val distance = with(compose.density) { 90.dp.toPx() }
+            compose.onNodeWithTag("today_drag:clock_calendar").performTouchInput {
+                down(center); advanceEventTime(650); moveBy(Offset(0f, distance), delayMillis = 300); up()
+            }
+            assertEquals("suggestions", model.ui.value.layout.appearance.todaySections.first())
+            compose.onNodeWithTag("today_page").performScrollToNode(hasTestTag("today_up:clock_calendar"))
+            compose.onNodeWithTag("today_up:clock_calendar").performClick()
+            assertEquals(DEFAULT_TODAY_SECTIONS, model.ui.value.layout.appearance.todaySections)
             compose.onNodeWithTag("today_page").performScrollToNode(hasTestTag("today_up:suggestions"))
             compose.onNodeWithTag("today_up:suggestions").performClick()
             assertEquals("suggestions", model.ui.value.layout.appearance.todaySections.first())

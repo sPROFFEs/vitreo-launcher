@@ -501,9 +501,9 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                 }) {
                 Box(Modifier.fillMaxSize().testTag("home_workspace")
                     .pointerInput(onHomePage, modalPresent) {
-                        detectTapGestures(onLongPress = { if (!modalPresent && onHomePage) {
+                        if (!modalPresent && onHomePage) detectTapGestures(onLongPress = {
                             editing = true; haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        } })
+                        })
                     }) {
                     // Measure one stationary Home rectangle. Measuring each pager child
                     // would let an offscreen page overwrite the drag/drop coordinates.
