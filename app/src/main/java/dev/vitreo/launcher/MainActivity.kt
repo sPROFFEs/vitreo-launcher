@@ -31,6 +31,7 @@ class MainActivity : ComponentActivity() {
     private var leftForApp = false
     private var defaultHome by mutableStateOf(false)
     private var stoppedOnce = false
+    private var homeFocusedOnce = false
     private var homeRevealSerial by mutableIntStateOf(0)
     private val widgetConfigurations = WidgetConfigurationRequests()
     private val roleRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -67,7 +68,12 @@ class MainActivity : ComponentActivity() {
     }
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) revealHomeWhenFocused()
+        // Fallback Recents on Android 12 can cover HOME without pausing it.
+        // Its real window-focus handoff must also prepare the next arrival.
+        if (hasFocus) {
+            revealHomeWhenFocused()
+            homeFocusedOnce = true
+        } else if (homeFocusedOnce) stoppedOnce = true
         if (hasFocus && defaultHome && model.systemBackgroundVisible.value) runCatching {
             android.app.WallpaperManager.getInstance(this).setWallpaperOffsets(window.decorView.windowToken, .5f, .5f)
         }

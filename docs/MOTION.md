@@ -66,6 +66,8 @@ use a smaller vertical reveal. Transforms run in graphics layers and do not
 repack the grid. Reduce Motion/Battery Saver settle immediately.
 The arrival starts when the resumed Home window regains input focus, so it does
 not finish behind Android's outgoing Recents card before Home is visible.
+Focus loss also prepares the arrival when Android 12's fallback Recents leaves
+the Home activity resumed underneath it.
 
 Departure transforms apply to foreground content only. The wallpaper is never
 scaled or faded with the workspace. When Home synchronization succeeds, Android

@@ -17,6 +17,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import dev.vitreo.launcher.ui.HomeRevealSerialKey
 import dev.vitreo.launcher.ui.LauncherReadyKey
 import org.junit.Assert.*
+import org.junit.After
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.ExternalResource
@@ -42,7 +43,11 @@ class HomeIntegrationTest {
             // default afterwards leaves a standard task that HOME cannot reuse.
             shell("cmd package set-home-activity ${context.packageName}/dev.vitreo.launcher.MainActivity")
         }
-        override fun after() { previous?.let { shell("cmd package set-home-activity $it") } }
+        fun restore() {
+            previous?.let { shell("cmd package set-home-activity $it") }
+            previous = null
+        }
+        override fun after() = restore()
     }
     private val compose = AndroidComposeTestRule(
         ActivityScenarioRule<MainActivity>(Intent(context, MainActivity::class.java)
@@ -54,6 +59,10 @@ class HomeIntegrationTest {
         }
     )
     @get:Rule val rules: RuleChain = RuleChain.outerRule(home).around(compose)
+
+    // Runs inside the Compose rule, before ActivityScenario closes. Android
+    // must have another HOME available when the test finishes its root task.
+    @After fun restoreHomeBeforeClosingActivity() = home.restore()
 
     private fun awaitReady() {
         compose.waitUntil(20_000) {
@@ -84,15 +93,24 @@ class HomeIntegrationTest {
                 awaitReady()
                 val before = compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[HomeRevealSerialKey]
                 shell("input keyevent KEYCODE_APP_SWITCH")
-                compose.waitUntil(15_000) {
-                    // Focus loss alone precedes the actual task transition.
-                    // Wallpaper colors can also relaunch activities in this gap.
-                    compose.activityRule.scenario.state == Lifecycle.State.CREATED &&
-                        shell("dumpsys activity activities").lineSequence().any {
-                            ("mResumedActivity" in it || "topResumedActivity" in it) && "RecentsActivity" in it
+                try {
+                    compose.waitUntil(15_000) {
+                        // API 31 can leave HOME resumed under Recents. Verify the
+                        // focused Recents window, rather than assuming ON_STOP.
+                        shell("dumpsys window").lineSequence().any {
+                            "mCurrentFocus" in it && "RecentsActivity" in it
                         } && automation.windows.any {
-                            it.isFocused && it.root?.packageName?.toString() != context.packageName
+                            it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION &&
+                                it.isFocused && it.root?.packageName?.toString() != context.packageName
                         }
+                    }
+                } catch (failure: Throwable) {
+                    android.util.Log.e("VitreoRecentsTest", "Focus=" + shell("dumpsys window").lineSequence()
+                        .filter { "mCurrentFocus" in it || "mFocusedApp" in it }.joinToString() +
+                        "; lifecycle=" + compose.activityRule.scenario.state + "; windows=" + automation.windows.joinToString {
+                            "${it.type}:${it.isFocused}:${it.root?.packageName}"
+                        }, failure)
+                    throw failure
                 }
                 automation.waitForIdle(200, 5_000)
                 shell("input keyevent KEYCODE_HOME")
