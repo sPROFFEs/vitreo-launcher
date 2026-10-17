@@ -239,14 +239,19 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         }
     }
     fun utility(kind: String) {
-        val action = when (kind) {
-            "timer" -> AlarmClock.ACTION_SHOW_TIMERS
-            "alarms" -> AlarmClock.ACTION_SHOW_ALARMS
+        val intent = when (kind) {
+            "timer" -> Intent(AlarmClock.ACTION_SHOW_TIMERS)
+            "alarms" -> Intent(AlarmClock.ACTION_SHOW_ALARMS)
+            "calculator" -> Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_CALCULATOR)
+            "music" -> Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_MUSIC)
+            "camera" -> Intent(android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)
             else -> null
         }
         sheet = null
-        if (action != null) {
-            try { context.startActivity(Intent(action)); return } catch (_: Exception) { /* Fall back to the app catalog. */ }
+        if (intent != null) {
+            // Honour Android's app categories/defaults before the catalog fallback;
+            // app labels may be localized or have no word such as "music" in them.
+            try { context.startActivity(intent); return } catch (_: Exception) { /* Try a known launcher activity. */ }
         }
         val family = when (kind) { "timer", "alarms" -> "clock"; else -> kind }
         val app = ui.apps.firstOrNull { family in searchKey(it.label) || family in it.packageName.lowercase() }
