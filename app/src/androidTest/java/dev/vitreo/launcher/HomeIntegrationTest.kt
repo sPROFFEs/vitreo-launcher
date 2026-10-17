@@ -35,8 +35,15 @@ class HomeIntegrationTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val home = object : ExternalResource() {
         private var previous: String? = null
+        private val animationSettings = listOf("window_animation_scale", "transition_animation_scale", "animator_duration_scale")
+        private var previousAnimations = emptyMap<String, String>()
         override fun before() {
             check(shell("getprop ro.kernel.qemu").trim() == "1") { "Requires a disposable emulator." }
+            // Overview is owned by Quickstep. Its Home-stub dismissal races
+            // with task loading when the emulator globally forces duration 0.
+            // Exercise this cross-process motion with normal system timing.
+            previousAnimations = animationSettings.associateWith { shell("settings get global $it").trim() }
+            animationSettings.forEach { shell("settings put global $it 1") }
             previous = checkNotNull(shell("cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME")
                 .lineSequence().lastOrNull { it.matches(Regex("[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+")) })
             // Android 15 chooses HOME task identity at creation. Selecting the
@@ -46,6 +53,11 @@ class HomeIntegrationTest {
         fun restore() {
             previous?.let { shell("cmd package set-home-activity $it") }
             previous = null
+            previousAnimations.forEach { (key, value) ->
+                if (value == "null") shell("settings delete global $key")
+                else { check(value.matches(Regex("[0-9.]+"))); shell("settings put global $key $value") }
+            }
+            previousAnimations = emptyMap()
         }
         override fun after() = restore()
     }
@@ -105,6 +117,7 @@ class HomeIntegrationTest {
             assertTrue(wallpaperId > 0)
             repeat(2) {
                 awaitReady()
+                automation.waitForIdle(500, 5_000)
                 val before = compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[HomeRevealSerialKey]
                 shell("input keyevent KEYCODE_APP_SWITCH")
                 try {
@@ -128,7 +141,7 @@ class HomeIntegrationTest {
                 // Verify the actual surface once, without repeatedly taking
                 // WindowManager's global dump lock during its opening animation.
                 assertTrue(shell("dumpsys window").contains("RecentsActivity"))
-                automation.waitForIdle(200, 5_000)
+                automation.waitForIdle(500, 5_000)
                 shell("input keyevent KEYCODE_HOME")
                 awaitReady()
                 compose.waitUntil(10_000) {

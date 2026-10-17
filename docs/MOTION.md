@@ -81,6 +81,9 @@ surface after applying a new background; no wallpaper update occurs per frame
 or on an unchanged return. Android still owns its task/card animations.
 
 JVM tests cover packing under different row counts and gesture dismissal choices.
+The system HOME integration test enables normal Android animation scales and
+restores them afterwards: Quickstep's Home-stub/task-loading transition must be
+exercised with real system timing, separately from Compose's controlled test clock.
 API 31/35 instrumentation covers real native widget binding, movement, resizing,
 persistence, clipping and catalog inset; existing regressions cover interrupted
 panels, menus, HOME and app return. Optimized Preview smoke tests record a motion
