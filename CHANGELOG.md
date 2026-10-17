@@ -9,6 +9,7 @@
 - Más margen superior/interior en el catálogo; preferencia por imágenes completas del proveedor frente a layouts que dependen de un host vivo. Los widgets solo notifican cambios de tamaño cuando cambian sus dimensiones.
 - Cierres interactivos con velocidad, cancelación al invertir el gesto y continuidad del muelle. Navegación de ajustes y More/Back con dirección coherente; movimiento de celdas al cambiar el tamaño del widget.
 - Pulsación/edición de iconos e indicador segmentado animados en la capa de dibujo, sin recomposición o layout por fotograma. Se mantienen movimiento reducido y ahorro de batería.
+- Las invalidaciones de paquetes ya no esperan en el hilo de UI al bloqueo del renderizado de iconos. El host conserva el padding Android del proveedor y lo incluye al calcular su tamaño mínimo.
 - Contactos usa una agenda vectorial original con pestañas de color; se conservan los otros 22 recursos de SVG Stack y sus licencias.
 - README reorganizado, referencias de movimiento y guía de pruebas físicas actualizadas. Retirados logs/manifiesto de la preparación inicial y helper de creación de repositorios obsoleto.
 - Regresiones de empaquetado de cuadrícula, vinculación y persistencia, redimensionado y cambio de vista, márgenes de catálogo y capturas sincronizadas con el fotograma actual.

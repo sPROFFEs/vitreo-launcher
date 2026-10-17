@@ -602,6 +602,15 @@ class LauncherSmokeTest {
                     }
                 }
                 awaitFocusedWindow("com.android.settings")
+                // The external window can gain focus before Spotlight's IME
+                // finishes hiding. BACK in that interval only dismisses the
+                // keyboard, so it does not exercise an activity return at all.
+                compose.waitUntil(10_000) {
+                    InstrumentationRegistry.getInstrumentation().uiAutomation.windows.none {
+                        it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD
+                    }
+                }
+                android.util.Log.i("VitreoReturnTest", "Returning attempt=$attempt, previousSerial=$previous")
                 if (attempt == 0) shell("input keyevent KEYCODE_BACK")
                 else activity.runOnUiThread {
                     activity.startActivity(Intent(activity, MainActivity::class.java).setAction(Intent.ACTION_MAIN)

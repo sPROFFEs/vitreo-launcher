@@ -5,8 +5,8 @@
 `LauncherApps + MAIN/LAUNCHER → AppCatalog (IO) → LauncherViewModel → StateFlow → Compose`.
 Se consulta el usuario Android actual y se respeta el estado efectivo de los
 componentes; no se vuelve a filtrar por `ActivityInfo.enabled`, que conserva el
-valor predeterminado del manifiesto. Los cambios de paquetes invalidan su caché
-de iconos. Si un componente desaparece y otro del mismo paquete apunta a la misma
+valor predeterminado del manifiesto. Los cambios de paquetes encolan la invalidación de iconos sin
+bloquear el hilo de UI; la consulta IO drena esa cola antes de reutilizar la caché. Si un componente desaparece y otro del mismo paquete apunta a la misma
 actividad, se remapea su acceso conservando el dock, carpeta o posición de inicio.
 El núcleo `LayoutOps` mantiene una lista ordenada de entradas, carpetas y cuatro
 plazas de dock. `LauncherState.sanitized()` limita tamaños, elimina duplicados y
@@ -68,6 +68,8 @@ El host de cada widget tiene recorte nativo por outline y por sus límites; no
 depende solo del clip de Compose para encerrar RemoteViews. Respeta la altura
 mínima y escala proporcionalmente si su tamaño mínimo supera el rectángulo disponible. Los cambios de opciones de
 tamaño solo se envían cuando cambian sus dimensiones, no en cada tick del reloj.
+El host conserva el padding predeterminado de Android y lo incluye al calcular
+el mínimo disponible; no fuerza las RemoteViews contra el borde redondeado.
 En Home se respetan los mínimos redimensionables del proveedor y se usa la API de
 tamaños exactos de Android 12 para que RemoteViews pueda elegir su diseño adaptable.
 La galería renderiza el diseño a su proporción original y ajusta el bitmap dentro

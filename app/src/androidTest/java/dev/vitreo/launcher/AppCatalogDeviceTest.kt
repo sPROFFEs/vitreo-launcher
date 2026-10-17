@@ -12,9 +12,28 @@ import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
 class AppCatalogDeviceTest {
+    @Test fun packageCallbacksDoNotWaitForTheCatalogRenderingMonitor() {
+        val catalog = AppCatalog(ApplicationProvider.getApplicationContext<Context>())
+        val locked = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val invalidated = CountDownLatch(1)
+        val loading = Thread {
+            synchronized(catalog) { locked.countDown(); release.await(10, TimeUnit.SECONDS) }
+        }
+        val callback = Thread { catalog.invalidate("com.android.settings"); invalidated.countDown() }
+        loading.start()
+        try {
+            assertTrue(locked.await(5, TimeUnit.SECONDS))
+            callback.start()
+            assertTrue("A package callback must not block behind catalog rendering", invalidated.await(5, TimeUnit.SECONDS))
+        } finally { release.countDown(); loading.join(5_000); callback.join(5_000) }
+    }
+
     @Test fun runtimeEnabledAliasesStayVisibleAndKeepTheirDockPositionWhenTheIconChanges() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext

@@ -14,7 +14,7 @@ no accounts, ads, analytics, root or accessibility service.
   <img src="docs/screenshots/widget-previews.png" width="220" alt="Widget catalog with provider previews">
 </p>
 
-Screenshots from Android emulators. Each CI run also keeps screenshots, a motion
+[Screenshots](docs/screenshots/PROVENANCE.md) from Android emulators. Each CI run also keeps screenshots, a motion
 recording and test reports for its exact commit.
 
 ## Use Vitreo

@@ -572,7 +572,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                             val folder = live ?: snapshot
                             if (folder != null) FolderSheet(folder, apps, { sheet = null }, ::launch, ::actions, { model.renameFolder(folder.id, it) })
                         }
-                        is Sheet.Category -> CategoryScreen(current.title, current.apps, apps, { sheet = null }, ::launch, ::actions)
+                        is Sheet.Category -> CategoryScreen(current.title, current.apps.mapNotNull { apps[it.id] }, apps, { sheet = null }, ::launch, ::actions)
                         is Sheet.PairWith, is Sheet.AddToFolder -> Unit
                     }
                 }

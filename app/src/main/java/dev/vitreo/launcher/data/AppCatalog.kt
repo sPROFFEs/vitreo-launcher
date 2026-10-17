@@ -17,6 +17,8 @@ import android.os.Build
 import androidx.core.graphics.drawable.toBitmap
 import java.text.Collator
 import java.util.Locale
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicBoolean
 
 data class AppRecord(val id: String, val label: String, val packageName: String, val icon: Bitmap?,
     val category: Int = -1, val glyph: Bitmap? = null)
@@ -31,17 +33,23 @@ class AppCatalog(private val context: Context) {
     private data class Artwork(val updated: Long, val iconResource: Int, val labelResource: Int,
         val label: String, val record: AppRecord)
     private val artwork = mutableMapOf<String, Artwork>()
+    private val dirtyPackages = ConcurrentLinkedQueue<String>()
+    private val clearArtwork = AtomicBoolean(false)
     private var configuration: Configuration? = null
 
-    @Synchronized
     fun invalidate(packageName: String? = null) {
-        if (packageName == null) artwork.clear()
-        else artwork.entries.removeAll { it.value.record.packageName == packageName }
+        // Package callbacks run on Main. Never wait there for the IO query's
+        // bitmap/rendering lock: boot-time package changes can otherwise stall frames.
+        if (packageName == null) clearArtwork.set(true) else dirtyPackages.add(packageName)
     }
 
     @Synchronized
     @Suppress("DEPRECATION")
     fun load(): List<AppRecord> {
+        if (clearArtwork.getAndSet(false)) artwork.clear()
+        val invalidated = mutableSetOf<String>()
+        while (true) invalidated.add(dirtyPackages.poll() ?: break)
+        if (invalidated.isNotEmpty()) artwork.entries.removeAll { it.value.record.packageName in invalidated }
         val pm = context.packageManager
         val currentConfiguration = context.resources.configuration
         if (configuration != currentConfiguration) {
@@ -119,9 +127,17 @@ class AppCatalog(private val context: Context) {
             name !in live && name !in unavailable && absent {
                 launcher.getApplicationInfo(name, PackageManager.MATCH_DISABLED_COMPONENTS, Process.myUserHandle())
             } && absent {
-                if (Build.VERSION.SDK_INT >= 35) context.packageManager.getApplicationInfo(name,
-                    PackageManager.ApplicationInfoFlags.of(PackageManager.MATCH_DISABLED_COMPONENTS.toLong() or PackageManager.MATCH_ARCHIVED_PACKAGES))
-                else context.packageManager.getApplicationInfo(name, PackageManager.MATCH_DISABLED_COMPONENTS)
+                try {
+                    if (Build.VERSION.SDK_INT >= 35) context.packageManager.getApplicationInfo(name,
+                        PackageManager.ApplicationInfoFlags.of(PackageManager.MATCH_DISABLED_COMPONENTS.toLong() or PackageManager.MATCH_ARCHIVED_PACKAGES))
+                    else context.packageManager.getApplicationInfo(name, PackageManager.MATCH_DISABLED_COMPONENTS)
+                } catch (_: PackageManager.NameNotFoundException) {
+                    // An unmounted APK can leave an installed package setting.
+                    // A deleted package retaining data has FLAG_INSTALLED clear.
+                    context.packageManager.getApplicationInfo(name,
+                        PackageManager.MATCH_UNINSTALLED_PACKAGES or PackageManager.MATCH_DISABLED_COMPONENTS)
+                        .takeIf { it.flags and android.content.pm.ApplicationInfo.FLAG_INSTALLED != 0 }
+                }
             }
         }
     }

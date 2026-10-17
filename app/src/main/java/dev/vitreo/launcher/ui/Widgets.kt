@@ -135,10 +135,15 @@ internal fun NativeWidgetContent(controller: WidgetController, id: Int, modifier
     val provider = controller.manager.getAppWidgetInfo(id) ?: return
     BoxWithConstraints(modifier.fillMaxWidth()) {
         val width = maxWidth.value.coerceAtLeast(1f)
+        val providerPadding = remember(context, provider.provider, density.density) {
+            android.appwidget.AppWidgetHostView.getDefaultPaddingForWidget(context, provider.provider, null)
+        }
+        val paddingWidth = (providerPadding.left + providerPadding.right) / density.density
+        val paddingHeight = (providerPadding.top + providerPadding.bottom) / density.density
         val resizeWidth = fitToBounds && provider.resizeMode and AppWidgetProviderInfo.RESIZE_HORIZONTAL != 0 && provider.minResizeWidth > 0
         val resizeHeight = fitToBounds && provider.resizeMode and AppWidgetProviderInfo.RESIZE_VERTICAL != 0 && provider.minResizeHeight > 0
-        val minWidth = ((if (resizeWidth) provider.minResizeWidth else provider.minWidth) / density.density).coerceAtLeast(1f)
-        val minHeight = ((if (resizeHeight) provider.minResizeHeight else provider.minHeight) / density.density).coerceIn(1f, 1600f)
+        val minWidth = ((if (resizeWidth) provider.minResizeWidth else provider.minWidth) / density.density + paddingWidth).coerceAtLeast(1f)
+        val minHeight = ((if (resizeHeight) provider.minResizeHeight else provider.minHeight) / density.density + paddingHeight).coerceIn(1f, 1600f)
         val height = if (fitToBounds) maxHeight.value.coerceAtLeast(1f)
             else maxOf(140f, minHeight * minOf(1f, width / minWidth))
         val fit = minOf(1f, width / minWidth, height / minHeight).coerceAtLeast(.01f)
@@ -146,7 +151,7 @@ internal fun NativeWidgetContent(controller: WidgetController, id: Int, modifier
         val renderHeight = (height / fit).roundToInt().coerceAtLeast(1)
         AndroidView(factory = {
             WidgetHostContainer(context).apply {
-                addView(controller.host.createView(context, id, provider).apply { setPadding(0, 0, 0, 0) },
+                addView(controller.host.createView(context, id, provider),
                     FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
             }
         }, modifier = Modifier.fillMaxWidth().height(height.dp).testTag("native_widget:$id"), update = { container ->

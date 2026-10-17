@@ -61,15 +61,21 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
         onDispose { lifecycle.removeObserver(observer) }
     }
     LaunchedEffect(target, reduced) {
-        if (target != null) retained = target
-        fingerProgress?.let { progress.snapTo(it); fingerProgress = null }
-        val velocity = releaseVelocity ?: progress.velocity
-        releaseVelocity = null
-        progress.animateTo(if (target != null) 1f else 0f,
-            if (reduced) tween(120) else if (target == null) LauncherMotion.close() else LauncherMotion.panel(),
-            initialVelocity = if (reduced) 0f else velocity)
-        dismissDown = false
-        if (target == null) retained = null
+        // Let Animatable interrupt its preceding mutation. Cancelling the
+        // animation's coroutine on every target change would zero its velocity
+        // before the next spring can inherit it. This scope still dies with UI.
+        scope.launch {
+            if (currentTarget != target) return@launch
+            if (target != null) retained = target
+            fingerProgress?.let { progress.snapTo(it); fingerProgress = null }
+            val velocity = releaseVelocity ?: progress.velocity
+            releaseVelocity = null
+            progress.animateTo(if (target != null) 1f else 0f,
+                if (reduced) tween(120) else if (target == null) LauncherMotion.close() else LauncherMotion.panel(),
+                initialVelocity = if (reduced) 0f else velocity)
+            dismissDown = false
+            if (target == null) retained = null
+        }
     }
     // Scrim/blur use bounded opacity; geometry keeps the spring's small overshoot.
     LaunchedEffect(Unit) { snapshotFlow { (fingerProgress ?: progress.value).coerceIn(0f, 1f) }.collect(progressChanged) }
