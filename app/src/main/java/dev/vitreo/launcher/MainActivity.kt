@@ -40,6 +40,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        homeRevealSerial = savedInstanceState?.getInt("homeRevealSerial") ?: 0
+        stoppedOnce = savedInstanceState != null
         enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT))
         setContent {
@@ -52,17 +54,30 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         if (leftForApp) { leftForApp = false; appReturnSerial++ }
-        if (stoppedOnce) { stoppedOnce = false; homeRevealSerial++ }
+        revealHomeWhenFocused()
         defaultHome = isDefaultHome()
         model.homeRole(defaultHome)
         model.refresh()
     }
     override fun onStop() { stoppedOnce = true; super.onStop() }
     override fun onPause() { stoppedOnce = true; super.onPause() }
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putInt("homeRevealSerial", homeRevealSerial)
+        super.onSaveInstanceState(outState)
+    }
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) revealHomeWhenFocused()
         if (hasFocus && defaultHome && model.systemBackgroundVisible.value) runCatching {
             android.app.WallpaperManager.getInstance(this).setWallpaperOffsets(window.decorView.windowToken, .5f, .5f)
+        }
+    }
+    private fun revealHomeWhenFocused() {
+        // RESUMED can precede the visible window while Android still animates
+        // its Recents card. Start the icon arrival with actual input focus.
+        if (stoppedOnce && hasWindowFocus() && lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
+            stoppedOnce = false
+            homeRevealSerial++
         }
     }
     override fun onNewIntent(intent: Intent) {

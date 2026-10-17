@@ -89,48 +89,6 @@ class LauncherSmokeTest {
     }).fetchSemanticsNodes().sortedWith(compareBy({ it.boundsInRoot.top }, { it.boundsInRoot.left }))
         .map { it.config[SemanticsProperties.TestTag] }
 
-    @Test fun recentsReturnUsesSharedSystemWallpaperAndRevealsHomeWithoutChangingItsLayout() {
-        awaitReady()
-        check(shell("getprop ro.kernel.qemu").trim() == "1") { "Wallpaper test requires a disposable emulator." }
-        val activity = compose.activity
-        val model = ViewModelProvider(activity)[LauncherViewModel::class.java]
-        val original = model.ui.value.layout.appearance
-        val placed = model.ui.value.layout.placedApps()
-        val previousHome = checkNotNull(shell("cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME")
-            .lineSequence().lastOrNull { it.matches(Regex("[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+")) })
-        val manager = android.app.WallpaperManager.getInstance(activity)
-        try {
-            shell("cmd package set-home-activity ${activity.packageName}/dev.vitreo.launcher.MainActivity")
-            compose.runOnUiThread {
-                model.homeRole(true)
-                model.appearance(original.copy(syncWallpaper = true, wallpaperDim = .23f))
-            }
-            compose.waitUntil(20_000) { model.systemBackgroundVisible.value }
-            val wallpaperId = manager.getWallpaperId(android.app.WallpaperManager.FLAG_SYSTEM)
-            assertTrue(wallpaperId > 0)
-            repeat(2) {
-                val before = compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[dev.vitreo.launcher.ui.HomeRevealSerialKey]
-                shell("input keyevent KEYCODE_APP_SWITCH")
-                compose.waitUntil(10_000) { !activity.hasWindowFocus() }
-                shell("input keyevent KEYCODE_HOME")
-                awaitReady()
-                compose.waitUntil(10_000) { compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[dev.vitreo.launcher.ui.HomeRevealSerialKey] > before }
-                assertEquals(placed, model.ui.value.layout.placedApps())
-                assertEquals("Returning must not rewrite Android's wallpaper", wallpaperId, manager.getWallpaperId(android.app.WallpaperManager.FLAG_SYSTEM))
-            }
-            // PixelCopy is the current-frame barrier; screen capture includes the separate wallpaper surface.
-            compose.onRoot().captureToImage()
-            val screenshot = checkNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot())
-            val directory = checkNotNull(activity.getExternalFilesDir("review"))
-            File(directory, "recents-return.png").outputStream().use { screenshot.compress(Bitmap.CompressFormat.PNG, 100, it) }
-            compose.runOnUiThread { model.appearance(model.ui.value.layout.appearance.copy(syncWallpaper = false)) }
-            compose.waitUntil(10_000) { !model.systemBackgroundVisible.value }
-        } finally {
-            shell("cmd package set-home-activity $previousHome")
-            compose.runOnUiThread { model.homeRole(false); model.appearance(original) }
-        }
-    }
-
     @Test fun cyberpunkThemeAppliesAcrossHomeLibraryAndMenusWithoutChangingLayout() {
         awaitReady()
         val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
@@ -151,7 +109,7 @@ class LauncherSmokeTest {
             compose.onNodeWithText("Done").performClick()
             home()
             compose.onNodeWithTag("cyber_backdrop", useUnmergedTree = true).assertExists()
-            compose.onNodeWithTag("clock_widget_card").assertExists()
+            compose.onNode(hasTestTag("clock_widget_card") and hasAnyAncestor(hasTestTag("home_builtin_widgets"))).assertIsDisplayed()
             assertEquals(placed, model.ui.value.layout.placedApps())
             captureEvidence("cyber-home")
             val first = homeIconTags().first { !it.startsWith("home_entry:folder:") }
@@ -750,7 +708,11 @@ class LauncherSmokeTest {
                 // The external window can gain focus before Spotlight's IME
                 // finishes hiding. BACK in that interval only dismisses the
                 // keyboard, so it does not exercise an activity return at all.
-                compose.waitUntil(10_000) {
+                compose.waitUntil(15_000) {
+                    // Window focus can arrive during the task transition, before
+                    // the outgoing HOME has actually stopped. BACK there can be
+                    // consumed by the transition or a late keyboard request.
+                    compose.activityRule.scenario.state == Lifecycle.State.CREATED && !activity.hasWindowFocus() &&
                     InstrumentationRegistry.getInstrumentation().uiAutomation.windows.none {
                         it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD
                     }

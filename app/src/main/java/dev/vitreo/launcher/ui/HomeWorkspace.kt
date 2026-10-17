@@ -43,7 +43,7 @@ internal fun HomeWorkspace(page: HomeGridPage, rows: Int, rowHeight: Float, icon
             return Modifier.offset { offset.value }
         }
         Box(Modifier.fillMaxWidth().height((rows * rowHeight).dp)) {
-            if (page.builtins) HomeWidgets(now, Modifier.height((rowHeight * 2).dp).graphicsLayer {
+            if (page.builtins) HomeWidgets(now, Modifier.height((rowHeight * 2).dp).testTag("home_builtin_widgets").graphicsLayer {
                 if (arrival.enabled) { val p = arrival.progress.value; alpha = (p * 3).coerceIn(0f, 1f); translationY = (1f - p) * 24.dp.toPx() }
             }, onClock, onCalendar)
             page.apps.forEach { cell -> key(cell.entry.id) {

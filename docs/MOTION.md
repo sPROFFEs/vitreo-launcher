@@ -64,6 +64,8 @@ icons start radially beyond the nearest screen edge and settle into their
 unchanged cells with a critically damped spring (stiffness 350). Widget cards
 use a smaller vertical reveal. Transforms run in graphics layers and do not
 repack the grid. Reduce Motion/Battery Saver settle immediately.
+The arrival starts when the resumed Home window regains input focus, so it does
+not finish behind Android's outgoing Recents card before Home is visible.
 
 Departure transforms apply to foreground content only. The wallpaper is never
 scaled or faded with the workspace. When Home synchronization succeeds, Android

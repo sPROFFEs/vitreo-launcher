@@ -56,8 +56,8 @@
   {
     "file": "app/src/main/res/drawable/cyber_ui_volume_high.xml",
     "source": "https://raw.githubusercontent.com/sebyx07/cybercore-css/5b90ffbcc4a1aa84d122eead296fab0cf7ee58ca/src/icons/defs/media/volume-high.ts",
-    "sha256": "150222404480d7dfaa49dfbb231219ecb96a1869236fbc2c52d8288772205b83",
-    "changes": "Outline SVG geometry converted to Android VectorDrawable; currentColor uses tintable white."
+    "sha256": "88d0b1f337b71dcd11ff0845c690e3b32f14d6c568e0136763fc8d26a48013c9",
+    "changes": "Outline SVG geometry converted to Android VectorDrawable; currentColor uses tintable white. Compact SVG arc flags expanded for Android path parsing."
   },
   {
     "file": "app/src/main/res/drawable/cyber_ui_home.xml",
