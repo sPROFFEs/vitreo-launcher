@@ -22,6 +22,7 @@ import org.junit.Rule
 import org.junit.ClassRule
 import org.junit.Test
 import org.junit.rules.ExternalResource
+import org.junit.rules.RuleChain
 import org.junit.runner.RunWith
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
@@ -35,7 +36,7 @@ class HomeIntegrationTest {
                 java.io.FileInputStream(fd.fileDescriptor).bufferedReader().use { it.readText() }
             }
 
-        @JvmField @ClassRule val home = object : ExternalResource() {
+        @JvmField @ClassRule val home = RuleChain.outerRule(LocalWallpaperRule()).around(object : ExternalResource() {
             private var previous: String? = null
             private val animationSettings = listOf("window_animation_scale", "transition_animation_scale", "animator_duration_scale")
             private var previousAnimations = emptyMap<String, String>()
@@ -69,7 +70,7 @@ class HomeIntegrationTest {
                         .filterIsInstance<MainActivity>().distinct().forEach { it.finishAndRemoveTask() }
                 }
             }
-        }
+        })
     }
     private val context = ApplicationProvider.getApplicationContext<Context>()
     @get:Rule val compose = createEmptyComposeRule()
@@ -158,11 +159,32 @@ class HomeIntegrationTest {
         service.flags = service.flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS or
             android.accessibilityservice.AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
         automation.serviceInfo = service
+        val colorsChanged = java.util.concurrent.atomic.AtomicBoolean(false)
+        val colorsListener = WallpaperManager.OnColorsChangedListener { _, which ->
+            if (which and WallpaperManager.FLAG_SYSTEM != 0) colorsChanged.set(true)
+        }
+        val previousWallpaperId = manager.getWallpaperId(WallpaperManager.FLAG_SYSTEM)
+        manager.addOnColorsChangedListener(colorsListener, android.os.Handler(android.os.Looper.getMainLooper()))
         try {
             compose.runOnUiThread { model.appearance(original.copy(syncWallpaper = true)) }
             compose.waitUntil(20_000) { model.systemBackgroundVisible.value }
             val wallpaperId = manager.getWallpaperId(WallpaperManager.FLAG_SYSTEM)
             assertTrue(wallpaperId > 0)
+            if (wallpaperId != previousWallpaperId) compose.waitUntil(20_000) { colorsChanged.get() }
+            // SystemUI applies color overlays after WallpaperManager reports the
+            // new image. Wait for a stable, focused activity/assets pair before
+            // asking Quickstep to animate its own window during that relaunch.
+            var observed: MainActivity? = null
+            var assets: android.content.res.AssetManager? = null
+            var stableSince = android.os.SystemClock.uptimeMillis()
+            compose.waitUntil(15_000) {
+                val current = runCatching { activity() }.getOrNull()
+                val now = android.os.SystemClock.uptimeMillis()
+                if (current == null || !current.hasWindowFocus() || current !== observed || current.resources.assets !== assets) {
+                    observed = current; assets = current?.resources?.assets; stableSince = now
+                }
+                current != null && current.hasWindowFocus() && now - stableSince >= 2_000
+            }
             repeat(2) {
                 awaitReady()
                 automation.waitForIdle(500, 5_000)
@@ -209,6 +231,9 @@ class HomeIntegrationTest {
             File(directory, "recents-return.png").outputStream().use { screenshot.compress(Bitmap.CompressFormat.PNG, 100, it) }
             compose.runOnUiThread { model.appearance(model.ui.value.layout.appearance.copy(syncWallpaper = false)) }
             compose.waitUntil(10_000) { !model.systemBackgroundVisible.value }
-        } finally { compose.runOnUiThread { model.appearance(original) } }
+        } finally {
+            manager.removeOnColorsChangedListener(colorsListener)
+            compose.runOnUiThread { model.appearance(original) }
+        }
     }
 }

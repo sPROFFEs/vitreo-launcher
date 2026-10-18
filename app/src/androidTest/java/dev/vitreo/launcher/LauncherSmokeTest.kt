@@ -45,12 +45,18 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.After
 import org.junit.Rule
+import org.junit.ClassRule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class LauncherSmokeTest {
+    companion object {
+        // Actual Android wallpaper synchronization is covered by HomeIntegrationTest.
+        // Color overlays can recreate every activity several seconds after a write.
+        @JvmField @ClassRule val wallpaper = LocalWallpaperRule()
+    }
     // Android distinguishes HOME and ordinary app tasks. Start as HOME so
     // subsequent HOME intents reuse the same task and still match ActivityScenario.
     @get:Rule val compose = AndroidComposeTestRule(
@@ -65,15 +71,18 @@ class LauncherSmokeTest {
         }
     )
     private fun awaitReady() {
-        val activity = compose.activity
         try {
             compose.waitUntil(timeoutMillis = 20_000) {
-                val nodes = compose.onAllNodesWithTag("launcher_root").fetchSemanticsNodes(atLeastOneRootRequired = false)
-                activity.hasWindowFocus() && compose.activityRule.scenario.state == Lifecycle.State.RESUMED &&
-                    nodes.any { it.config.contains(LauncherReadyKey) && it.config[LauncherReadyKey] }
+                runCatching {
+                    val activity = compose.activity
+                    val nodes = compose.onAllNodesWithTag("launcher_root").fetchSemanticsNodes(atLeastOneRootRequired = false)
+                    activity.hasWindowFocus() && compose.activityRule.scenario.state == Lifecycle.State.RESUMED &&
+                        nodes.any { it.config.contains(LauncherReadyKey) && it.config[LauncherReadyKey] }
+                }.getOrDefault(false)
             }
             compose.waitForIdle()
         } catch (failure: Throwable) {
+            val activity = compose.activity
             val model = ViewModelProvider(activity)[LauncherViewModel::class.java]
             val roots = compose.onAllNodesWithTag("launcher_root").fetchSemanticsNodes(atLeastOneRootRequired = false)
             val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
@@ -360,11 +369,6 @@ class LauncherSmokeTest {
         val original = model.ui.value.layout.appearance
         val placed = model.ui.value.layout.placedApps()
         compose.runOnUiThread { model.appearance(original.copy(themePreset = 0, showWidgets = true, iconSize = 60f)) }
-        fun home() {
-            compose.runOnUiThread { compose.activity.startActivity(Intent(compose.activity, MainActivity::class.java)
-                .setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-            compose.waitForIdle()
-        }
         try {
             openSettings()
             compose.onNodeWithText("Themes & Icons").performClick()
@@ -372,7 +376,7 @@ class LauncherSmokeTest {
             compose.waitUntil(10_000) { model.ui.value.layout.appearance.themePreset == 1 }
             captureEvidence("cyber-settings")
             compose.onNodeWithText("Done").performClick()
-            home()
+            returnHome()
             compose.onNodeWithTag("cyber_backdrop", useUnmergedTree = true).assertExists()
             compose.onNode(hasTestTag("clock_widget_card") and hasAnyAncestor(hasTestTag("home_builtin_widgets"))).assertIsDisplayed()
             assertEquals(placed, model.ui.value.layout.placedApps())
@@ -382,7 +386,7 @@ class LauncherSmokeTest {
             compose.onNodeWithText("More").performClick()
             compose.onNodeWithText("Change Icon").assertIsDisplayed()
             captureEvidence("cyber-menu")
-            home()
+            returnHome()
             repeat(10) {
                 if (compose.onAllNodesWithTag("app_library").fetchSemanticsNodes().isEmpty())
                     compose.onNodeWithTag("home_workspace").performTouchInput { swipeLeft() }
@@ -395,7 +399,7 @@ class LauncherSmokeTest {
             compose.onNodeWithTag(category).performClick()
             compose.onNodeWithTag("category_panel").assertIsDisplayed()
             captureEvidence("cyber-category")
-            home()
+            returnHome()
             compose.activityRule.scenario.recreate()
             awaitReady()
             assertEquals(1, model.ui.value.layout.appearance.themePreset)
@@ -404,7 +408,7 @@ class LauncherSmokeTest {
             compose.onNodeWithTag("library_button").performClick()
             compose.onNodeWithTag("search_field").performTextInput("camera")
             compose.onNodeWithTag("library_title").assertIsDisplayed()
-            home()
+            returnHome()
             compose.runOnUiThread { model.appearance(original) }
             compose.onNodeWithTag("cyber_backdrop", useUnmergedTree = true).assertDoesNotExist()
         } finally { compose.runOnUiThread { model.appearance(original) } }
@@ -464,13 +468,15 @@ class LauncherSmokeTest {
             captureEvidence("theme-icon-picker")
             compose.onNodeWithTag("pick_icon:photos").performClick()
             assertEquals(dev.vitreo.launcher.core.IconOverride(dev.vitreo.launcher.core.THEME_ICON_PACK, "photos"), model.ui.value.layout.appearance.iconOverrides[app.id])
-            compose.onNodeWithTag("theme_icon:${app.id}:photos", useUnmergedTree = true).assertExists()
+            compose.onNode(hasTestTag("theme_icon:${app.id}:photos") and
+                hasAnyAncestor(hasTestTag("search_entry:${app.id}")), useUnmergedTree = true).assertIsDisplayed()
             compose.activityRule.scenario.recreate()
             awaitReady()
             assertEquals("photos", model.ui.value.layout.appearance.iconOverrides[app.id]?.drawable)
             compose.runOnUiThread { model.appearance(model.ui.value.layout.appearance.copy(themePreset = 1)) }
             search()
-            compose.onNodeWithTag("theme_icon:${app.id}:photos", useUnmergedTree = true).assertExists()
+            compose.onNode(hasTestTag("theme_icon:${app.id}:photos") and
+                hasAnyAncestor(hasTestTag("search_entry:${app.id}")), useUnmergedTree = true).assertIsDisplayed()
             assertEquals(placed, model.ui.value.layout.placedApps())
             compose.onNodeWithTag("search_entry:${app.id}").performTouchInput { longClick() }
             compose.onNodeWithText("More").performClick()

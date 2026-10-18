@@ -29,8 +29,15 @@ de ejecutar los emuladores. Si faltan, el error enumera sus nombres y el lugar
 de configuración. Esta comprobación no escribe la clave ni exporta contraseñas;
 la clave se materializa y verifica después en el job `build`.
 
-El build realiza comprobaciones estructurales, pruebas de scripts, pruebas JVM,
-lint de Android y build optimizado. Después ejecuta `apksigner verify`, comprueba
+`build` compila una vez Debug, su APK de tests, Preview optimizada, Release firmada
+y el fixture de desinstalación; también ejecuta pruebas JVM y lint. Ambos emuladores
+descargan los mismos APK del run y ejecutan AndroidJUnitRunner con
+`adb shell am instrument -w -r`, sin repetir Gradle. El lector de resultados exige
+eventos de inicio/fin completos, recuentos coherentes y un resumen final correcto.
+Fallos, omisiones, crashes y salida truncada bloquean la publicación; se conservan
+JUnit, logcat completo y capturas antes de retirar las APK.
+
+Después de pasar ambos emuladores, `verify` ejecuta `apksigner verify`, comprueba
 identificador/versión/permisos con `aapt` y calcula SHA-256. Una release nueva se
 crea como borrador, se suben todos sus assets y solo entonces se publica como
 release normal (`prerelease: false`). `Latest` se selecciona con la política de
@@ -39,14 +46,20 @@ sin reemplazar sus assets; los tags y APK publicados siguen siendo inmutables.
 
 `ci.yml` comprueba pull requests sin exponer secretos y genera un artifact Preview.
 `device-smoke.yml` es reutilizable y también manual: sus emuladores API 31/35 son
-obligatorios antes del build firmado. Comprueba instrumentación Debug y arranque
-Preview optimizada; registra JUnit, logcat y captura del emulador. `device_smoke.py`
+obligatorios antes de verificar y publicar el APK firmado. Comprueba instrumentación
+Debug y arranque Preview optimizada. `device_smoke.py`
 rechaza dispositivos físicos antes de instalar, borrar datos o cambiar HOME.
 El emulador no es GrapheneOS ni sustituye al Pixel real. No ejecuta la APK release
 firmada: esa APK se valida estáticamente mediante aapt, apksigner y comparación de
 su certificado con la clave configurada.
 
-El job `build` no tiene permiso de escritura del repo. `publish` recibe los assets,
+La caché de tareas y dependencias de Gradle está activada. Solo los builds de main
+pueden escribir cachés compartidas; PRs y otras referencias las leen. La caché de
+configuración está desactivada. Se mantienen emuladores nuevos, sin snapshots de
+estado de apps. La clave de firma es temporal en los jobs de compilación y
+verificación; no se sube como artifact ni se envía a los emuladores.
+
+Los jobs `build` y `verify` no tienen permiso de escritura del repo. `publish` recibe los assets,
 revalida sus checksums y la evidencia del commit, y comprueba el digest SHA-256 que
 GitHub devuelve para cada upload. Solo publica cuando todos los assets están
 verificados. La clave de firma no se comparte con ese job.
@@ -152,21 +165,3 @@ actualiza y desinstala exclusivamente `dev.vitreo.fixture.uninstall`; comprueba 
 dock, carpetas y recientes. No toca apps de usuario ni se distribuye ese fixture
 con la release. Una prueba separada comprueba la limpieza de paquetes ausentes al
 refrescar y la conservación de alias deshabilitados y paquetes en actualización.
-
-
-CI prepares Debug, its test APK, optimized Preview and signed Release once in the
-build job. Both emulator jobs download the exact same test APK artifact for the
-run and invoke AndroidJUnitRunner using `adb shell am instrument -w -r`.
-`instrumentation_results.py` requires complete matching start/finish events,
-counts and a successful runner terminal before it can emit passing JUnit evidence.
-Failures, skips, crashes and truncated output block publication; full instrumentation
-logcat is retained. The APKs remain installed until screenshot collection finishes.
-
-Gradle task/dependency caching is enabled. Only main builds may write shared caches;
-PRs and other refs read them. Configuration caching is not enabled. Signing keys
-are temporary in trusted build/verification jobs and are never uploaded or sent to
-emulators. After both API 31/35 jobs pass, a separate verification job checks the
-already built Release APK against the private signing identity, permissions,
-version, checksums and exact-commit evidence. Publishing still uses a separate job
-with no signing key. Fresh emulators are retained; no stale app-state snapshot is
-used to speed up the tests.

@@ -97,3 +97,11 @@ implicit clear-task launch. This avoids switching Quickstep's asynchronous defau
 Home observer back and forth between adjacent tests. Back and HOME use actual
 system key events. CI invokes the same AndroidJUnitRunner directly against prebuilt
 APKs; JUnit XML and full logcat are retained in instrumentation artifacts.
+
+`LocalWallpaperRule` disables system synchronization before unrelated UI scenarios
+start and restores the saved setting after their class. This prevents SystemUI's
+delayed wallpaper color overlays from recreating an unrelated menu/search test.
+The dedicated Home/Recents integration test explicitly enables real synchronization
+and still requires the system surface, stable wallpaper ID and retained ViewModel.
+Readiness checks follow the current ActivityScenario instance across configuration
+changes, and HOME helpers wait for their marked intent to be delivered.
