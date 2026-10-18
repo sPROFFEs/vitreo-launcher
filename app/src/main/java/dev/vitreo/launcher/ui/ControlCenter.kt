@@ -274,8 +274,10 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
                                                     enabled = editing || id != "flashlight" || device.torchAvailable) { if (!editing) activate(id) }
                                                 if (editing) {
                                                     IconButton(onClick = { onAppearance(appearance.copy(controlShortcuts = appearance.controlShortcuts - id)) },
-                                                        modifier = Modifier.align(Alignment.TopStart).offset((-6).dp, (-6).dp).size(30.dp).background(Color(0xffd4d6da), CircleShape)) {
-                                                        Icon(Icons.Outlined.Remove, "Remove ${item.title}", Modifier.size(18.dp), tint = Color(0xff303137))
+                                                        modifier = Modifier.align(Alignment.TopStart).offset((-6).dp, (-6).dp).size(30.dp)) {
+                                                        Box(Modifier.size(20.dp).background(Color(0xffd4d6da), CircleShape), contentAlignment = Alignment.Center) {
+                                                            Icon(Icons.Outlined.Remove, "Remove ${item.title}", Modifier.size(14.dp), tint = Color(0xff303137))
+                                                        }
                                                     }
                                                     IconButton(onClick = { onAppearance(appearance.copy(controlWide = if (wide) appearance.controlWide - id else appearance.controlWide + id)) },
                                                         modifier = Modifier.align(Alignment.BottomEnd).offset(4.dp, 4.dp).size(30.dp).testTag("resize_control:$id")) {

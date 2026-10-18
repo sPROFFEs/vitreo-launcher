@@ -113,9 +113,13 @@ class LauncherSmokeTest {
         compose.waitForIdle()
         // PixelCopy waits for the current Compose frame. A raw UiAutomation
         // screenshot can still contain the previous size/theme after semantics update.
-        val root = if (dialogTag == null) compose.onRoot()
-            else compose.onNode(isRoot() and hasAnyDescendant(hasTestTag(dialogTag)))
-        val screenshot = root.captureToImage().asAndroidBitmap()
+        val screenshot = if (dialogTag == null) compose.onRoot().captureToImage().asAndroidBitmap() else {
+            compose.onNodeWithTag(dialogTag).assertIsDisplayed()
+            // Dialog and IME are separate windows; PixelCopy of the activity misses both.
+            val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+            automation.waitForIdle(200, 5_000)
+            checkNotNull(automation.takeScreenshot())
+        }
         // adb pull copies the file as bytes; it does not depend on run-as output framing.
         val directory = checkNotNull(compose.activity.getExternalFilesDir("review"))
         check(directory.isDirectory || directory.mkdirs())
@@ -815,7 +819,7 @@ class LauncherSmokeTest {
             swipe(Offset(width * .85f, 20f), Offset(width * .85f, height * .55f), 400)
         }
         compose.onNodeWithTag("control_center").assertIsDisplayed()
-        compose.onNodeWithText("Internet").assertExists()
+        compose.onNodeWithContentDescription("Internet settings").assertIsDisplayed()
         compose.onNodeWithContentDescription("Close").performClick()
         compose.onNodeWithTag("dock").assertIsDisplayed()
     }
