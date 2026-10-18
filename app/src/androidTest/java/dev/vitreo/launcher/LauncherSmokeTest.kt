@@ -109,11 +109,13 @@ class LauncherSmokeTest {
             } }
         }
     }
-    private fun captureEvidence(name: String) {
+    private fun captureEvidence(name: String, dialogTag: String? = null) {
         compose.waitForIdle()
         // PixelCopy waits for the current Compose frame. A raw UiAutomation
         // screenshot can still contain the previous size/theme after semantics update.
-        val screenshot = compose.onRoot().captureToImage().asAndroidBitmap()
+        val root = if (dialogTag == null) compose.onRoot()
+            else compose.onNode(isRoot() and hasAnyDescendant(hasTestTag(dialogTag)))
+        val screenshot = root.captureToImage().asAndroidBitmap()
         // adb pull copies the file as bytes; it does not depend on run-as output framing.
         val directory = checkNotNull(compose.activity.getExternalFilesDir("review"))
         check(directory.isDirectory || directory.mkdirs())
@@ -323,7 +325,7 @@ class LauncherSmokeTest {
             compose.onNodeWithTag("control_search").performTextInput("nfc")
             compose.onNodeWithTag("control_option:nfc").assertExists()
             compose.onNodeWithTag("control_option:timer").assertDoesNotExist()
-            captureEvidence("control-picker")
+            captureEvidence("control-picker", dialogTag = "control_picker")
             compose.onNodeWithText("Done").performClick()
             compose.waitForIdle()
             captureEvidence("control-center-edit")
