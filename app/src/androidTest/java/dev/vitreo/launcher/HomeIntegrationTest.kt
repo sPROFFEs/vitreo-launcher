@@ -1,7 +1,6 @@
 package dev.vitreo.launcher
 
 import android.app.WallpaperManager
-import android.content.Intent
 import android.content.Context
 import android.graphics.Bitmap
 import android.view.WindowManager
@@ -134,10 +133,7 @@ class HomeIntegrationTest {
             }
             automation.waitForIdle(500, 5_000)
             if (attempt == 0) shell("input keyevent KEYCODE_BACK")
-            else InstrumentationRegistry.getInstrumentation().runOnMainSync {
-                main.startActivity(Intent(main, MainActivity::class.java).setAction(Intent.ACTION_MAIN)
-                    .addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            }
+            else shell("input keyevent KEYCODE_HOME")
             awaitReady()
             compose.waitUntil(15_000) {
                 compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config.let {
