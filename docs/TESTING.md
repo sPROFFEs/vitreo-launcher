@@ -105,3 +105,6 @@ The dedicated Home/Recents integration test explicitly enables real synchronizat
 and still requires the system surface, stable wallpaper ID and retained ViewModel.
 Readiness checks follow the current ActivityScenario instance across configuration
 changes, and HOME helpers wait for their marked intent to be delivered.
+Search closing also checks Android's actual IME inset visibility, rather than the
+presence of an accessibility window. The retained closing text field is disabled
+immediately, and removing its surface cancels pending keyboard visibility requests.

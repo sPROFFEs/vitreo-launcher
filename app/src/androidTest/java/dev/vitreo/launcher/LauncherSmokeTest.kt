@@ -109,13 +109,12 @@ class LauncherSmokeTest {
         // connection cannot leak into the next independently created scenario.
         if (compose.activityRule.scenario.state != Lifecycle.State.DESTROYED) {
             returnHome()
-            val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
-            automation.serviceInfo = checkNotNull(automation.serviceInfo).apply {
-                flags = flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            // Accessibility can retain an empty IME window after Gboard hides.
+            // The activity's platform insets report its actual visibility.
+            compose.waitUntil(5_000) {
+                compose.activity.window.decorView.rootWindowInsets
+                    ?.isVisible(android.view.WindowInsets.Type.ime()) == false
             }
-            compose.waitUntil(5_000) { automation.windows.none {
-                it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD
-            } }
         }
     }
     private fun captureEvidence(name: String, dialogTag: String? = null) {
@@ -685,6 +684,12 @@ class LauncherSmokeTest {
         compose.onNodeWithTag("library_button").performClick()
         compose.onNodeWithTag("search_field").performTextInput("camera")
         compose.onNodeWithTag("library_title").assertExists()
+        returnHome()
+        compose.waitUntil(5_000) {
+            compose.activity.window.decorView.rootWindowInsets
+                ?.isVisible(android.view.WindowInsets.Type.ime()) == false
+        }
+        compose.onNodeWithTag("dock").assertIsDisplayed()
     }
     @SdkSuppress(minSdkVersion = 33)
     @Test fun agslCompilesOnDevice() {

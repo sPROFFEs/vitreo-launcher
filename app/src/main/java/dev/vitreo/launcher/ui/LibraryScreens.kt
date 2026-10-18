@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -39,9 +40,11 @@ import dev.vitreo.launcher.data.AppRecord
 
 @Composable
 fun Spotlight(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestions: List<AppRecord>,
-    onClose: () -> Unit, onLaunch: (String, Rect?) -> Unit, onActions: (String, Rect?) -> Unit, alphabetical: Boolean = false) {
+    onClose: () -> Unit, onLaunch: (String, Rect?) -> Unit, onActions: (String, Rect?) -> Unit,
+    alphabetical: Boolean = false, active: Boolean = true) {
     var query by rememberSaveable { mutableStateOf("") }
     val focus = remember { FocusRequester() }
+    val view = LocalView.current
     val results = remember(query, records, suggestions, alphabetical) {
         val key = searchKey(query)
         val source = if (alphabetical) records.sortedBy { searchKey(it.label) } else suggestions.take(8)
@@ -55,7 +58,7 @@ fun Spotlight(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestion
                 Row(Modifier.fillMaxSize().padding(horizontal = 13.dp), verticalAlignment = Alignment.CenterVertically) {
                     LauncherSymbol(Icons.Outlined.Search, null, Modifier.size(21.dp), tint = Color.White.copy(alpha = .8f))
                     BasicTextField(query, { query = it.take(100) }, Modifier.weight(1f).padding(start = 9.dp)
-                        .focusRequester(focus).testTag("search_field"), singleLine = true,
+                        .focusRequester(focus).testTag("search_field"), singleLine = true, enabled = active,
                         textStyle = TextStyle(color = Color.White, fontSize = 18.sp), cursorBrush = SolidColor(Color.White),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         keyboardActions = KeyboardActions(onSearch = { results.firstOrNull()?.let { onLaunch(it.id, null) } }),
@@ -86,7 +89,14 @@ fun Spotlight(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestion
         }
         if (!alphabetical || results.isEmpty()) Spacer(Modifier.weight(1f))
     }
-    LaunchedEffect(Unit) { focus.requestFocus() }
+    LaunchedEffect(active) { if (active) focus.requestFocus() }
+    DisposableEffect(view) {
+        onDispose {
+            // The closing panel retains its content during motion. End pending
+            // IME show requests after that last text field is actually removed.
+            view.windowInsetsController?.hide(android.view.WindowInsets.Type.ime())
+        }
+    }
 }
 
 @Composable

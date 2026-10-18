@@ -637,7 +637,8 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                     Box(Modifier.fillMaxSize().pointerInput(current) { detectTapGestures(onTap = { closeSurface() }) })
                     when (current) {
                         Sheet.Search, Sheet.LibrarySearch -> Spotlight(ui.apps, apps, suggestions,
-                            { focusManager.clearFocus(); keyboard?.hide(); sheet = null }, ::launch, ::actions, current == Sheet.LibrarySearch)
+                            { focusManager.clearFocus(); keyboard?.hide(); sheet = null }, ::launch, ::actions,
+                            current == Sheet.LibrarySearch, active = sheet == current)
                         Sheet.Settings -> savedPages.SaveableStateProvider("settings") {
                             SettingsSheet(ui, defaultHome, ::closeSurface, model::appearance, onSetHome,
                             { photoPicker.launch(arrayOf("image/*")) }, { model.preparePhoto() }, photoBusy,
