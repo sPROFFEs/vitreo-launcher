@@ -84,8 +84,10 @@ la distribución y el fondo local: exporta antes cuando sea posible.
 System Home integration tests create the real HOME task with an implicit shell
 intent after selecting Vitreo as the default. App launch/Back/HOME restoration and
 Recents therefore run against Android's actual Home task, rather than an explicit
-standard task owned by ActivityScenario. Settings is a real external app; system
-animations stay enabled. The Overview check waits for the stock emulator's visible
+standard task owned by ActivityScenario. App return launches the separate fixture
+APK, whose single activity uses Android's default Back behavior; Settings can
+consume Back inside its own navigation. Settings still seeds a real task for
+Overview, and system animations stay enabled. The Overview check waits for the stock emulator's visible
 `action_screenshot` control: Quickstep may host Overview in different activities.
 The tests keep the same Activity/ViewModel, search query, app layout and wallpaper
 identity assertions. This fixture depends on the pinned Google APIs emulators;

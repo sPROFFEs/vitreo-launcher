@@ -43,6 +43,7 @@ class HomeIntegrationTest {
             override fun before() {
                 val context = ApplicationProvider.getApplicationContext<Context>()
                 check(shell("getprop ro.kernel.qemu").trim() == "1") { "Requires a disposable emulator." }
+                check(shell("pm install -r -t /data/local/tmp/vitreo-uninstall-fixture.apk").contains("Success"))
                 // Overview is owned by Quickstep. Its Home-stub dismissal races
                 // with task loading when the emulator globally forces duration 0.
                 // Exercise this cross-process motion with normal system timing.
@@ -69,6 +70,7 @@ class HomeIntegrationTest {
                     Stage.values().flatMap { ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(it) }
                         .filterIsInstance<MainActivity>().distinct().forEach { it.finishAndRemoveTask() }
                 }
+                check(shell("pm uninstall dev.vitreo.fixture.uninstall").contains("Success"))
             }
         })
     }
@@ -117,7 +119,11 @@ class HomeIntegrationTest {
         awaitReady()
         val main = activity()
         val model = ViewModelProvider(main)[LauncherViewModel::class.java]
-        val app = model.ui.value.apps.first { it.packageName == "com.android.settings" }
+        // A separate UID and normal Android activity with default Back behavior.
+        // Settings can consume Back in its own navigation without leaving the app.
+        val app = model.ui.value.apps.first {
+            it.id == "dev.vitreo.fixture.uninstall/dev.vitreo.fixture.uninstall.MainActivity"
+        }
         val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
         val service = checkNotNull(automation.serviceInfo)
         service.flags = service.flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
