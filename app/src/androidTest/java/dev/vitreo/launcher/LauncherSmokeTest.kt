@@ -323,6 +323,7 @@ class LauncherSmokeTest {
             compose.onNodeWithTag("control_search").performTextInput("nfc")
             compose.onNodeWithTag("control_option:nfc").assertExists()
             compose.onNodeWithTag("control_option:timer").assertDoesNotExist()
+            captureEvidence("control-picker")
             compose.onNodeWithText("Done").performClick()
             compose.waitForIdle()
             captureEvidence("control-center-edit")

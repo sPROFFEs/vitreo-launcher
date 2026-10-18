@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
@@ -130,6 +131,7 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
     onClose: () -> Unit, onSystem: (String) -> Unit, onUtility: (String) -> Unit,
     onSettings: () -> Unit, onWidgets: () -> Unit, onError: (String) -> Unit) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     val controller = remember { ControlCenterController(context) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var torchCamera by remember { mutableStateOf<String?>(null) }
@@ -334,17 +336,19 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
         }
     }
     if (choosing) ModalBottomSheet(onDismissRequest = { choosing = false }, containerColor = Color(0xff202b38), contentColor = Color.White) {
-        Column(Modifier.fillMaxWidth().heightIn(max = 540.dp).verticalScroll(rememberScrollState()).padding(20.dp).testTag("control_picker")) {
+        Column(Modifier.fillMaxWidth().heightIn(max = 540.dp).padding(20.dp).testTag("control_picker")) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Add a Control", Modifier.weight(1f), fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
-                TextButton(onClick = { choosing = false }) { Text("Done", color = Color.White) }
+                TextButton(onClick = { focusManager.clearFocus(); choosing = false }) { Text("Done", color = Color.White) }
             }
             OutlinedTextField(query, { query = it.take(50) }, Modifier.fillMaxWidth().padding(vertical = 14.dp).testTag("control_search"),
                 placeholder = { Text("Search Controls", color = Color.White.copy(alpha = .65f)) }, singleLine = true,
                 leadingIcon = { Icon(Icons.Outlined.Search, null, tint = Color.White) },
                 colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White))
-            ControlShortcutEditor(appearance, onAppearance, query)
-            Text("Network controls open Android panels. Brightness applies to Vitreo; media volume follows Android.", color = Color.White.copy(alpha = .65f), fontSize = 12.sp)
+            Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+                ControlShortcutEditor(appearance, onAppearance, query)
+                Text("Network controls open Android panels. Brightness applies to Vitreo; media volume follows Android.", color = Color.White.copy(alpha = .65f), fontSize = 12.sp)
+            }
         }
     }
 }
