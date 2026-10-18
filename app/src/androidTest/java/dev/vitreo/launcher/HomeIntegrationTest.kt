@@ -1,16 +1,20 @@
 package dev.vitreo.launcher
 
 import android.app.WallpaperManager
+import android.content.Intent
 import android.content.Context
 import android.graphics.Bitmap
 import android.view.WindowManager
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import dev.vitreo.launcher.ui.AppReturnSerialKey
+import dev.vitreo.launcher.ui.AppOpeningKey
 import dev.vitreo.launcher.ui.HomeRevealSerialKey
 import dev.vitreo.launcher.ui.LauncherReadyKey
 import org.junit.Assert.*
@@ -100,6 +104,53 @@ class HomeIntegrationTest {
         compose.waitForIdle()
     }
 
+    /** Stock Google APIs emulator: Screenshot belongs to Overview, never its Home workspace. */
+    private fun overviewVisible(): Boolean = InstrumentationRegistry.getInstrumentation().uiAutomation.windows.any { window ->
+        val root = window.root
+        window.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION &&
+            root?.packageName?.toString() == "com.google.android.apps.nexuslauncher" &&
+            root.findAccessibilityNodeInfosByViewId("com.google.android.apps.nexuslauncher:id/action_screenshot")
+                .any { it.isVisibleToUser }
+    }
+
+    @Test fun openingAppAndReturningTwicePreservesSearchWithAnimationsEnabled() {
+        awaitReady()
+        val main = activity()
+        val model = ViewModelProvider(main)[LauncherViewModel::class.java]
+        val app = model.ui.value.apps.first { it.packageName == "com.android.settings" }
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        val service = checkNotNull(automation.serviceInfo)
+        service.flags = service.flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+        automation.serviceInfo = service
+        compose.onNodeWithTag("library_button").performClick()
+        compose.onNodeWithTag("search_field").performTextInput(app.label)
+        repeat(2) { attempt ->
+            val previous = compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[AppReturnSerialKey]
+            compose.onNodeWithTag("search_entry:${app.id}").performClick()
+            compose.waitUntil(15_000) {
+                main.lifecycle.currentState == Lifecycle.State.CREATED && !main.hasWindowFocus() &&
+                    automation.windows.any { it.isFocused && it.root?.packageName?.toString() == app.packageName } &&
+                    automation.windows.none { it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD }
+            }
+            automation.waitForIdle(500, 5_000)
+            if (attempt == 0) shell("input keyevent KEYCODE_BACK")
+            else InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                main.startActivity(Intent(main, MainActivity::class.java).setAction(Intent.ACTION_MAIN)
+                    .addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            }
+            awaitReady()
+            compose.waitUntil(15_000) {
+                compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config.let {
+                    it[AppReturnSerialKey] > previous && !it[AppOpeningKey]
+                }
+            }
+            assertSame("System HOME must reuse its activity", main, activity())
+            assertSame(model, ViewModelProvider(activity())[LauncherViewModel::class.java])
+            compose.onNodeWithTag("search_field").assertTextEquals(app.label)
+            compose.onNodeWithTag("search_entry:${app.id}").assertIsDisplayed()
+        }
+    }
+
     @Test fun recentsReturnUsesSharedSystemWallpaperAndRevealsHomeWithoutChangingItsLayout() {
         awaitReady()
         val model = ViewModelProvider(activity())[LauncherViewModel::class.java]
@@ -108,7 +159,8 @@ class HomeIntegrationTest {
         val manager = WallpaperManager.getInstance(context)
         val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
         val service = checkNotNull(automation.serviceInfo)
-        service.flags = service.flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+        service.flags = service.flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS or
+            android.accessibilityservice.AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
         automation.serviceInfo = service
         try {
             compose.runOnUiThread { model.appearance(original.copy(syncWallpaper = true)) }
@@ -125,10 +177,7 @@ class HomeIntegrationTest {
                         // Overview uses an input consumer, so Android can report
                         // no focused window and keep HOME resumed underneath.
                         // Accessibility windows contain only visible surfaces.
-                        !runCatching { activity().hasWindowFocus() }.getOrDefault(true) && automation.windows.any {
-                            it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION &&
-                                it.root?.packageName?.toString() == "com.google.android.apps.nexuslauncher"
-                        }
+                        !runCatching { activity().hasWindowFocus() }.getOrDefault(true) && overviewVisible()
                     }
                 } catch (failure: Throwable) {
                     android.util.Log.e("VitreoRecentsTest", "Focus=" + shell("dumpsys window").lineSequence()
@@ -138,10 +187,11 @@ class HomeIntegrationTest {
                         }, failure)
                     throw failure
                 }
-                // Verify the actual surface once, without repeatedly taking
-                // WindowManager's global dump lock during its opening animation.
-                assertTrue(shell("dumpsys window").contains("RecentsActivity"))
+                // Quickstep can host Overview in either RecentsActivity or its
+                // launcher activity. Check its drawn task-action surface, without
+                // taking WindowManager's global dump lock during the transition.
                 automation.waitForIdle(500, 5_000)
+                assertTrue("Overview task actions must be visible", overviewVisible())
                 shell("input keyevent KEYCODE_HOME")
                 awaitReady()
                 compose.waitUntil(10_000) {

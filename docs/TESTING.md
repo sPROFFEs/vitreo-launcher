@@ -80,3 +80,13 @@ No compartas un logcat completo con información de otras aplicaciones sin revis
 Si la pantalla no permite recuperar Home, entra en Ajustes desde los accesos del
 sistema y selecciona el launcher de serie. Desinstalar o borrar datos elimina
 la distribución y el fondo local: exporta antes cuando sea posible.
+
+System Home integration tests create the real HOME task with an implicit shell
+intent after selecting Vitreo as the default. App launch/Back/HOME restoration and
+Recents therefore run against Android's actual Home task, rather than an explicit
+standard task owned by ActivityScenario. Settings is a real external app; system
+animations stay enabled. The Overview check waits for the stock emulator's visible
+`action_screenshot` control: Quickstep may host Overview in different activities.
+The tests keep the same Activity/ViewModel, search query, app layout and wallpaper
+identity assertions. This fixture depends on the pinned Google APIs emulators;
+it is not a compatibility claim for a manufacturer's private Recents implementation.
