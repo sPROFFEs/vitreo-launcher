@@ -198,7 +198,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             prepareHomeBackground()
         } else if (old.appearance.palette != state.appearance.palette || old.appearance.usePhoto != state.appearance.usePhoto ||
             old.appearance.photoTransform != state.appearance.photoTransform) reloadWallpaper()
-        else if (old.appearance.themePreset != state.appearance.themePreset || old.appearance.wallpaperDim != state.appearance.wallpaperDim ||
+        else if (old.appearance.cyberImmersive != state.appearance.cyberImmersive || old.appearance.themePreset != state.appearance.themePreset || old.appearance.wallpaperDim != state.appearance.wallpaperDim ||
             old.appearance.syncWallpaper != state.appearance.syncWallpaper)
             prepareHomeBackground(debounce = old.appearance.wallpaperDim != state.appearance.wallpaperDim)
     }

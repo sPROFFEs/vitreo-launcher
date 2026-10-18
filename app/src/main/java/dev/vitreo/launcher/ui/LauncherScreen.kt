@@ -462,7 +462,8 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val menuBlur = animateFloatAsState(if (actionTarget != null) 1f else 0f,
         if (appearance.reducedEffects) tween(0) else LauncherMotion.close(), label = "menu backdrop")
     val wallpaperText = if (appearance.themePreset == 1) CyberColors.Text else if (lightWallpaper) Color(0xff151518) else Color.White
-    CompositionLocalProvider(LocalGlass provides GlassEnvironment(frame, viewport, appearance), LocalHomeClock provides now,
+    val cyberPhase = cyberAmbientPhase(appearance, sheet == null && !launching && !editing)
+    CompositionLocalProvider(LocalCyberPhase provides cyberPhase, LocalGlass provides GlassEnvironment(frame, viewport, appearance), LocalHomeClock provides now,
         LocalGlassContentColor provides wallpaperText, LocalIconPacks provides PackEnvironment(model.iconPacks, ui.iconRevision),
         LocalHomeArrival provides HomeArrivalEnvironment(arrival.asState(), viewport.width, viewport.height,
             onHomePage && sheet == null && !editing && !appearance.reducedEffects)) {
@@ -485,7 +486,10 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                 rootPosition = coordinates.positionInRoot()
             }) {
             background?.let { Image(it.asImageBitmap(), null, Modifier.fillMaxSize().graphicsLayer { alpha = localBackgroundAlpha.value }, contentScale = ContentScale.Crop) }
-            if (appearance.themePreset == 1) Box(Modifier.fillMaxSize().testTag("cyber_backdrop"))
+            if (appearance.themePreset == 1) {
+                Box(Modifier.fillMaxSize().testTag("cyber_backdrop"))
+                if (appearance.cyberImmersive && appearance.cyberEffects && !appearance.reducedEffects && sheet == null) CyberAmbient()
+            }
             Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.displayCutout))
                 .padding(top = if (editing) 42.dp else 9.dp)
                 .then(if (modalPresent) Modifier.clearAndSetSemantics {} else Modifier)

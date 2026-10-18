@@ -10,10 +10,14 @@ import android.text.format.DateFormat
 import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
+import androidx.compose.foundation.pager.VerticalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -38,6 +42,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import dev.vitreo.launcher.core.*
 import dev.vitreo.launcher.data.ControlCenterController
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Date
@@ -61,33 +66,30 @@ private fun shortcut(id: String) = when (id) {
 
 @Composable
 private fun RoundControl(title: String, icon: ImageVector, modifier: Modifier = Modifier, active: Boolean = false,
-    enabled: Boolean = true, color: Color = Color(0xff0a84ff), onClick: () -> Unit) {
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        GlassPanel(Modifier.size(60.dp).testTag("control:$title").semantics {
-            contentDescription = title
-            stateDescription = if (!enabled) "Unavailable" else if (active) "On" else "Open"
-        }.clickable(enabled = enabled, onClick = onClick), radius = 30f, tint = .21f, interactive = enabled) {
-            Box(Modifier.fillMaxSize().background(if (active) color.copy(alpha = .85f) else Color.Transparent)
-                .graphicsLayer { alpha = if (enabled) 1f else .35f }, contentAlignment = Alignment.Center) {
-                LauncherSymbol(icon, null, Modifier.size(25.dp), tint = Color.White)
-            }
+    enabled: Boolean = true, color: Color = Color(0xff0a84ff), wide: Boolean = false, onClick: () -> Unit) {
+    val shape = if (wide) RoundedCornerShape(26.dp) else CircleShape
+    GlassPanel(modifier.clip(shape).testTag("control:$title").semantics {
+        contentDescription = title
+        stateDescription = if (!enabled) "Unavailable" else if (active) "On" else "Open"
+    }.clickable(enabled = enabled, onClick = onClick), radius = if (wide) 26f else 100f, tint = .19f, interactive = enabled) {
+        Row(Modifier.fillMaxSize().background(if (active) color.copy(alpha = .86f) else Color.Transparent)
+            .graphicsLayer { alpha = if (enabled) 1f else .35f }.padding(if (wide) 16.dp else 0.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = if (wide) Arrangement.spacedBy(12.dp) else Arrangement.Center) {
+            LauncherSymbol(icon, null, Modifier.size(28.dp), tint = Color.White)
+            if (wide) Text(title, color = Color.White, fontSize = 14.sp, maxLines = 2, lineHeight = 16.sp, overflow = TextOverflow.Ellipsis)
         }
-        Text(title, color = Color.White.copy(alpha = if (enabled) .95f else .5f), fontSize = 11.sp,
-            maxLines = 2, lineHeight = 13.sp, overflow = TextOverflow.Ellipsis,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            modifier = Modifier.padding(top = 5.dp).heightIn(min = 26.dp))
     }
 }
 
 /** Accessible vertical slider; drawing/gesture state stays local to this control. */
 @Composable
 private fun ControlSlider(title: String, icon: ImageVector, value: Float, enabled: Boolean = true,
-    detail: String = "${(value * 100).roundToInt()}%", onChange: (Float) -> Unit, onFinish: (Float) -> Unit = {}) {
+    detail: String = "${(value * 100).roundToInt()}%", height: androidx.compose.ui.unit.Dp = 176.dp, onChange: (Float) -> Unit, onFinish: (Float) -> Unit = {}) {
     val change by rememberUpdatedState(onChange)
     val finish by rememberUpdatedState(onFinish)
     val rangeValue = value.coerceIn(0f, 1f)
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        GlassPanel(Modifier.fillMaxWidth().height(176.dp).testTag("control_slider:$title")
+        GlassPanel(Modifier.fillMaxWidth().height(height).testTag("control_slider:$title")
             .semantics {
                 contentDescription = title; stateDescription = if (enabled) detail else "Fixed by Android"
                 progressBarRangeInfo = ProgressBarRangeInfo(rangeValue, 0f..1f)
@@ -118,11 +120,11 @@ private fun ControlSlider(title: String, icon: ImageVector, value: Float, enable
                     tint = if (rangeValue > .18f) Color(0xff33343a) else Color.White)
             }
         }
-        Text(title, color = Color.White, fontSize = 11.sp, maxLines = 2, lineHeight = 12.sp,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 7.dp))
+
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearance) -> Unit,
     onClose: () -> Unit, onSystem: (String) -> Unit, onUtility: (String) -> Unit,
@@ -183,115 +185,214 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
             else -> onUtility(id)
         }
     }
-    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 23.dp).testTag("control_center")) {
-        Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 13.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Control Center", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
-                Text(DateFormat.getTimeFormat(context).format(Date(LocalHomeClock.current)) +
-                    if (device.battery >= 0) "  •  ${device.battery}%" else "", color = Color.White.copy(alpha = .75f), fontSize = 13.sp)
+    var choosing by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
+    val pager = rememberPagerState(pageCount = { 3 })
+    val scope = rememberCoroutineScope()
+    val reduceMotion = LocalGlass.current.appearance.reducedEffects
+    fun pageTo(index: Int) { scope.launch { if (reduceMotion) pager.scrollToPage(index) else pager.animateScrollToPage(index) } }
+    BackHandler(choosing) { choosing = false }
+    BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 24.dp).testTag("control_center")) {
+        val gap = 12.dp
+        val rail = 22.dp
+        val unit = minOf((maxWidth - rail - 14.dp - gap * 3) / 4, 80.dp)
+        val double = unit * 2 + gap
+        Column(Modifier.fillMaxSize()) {
+            Row(Modifier.fillMaxWidth().height(54.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { editing = !editing }, modifier = Modifier.testTag("edit_controls")) {
+                    LauncherSymbol(if (editing) Icons.Outlined.Check else Icons.Outlined.Add, if (editing) "Done" else "Edit controls", tint = Color.White)
+                }
+                Spacer(Modifier.weight(1f))
+                IconButton(onClick = { onSystem(Settings.ACTION_BATTERY_SAVER_SETTINGS) }) {
+                    LauncherSymbol(Icons.Outlined.PowerSettingsNew, "Android power settings", Modifier.size(23.dp), tint = Color.White)
+                }
+                IconButton(onClick = onClose) { LauncherSymbol(Icons.Outlined.Close, "Close", Modifier.size(21.dp), tint = Color.White.copy(alpha = .7f)) }
             }
-            TextButton(onClick = { editing = !editing }, modifier = Modifier.testTag("edit_controls")) {
-                Text(if (editing) "Done" else "Edit", color = Color.White)
+            Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = rail, top = 5.dp, bottom = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(DateFormat.getTimeFormat(context).format(Date(LocalHomeClock.current)), color = Color.White, fontSize = 13.sp)
+                Spacer(Modifier.weight(1f))
+                if (device.battery >= 0) Text("${device.battery}%", color = Color.White, fontSize = 13.sp)
+                LauncherSymbol(Icons.Outlined.BatteryStd, null, Modifier.padding(start = 4.dp).size(19.dp), tint = Color.White)
             }
-            IconButton(onClick = onClose) { LauncherSymbol(Icons.Outlined.Close, "Close", tint = Color.White) }
-        }
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (editing) {
-                Text("Choose your controls", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Medium)
-                Text("Tap a switch to add or remove a shortcut. Use the arrows to change its position.", color = Color.White.copy(alpha = .75f), fontSize = 13.sp)
-                ControlShortcutEditor(appearance, onAppearance)
-            } else {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    GlassPanel(Modifier.weight(1f).height(169.dp), radius = 30f, tint = .24f) {
-                        Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.SpaceBetween) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                NetworkButton("Airplane", Icons.Outlined.AirplanemodeActive, Modifier.weight(1f), device.airplane, Color(0xffff9f0a)) { onSystem(Settings.ACTION_AIRPLANE_MODE_SETTINGS) }
-                                NetworkButton("Internet", Icons.Outlined.Wifi, Modifier.weight(1f), device.wifi) { onSystem(Settings.Panel.ACTION_INTERNET_CONNECTIVITY) }
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                NetworkButton("Bluetooth", Icons.Outlined.Bluetooth, Modifier.weight(1f), device.bluetooth) { onSystem(Settings.ACTION_BLUETOOTH_SETTINGS) }
-                                NetworkButton("Hotspot", Icons.Outlined.WifiTethering, Modifier.weight(1f)) { onSystem("android.settings.TETHER_SETTINGS") }
-                            }
-                        }
-                    }
-                    GlassPanel(Modifier.weight(1f).height(169.dp), radius = 30f, tint = .24f) {
-                        Column(Modifier.fillMaxSize().padding(13.dp), verticalArrangement = Arrangement.SpaceBetween) {
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                LauncherSymbol(Icons.Outlined.MusicNote, null, Modifier.size(21.dp), tint = Color.White)
-                                Spacer(Modifier.weight(1f))
-                                IconButton(onClick = { onUtility("music") }, modifier = Modifier.size(36.dp)) {
-                                    LauncherSymbol(Icons.Outlined.OpenInNew, "Open music app", Modifier.size(18.dp), tint = Color.White)
+            Row(Modifier.weight(1f)) {
+                VerticalPager(pager, Modifier.weight(1f).testTag("control_pages"), userScrollEnabled = !editing,
+                    pageSpacing = 24.dp) { page ->
+                    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 7.dp, top = 7.dp, end = 7.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(gap)) {
+                        when (page) {
+                            0 -> {
+                                Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                                    ConnectivityTile(Modifier.size(double), device.airplane, device.wifi, device.bluetooth, onSystem,
+                                        onExpand = { pageTo(2) })
+                                    MediaTile(Modifier.size(double), device.musicActive, onUtility, { if (!controller.mediaKey(it)) onError("Android could not send the media command.") },
+                                        onExpand = { pageTo(1) })
                                 }
-                            }
-                            Text(if (device.musicActive) "Playing audio" else "Not Playing", color = Color.White, fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text("System media controls", color = Color.White.copy(alpha = .65f), fontSize = 10.sp)
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                listOf(Triple(KeyEvent.KEYCODE_MEDIA_PREVIOUS, Icons.Outlined.SkipPrevious, "Previous track"),
-                                    Triple(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, if (device.musicActive) Icons.Outlined.Pause else Icons.Outlined.PlayArrow, "Play or pause"),
-                                    Triple(KeyEvent.KEYCODE_MEDIA_NEXT, Icons.Outlined.SkipNext, "Next track")).forEach { (code, icon, label) ->
-                                    IconButton(onClick = { if (!controller.mediaKey(code)) onError("Android could not send the media command.") }, modifier = Modifier.size(38.dp)) {
-                                        LauncherSymbol(icon, label, Modifier.size(25.dp), tint = Color.White)
+                                Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                                    Column(Modifier.width(double), verticalArrangement = Arrangement.spacedBy(gap)) {
+                                        Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                                            RoundControl("Rotation", Icons.Outlined.ScreenRotation, Modifier.size(unit)) { onSystem(Settings.ACTION_DISPLAY_SETTINGS) }
+                                            RoundControl(if (LocalCyber.current) "HUD Effects" else "Dark Mode", if (LocalCyber.current) Icons.Outlined.Tune else Icons.Outlined.DarkMode,
+                                                Modifier.size(unit), active = if (LocalCyber.current) appearance.cyberEffects else dark) {
+                                                onAppearance(if (appearance.themePreset == 1) appearance.copy(cyberEffects = !appearance.cyberEffects)
+                                                    else appearance.copy(interfaceStyle = if (dark) 1 else 2))
+                                            }
+                                        }
+                                        RoundControl("Focus", Icons.Outlined.Bedtime, Modifier.width(double).height(unit), wide = true) { onSystem("android.settings.ZEN_MODE_SETTINGS") }
+                                    }
+                                    Box(Modifier.width(unit)) { ControlSlider("Home brightness", Icons.Outlined.BrightnessHigh,
+                                        if (brightness < 0) device.systemBrightness else brightness, height = double,
+                                        detail = if (brightness < 0) "System" else "${(brightness * 100).roundToInt()}%",
+                                        onChange = { brightness = it.coerceIn(.02f, 1f) },
+                                        onFinish = { onAppearance(latestAppearance.copy(homeBrightness = it.coerceIn(.02f, 1f))) }) }
+                                    Box(Modifier.width(unit)) { ControlSlider("Media volume", if (device.volume == 0f) Icons.Outlined.VolumeOff else Icons.Outlined.VolumeUp,
+                                        device.volume, !device.volumeFixed, height = double, onChange = {
+                                            if (!controller.volume(it) && !volumeErrorShown) {
+                                                volumeErrorShown = true; onError("Android did not allow the volume change. Use Sound settings.")
+                                            }
+                                        }) }
+                                }
+                                controlRows(appearance.controlShortcuts, appearance.controlWide).forEach { row ->
+                                    Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                                        row.forEach { id ->
+                                            val item = shortcut(id)
+                                            val wide = id in appearance.controlWide
+                                            Box(Modifier.width(if (wide) double else unit).height(unit)) {
+                                                RoundControl(item.title, item.icon, Modifier.fillMaxSize().then(if (!editing) Modifier else Modifier.pointerInput(id) {
+                                                    var distance = 0f
+                                                    detectDragGesturesAfterLongPress(onDragStart = { distance = 0f }) { change, delta ->
+                                                        change.consume(); distance += delta.x + delta.y
+                                                        if (kotlin.math.abs(distance) > 36.dp.toPx()) {
+                                                            val current = latestAppearance
+                                                            val index = current.controlShortcuts.indexOf(id)
+                                                            val next = (index + if (distance > 0) 1 else -1).coerceIn(0, current.controlShortcuts.lastIndex)
+                                                            onAppearance(current.copy(controlShortcuts = moveTodaySection(current.controlShortcuts, id, next)))
+                                                            distance = 0f
+                                                        }
+                                                    }
+                                                }), active = id == "flashlight" && device.torchOn, wide = wide,
+                                                    enabled = editing || id != "flashlight" || device.torchAvailable) { if (!editing) activate(id) }
+                                                if (editing) {
+                                                    IconButton(onClick = { onAppearance(appearance.copy(controlShortcuts = appearance.controlShortcuts - id)) },
+                                                        modifier = Modifier.align(Alignment.TopStart).offset((-6).dp, (-6).dp).size(30.dp).background(Color(0xffd4d6da), CircleShape)) {
+                                                        Icon(Icons.Outlined.Remove, "Remove ${item.title}", Modifier.size(18.dp), tint = Color(0xff303137))
+                                                    }
+                                                    IconButton(onClick = { onAppearance(appearance.copy(controlWide = if (wide) appearance.controlWide - id else appearance.controlWide + id)) },
+                                                        modifier = Modifier.align(Alignment.BottomEnd).offset(4.dp, 4.dp).size(30.dp).testTag("resize_control:$id")) {
+                                                        Icon(if (wide) Icons.Outlined.CloseFullscreen else Icons.Outlined.OpenInFull, "Resize ${item.title}", Modifier.size(19.dp), tint = Color.White)
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
-                            }
-                        }
-                    }
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Column(Modifier.weight(2f), verticalArrangement = Arrangement.spacedBy(11.dp)) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            RoundControl("Rotation", Icons.Outlined.ScreenRotation, Modifier.weight(1f)) { onSystem(Settings.ACTION_DISPLAY_SETTINGS) }
-                            RoundControl(if (LocalCyber.current) "HUD Effects" else "Dark Mode", if (LocalCyber.current) Icons.Outlined.Tune else Icons.Outlined.DarkMode,
-                                Modifier.weight(1f), active = if (LocalCyber.current) appearance.cyberEffects else dark) {
-                                onAppearance(if (appearance.themePreset == 1) appearance.copy(cyberEffects = !appearance.cyberEffects)
-                                    else appearance.copy(interfaceStyle = if (dark) 1 else 2))
-                            }
-                        }
-                        GlassPanel(Modifier.fillMaxWidth().height(68.dp).clickable { onSystem("android.settings.ZEN_MODE_SETTINGS") }, radius = 27f, tint = .24f, interactive = true) {
-                            Row(Modifier.fillMaxSize().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                                LauncherSymbol(Icons.Outlined.Bedtime, null, Modifier.size(25.dp), tint = Color.White)
-                                Column(Modifier.weight(1f).padding(start = 10.dp)) {
-                                    Text("Focus", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                                    Text("Android settings", color = Color.White.copy(alpha = .65f), fontSize = 10.sp)
+                                if (editing) {
+                                    TextButton(onClick = { choosing = true; query = "" }, modifier = Modifier.align(Alignment.CenterHorizontally).testTag("add_control")) {
+                                        LauncherSymbol(Icons.Outlined.AddCircleOutline, null, Modifier.size(18.dp), tint = Color.White)
+                                        Text("  Add a Control", color = Color.White)
+                                    }
+                                    Text("Hold and drag a shortcut to reorder it. Use its corner to resize.", color = Color.White.copy(alpha = .65f), fontSize = 11.sp)
+                                }
+                                TextButton(onClick = { brightness = -1f; onAppearance(appearance.copy(homeBrightness = -1f)) },
+                                    modifier = Modifier.testTag("system_brightness").heightIn(min = 40.dp), contentPadding = PaddingValues(0.dp)) {
+                                    Text(if (brightness < 0) "Brightness · System" else "Use system brightness", color = Color.White.copy(alpha = .7f), fontSize = 11.sp)
                                 }
                             }
-                        }
-                        TextButton(onClick = { brightness = -1f; onAppearance(appearance.copy(homeBrightness = -1f)) },
-                            modifier = Modifier.testTag("system_brightness").height(30.dp), contentPadding = PaddingValues(0.dp)) {
-                            Text("Use system brightness", color = Color.White.copy(alpha = .85f), fontSize = 10.sp, maxLines = 1)
-                        }
-                    }
-                    Box(Modifier.weight(1f)) { ControlSlider("Home brightness", Icons.Outlined.BrightnessHigh,
-                        if (brightness < 0) device.systemBrightness else brightness,
-                        detail = if (brightness < 0) "System" else "${(brightness * 100).roundToInt()}%",
-                        onChange = { brightness = it.coerceIn(.02f, 1f) },
-                        onFinish = { onAppearance(latestAppearance.copy(homeBrightness = it.coerceIn(.02f, 1f))) }) }
-                    Box(Modifier.weight(1f)) { ControlSlider("Media volume", if (device.volume == 0f) Icons.Outlined.VolumeOff else Icons.Outlined.VolumeUp,
-                        device.volume, !device.volumeFixed, onChange = {
-                            if (!controller.volume(it) && !volumeErrorShown) {
-                                volumeErrorShown = true
-                                onError("Android did not allow the volume change. Use Sound settings.")
+                            1 -> {
+                                MediaTile(Modifier.fillMaxWidth().heightIn(min = double * 2 + gap), device.musicActive, onUtility,
+                                    { if (!controller.mediaKey(it)) onError("Android could not send the media command.") }, expanded = true)
+                                Text("Media", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Playback commands go to Android's active media app. Open your player for track details.", color = Color.White.copy(alpha = .65f), fontSize = 13.sp)
+                                RoundControl("Open music app", Icons.Outlined.MusicNote, Modifier.fillMaxWidth().height(unit), wide = true) { onUtility("music") }
                             }
-                        }) }
-                }
-                appearance.controlShortcuts.chunked(4).forEach { row ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        row.forEach { id ->
-                            val item = shortcut(id)
-                            RoundControl(item.title, item.icon, Modifier.weight(1f),
-                                active = id == "flashlight" && device.torchOn,
-                                enabled = id != "flashlight" || device.torchAvailable) { activate(id) }
+                            2 -> {
+                                Text("Connectivity", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
+                                listOf(Triple("Airplane", Icons.Outlined.AirplanemodeActive, Settings.ACTION_AIRPLANE_MODE_SETTINGS),
+                                    Triple("Internet", Icons.Outlined.Wifi, Settings.Panel.ACTION_INTERNET_CONNECTIVITY),
+                                    Triple("Bluetooth", Icons.Outlined.Bluetooth, Settings.ACTION_BLUETOOTH_SETTINGS),
+                                    Triple("Hotspot", Icons.Outlined.WifiTethering, "android.settings.TETHER_SETTINGS"),
+                                    Triple("NFC", Icons.Outlined.Nfc, Settings.ACTION_NFC_SETTINGS),
+                                    Triple("Screen Cast", Icons.Outlined.Cast, Settings.ACTION_CAST_SETTINGS)).forEach { (title, icon, action) ->
+                                    RoundControl(title, icon, Modifier.fillMaxWidth().height(unit), wide = true,
+                                        active = when (title) { "Airplane" -> device.airplane == true; "Internet" -> device.wifi == true; "Bluetooth" -> device.bluetooth == true; else -> false }) { onSystem(action) }
+                                }
+                                Text("Network controls open Android settings. Their state is read from the device.", color = Color.White.copy(alpha = .65f), fontSize = 12.sp)
+                            }
                         }
-                        repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
-                Text("Network and device shortcuts open Android panels. Brightness and appearance apply to Vitreo; media volume follows Android.",
-                    color = Color.White.copy(alpha = .7f), fontSize = 11.sp, lineHeight = 14.sp, modifier = Modifier.padding(top = 2.dp, bottom = 8.dp))
+                Column(Modifier.width(rail).fillMaxHeight(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                    listOf(Icons.Outlined.FavoriteBorder, Icons.Outlined.MusicNote, Icons.Outlined.Wifi).forEachIndexed { index, icon ->
+                        IconButton(onClick = { editing = false; pageTo(index) }, modifier = Modifier.width(rail).height(44.dp).testTag("control_page:$index")) {
+                            LauncherSymbol(icon, listOf("Favorites page", "Media page", "Connectivity page")[index], Modifier.size(if (pager.currentPage == index) 19.dp else 15.dp),
+                                tint = Color.White.copy(alpha = if (pager.currentPage == index) 1f else .38f))
+                        }
+                    }
+                }
+            }
+            Box(Modifier.fillMaxWidth().height(42.dp).testTag("controls_dismiss_handle"), contentAlignment = Alignment.Center) {
+                Box(Modifier.width(70.dp).height(5.dp).clip(CircleShape).background(Color.White.copy(alpha = .75f)))
             }
         }
-        Box(Modifier.fillMaxWidth().height(42.dp).testTag("controls_dismiss_handle"), contentAlignment = Alignment.Center) {
-            Box(Modifier.width(70.dp).height(5.dp).clip(CircleShape).background(Color.White.copy(alpha = .75f)))
+    }
+    if (choosing) ModalBottomSheet(onDismissRequest = { choosing = false }, containerColor = Color(0xff202b38), contentColor = Color.White) {
+        Column(Modifier.fillMaxWidth().heightIn(max = 540.dp).verticalScroll(rememberScrollState()).padding(20.dp).testTag("control_picker")) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Add a Control", Modifier.weight(1f), fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
+                TextButton(onClick = { choosing = false }) { Text("Done", color = Color.White) }
+            }
+            OutlinedTextField(query, { query = it.take(50) }, Modifier.fillMaxWidth().padding(vertical = 14.dp).testTag("control_search"),
+                placeholder = { Text("Search Controls", color = Color.White.copy(alpha = .65f)) }, singleLine = true,
+                leadingIcon = { Icon(Icons.Outlined.Search, null, tint = Color.White) },
+                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White))
+            ControlShortcutEditor(appearance, onAppearance, query)
+            Text("Network controls open Android panels. Brightness applies to Vitreo; media volume follows Android.", color = Color.White.copy(alpha = .65f), fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun ConnectivityTile(modifier: Modifier, airplane: Boolean?, wifi: Boolean?, bluetooth: Boolean?,
+    onSystem: (String) -> Unit, onExpand: () -> Unit) {
+    GlassPanel(modifier, radius = 30f, tint = .2f) {
+        Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.SpaceEvenly) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                NetworkButton("Airplane", Icons.Outlined.AirplanemodeActive, Modifier.weight(1f), airplane, Color(0xffff9f0a)) { onSystem(Settings.ACTION_AIRPLANE_MODE_SETTINGS) }
+                NetworkButton("Internet", Icons.Outlined.Wifi, Modifier.weight(1f), wifi) { onSystem(Settings.Panel.ACTION_INTERNET_CONNECTIVITY) }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                NetworkButton("Bluetooth", Icons.Outlined.Bluetooth, Modifier.weight(1f), bluetooth) { onSystem(Settings.ACTION_BLUETOOTH_SETTINGS) }
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    IconButton(onClick = onExpand) { LauncherSymbol(Icons.Outlined.MoreHoriz, "Expand connectivity", tint = Color.White) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MediaTile(modifier: Modifier, active: Boolean, onUtility: (String) -> Unit, onMedia: (Int) -> Unit,
+    expanded: Boolean = false, onExpand: () -> Unit = {}) {
+    GlassPanel(modifier, radius = 30f, tint = .2f) {
+        Column(Modifier.fillMaxSize().padding(if (expanded) 22.dp else 12.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(if (expanded) 100.dp else 35.dp).background(Color.White.copy(alpha = .1f), RoundedCornerShape(9.dp)).clickable { onUtility("music") }, contentAlignment = Alignment.Center) {
+                    LauncherSymbol(Icons.Outlined.MusicNote, "Open music app", Modifier.size(if (expanded) 44.dp else 22.dp), tint = Color.White.copy(alpha = .7f))
+                }
+                Spacer(Modifier.weight(1f))
+                IconButton(onClick = if (expanded) { { onUtility("music") } } else onExpand, modifier = Modifier.size(32.dp)) {
+                    LauncherSymbol(Icons.Outlined.Podcasts, if (expanded) "Open player" else "Expand media", Modifier.size(20.dp), tint = Color.White)
+                }
+            }
+            Text(if (active) "Playing audio" else "Not Playing", color = Color.White, fontSize = if (expanded) 24.sp else 14.sp,
+                fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                listOf(Triple(KeyEvent.KEYCODE_MEDIA_PREVIOUS, Icons.Outlined.SkipPrevious, "Previous track"),
+                    Triple(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, if (active) Icons.Outlined.Pause else Icons.Outlined.PlayArrow, "Play or pause"),
+                    Triple(KeyEvent.KEYCODE_MEDIA_NEXT, Icons.Outlined.SkipNext, "Next track")).forEach { (code, icon, label) ->
+                    IconButton(onClick = { onMedia(code) }, modifier = Modifier.size(if (expanded) 56.dp else 34.dp)) {
+                        LauncherSymbol(icon, label, Modifier.size(if (expanded) 36.dp else 25.dp), tint = Color.White)
+                    }
+                }
+            }
         }
     }
 }
@@ -299,7 +400,7 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
 @Composable
 private fun NetworkButton(title: String, icon: ImageVector, modifier: Modifier, active: Boolean? = null,
     activeColor: Color = Color(0xff0a84ff), onClick: () -> Unit) {
-    Column(modifier.clickable(onClick = onClick).height(66.dp).semantics {
+    Column(modifier.clickable(onClick = onClick).height(51.dp).semantics {
         contentDescription = "$title settings"
         stateDescription = when (active) { true -> "On"; false -> "Off"; else -> "Android settings" }
     },
@@ -307,17 +408,17 @@ private fun NetworkButton(title: String, icon: ImageVector, modifier: Modifier, 
         Box(Modifier.size(38.dp).background(if (active == true) activeColor else Color.White.copy(alpha = .15f), CircleShape), contentAlignment = Alignment.Center) {
             LauncherSymbol(icon, null, Modifier.size(22.dp), tint = Color.White)
         }
-        Text(title, color = Color.White, fontSize = 10.sp, maxLines = 1, modifier = Modifier.padding(top = 4.dp))
+
     }
 }
 
 @Composable
-private fun ControlShortcutEditor(appearance: Appearance, onChange: (Appearance) -> Unit) {
+private fun ControlShortcutEditor(appearance: Appearance, onChange: (Appearance) -> Unit, query: String = "") {
     CompositionLocalProvider(LocalContentColor provides Color.White) {
         GlassPanel(Modifier.fillMaxWidth(), radius = 26f, tint = .28f) {
             Column(Modifier.padding(vertical = 8.dp)) {
                 val all = appearance.controlShortcuts + CONTROL_SHORTCUTS.filter { it !in appearance.controlShortcuts }
-                all.forEach { id ->
+                all.filter { shortcut(it).title.contains(query.trim(), ignoreCase = true) }.forEach { id ->
                     val position = appearance.controlShortcuts.indexOf(id)
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.weight(1f)) {
@@ -339,7 +440,7 @@ private fun ControlShortcutEditor(appearance: Appearance, onChange: (Appearance)
                 }
             }
         }
-        TextButton(onClick = { onChange(appearance.copy(controlShortcuts = DEFAULT_CONTROL_SHORTCUTS)) }) {
+        TextButton(onClick = { onChange(appearance.copy(controlShortcuts = DEFAULT_CONTROL_SHORTCUTS, controlWide = emptySet())) }) {
             Text("Restore Default Controls", color = Color.White)
         }
     }

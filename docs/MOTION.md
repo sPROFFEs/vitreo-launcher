@@ -60,7 +60,13 @@ Cyberpunk (0.5.1) uses critically damped entry springs (panel stiffness 1000,
 menu 1200), restrained folder/category scale and 90 ms press feedback. HUD panels
 draw a single 180 ms decorative sweep, with a short displaced line accent.
 The effects switch, Reduce Motion and Battery Saver suppress this decoration.
-Static background lines have no animation loop. The existing interactive
+Classic's background lines have no animation loop. In 0.5.3, the opt-in
+Immersive experience adds a shared 12-second animation phase, read only during
+drawing: deterministic rain, a light drift, scanner and moving panel-edge accents.
+The infinite transition is removed whenever Home is obscured, the activity loses
+focus/resumed state, HUD Effects is off, or Reduce Motion/Battery Saver is active.
+No per-frame wallpaper renders, app-grid recompositions, bitmap blurs or services
+are introduced. The existing interactive
 velocity handoff and content-retention behavior also applies to Cyberpunk.
 
 Returning from Recents or another activity triggers a separate Home arrival:

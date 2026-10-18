@@ -67,3 +67,9 @@ El cristal procesa exclusivamente el fondo propio del launcher. No captura otras
 sustituye las funciones de seguridad, notificaciones, bloqueo o Recientes de Android.
 
 Las fotos elegidas se copian al almacenamiento privado únicamente al guardar en el editor. Cancelar no sustituye el fondo. Se conserva una copia del original (limitada a 1600 píxeles en su lado mayor); el zoom y la posición se guardan por separado. Las previsualizaciones de widgets proceden de recursos de las apps instaladas y se muestran sin asignar ni vincular un ID de widget.
+
+Neon Rider y Digital Dusk son fondos incluidos en la APK: no se descargan ni
+realizan peticiones. Los efectos ambientales de Cyberpunk Immersive se dibujan
+localmente mientras Home está visible y con foco. Se detienen al salir, activar
+Reducir movimiento o entrar en ahorro de batería. Android recibe la misma imagen
+estática base; no se añade servicio de fondo ni de wallpaper animado.

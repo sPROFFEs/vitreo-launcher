@@ -73,8 +73,11 @@ from installed Android apps; their content and network use belong to their provi
 ## Control Center
 
 Connectivity and media cards, Focus, appearance, vertical brightness/volume
-sliders and editable shortcuts follow an iOS-inspired layout. **Edit** adds,
-removes or reorders shortcuts; **Restore Default Controls** resets them.
+sliders and editable shortcuts use the compact composition of iOS 18. Swipe vertically
+or tap the side rail for **Favorites**, **Media** and **Connectivity**. Tap **+** to
+edit the shortcut grid: remove with **−**, resize from its corner, or hold and drag
+to reorder. **Add a Control** opens a searchable picker with accessible ordering
+arrows; **Restore Default Controls** resets the shortcuts and sizes.
 
 Media volume changes Android's actual music stream. Playback buttons send system
 media commands; no track metadata or notification access is requested. Flashlight
@@ -91,7 +94,12 @@ See [Control Center](docs/CONTROL_CENTER.md) for platform behavior and reference
 
 Open **Settings → Themes & Icons** for **iOS** or **Cyberpunk**. Cyberpunk uses
 dark angular panels, red/cyan HUD details, line icons, digital Clock & Calendar,
-and brief panel sweeps. iOS remains the default; changing theme keeps your layout.
+and brief panel sweeps. **Classic** preserves the original quiet appearance.
+Choose **Immersive** for rain, drifting light, scanning HUD accents and animated
+panel edges. **Neon Rider** and **Digital Dusk** are included original wallpapers;
+select one separately to keep full control of your current photo. Ambient effects
+stop when Home is obscured or loses focus, and respect Reduce Motion/Battery Saver.
+iOS remains the default; changing theme keeps your layout.
 
 Select an installed ADW/Nova-compatible icon pack from the same page. To choose an
 alternate for one app, hold it and use **More → Change Icon**. Missing artwork

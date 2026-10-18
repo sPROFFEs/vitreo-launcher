@@ -22,12 +22,12 @@ object HomeBackground {
             val left = (w - source.width * cover) / 2f; val top = (h - source.height * cover) / 2f
             canvas.drawBitmap(source, null, RectF(left, top, left + source.width * cover, top + source.height * cover), Paint(Paint.FILTER_BITMAP_FLAG))
             canvas.drawColor(Color.argb((appearance.wallpaperDim * 255).roundToInt(), 0, 0, 0))
-            if (appearance.themePreset == 1) drawCyber(canvas, w.toFloat(), h.toFloat(), density * scale, appearance.usePhoto)
+            if (appearance.themePreset == 1) drawCyber(canvas, w.toFloat(), h.toFloat(), density * scale, appearance.usePhoto || appearance.palette >= 4, appearance.cyberImmersive)
         }
     }
 
-    fun drawCyber(canvas: Canvas, width: Float, height: Float, density: Float, photo: Boolean) {
-        canvas.drawColor(if (photo) 0xc7090d13.toInt() else 0xff090d13.toInt())
+    fun drawCyber(canvas: Canvas, width: Float, height: Float, density: Float, photo: Boolean, immersive: Boolean = false) {
+        canvas.drawColor(if (photo && immersive) 0x38090d13 else if (photo) 0xc7090d13.toInt() else 0xff090d13.toInt())
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeWidth = 1f; color = 0x0663f5f7 }
         val step = (44 * density).coerceAtLeast(1f)
         var x = 0f

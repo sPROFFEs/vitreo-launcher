@@ -39,10 +39,28 @@ Recommended candidates and sources are in [the research](CYBERPUNK_RESEARCH.md).
 The commercial Aionyxe/LineX packs have not been purchased or tested here; their
 artwork is not bundled. Compatibility tests use an original disposable test pack.
 
+## Classic and Immersive
+
+**Classic** is the existing restrained HUD and remains the default for previous
+Cyberpunk installations and imported backups. **Immersive** is an explicit choice
+in Themes & Icons. It adds rain, light drift, scanning accents and moving panel
+edges; it never moves app labels or continuously glitches text. One shared animation
+clock is read during drawing, without rebuilding the workspace or wallpaper every
+frame. The clock exists only while the activity is resumed, focused, and Home is
+visible without a modal. Battery Saver, Reduce Motion and HUD Effects disable it.
+
+Two original stock wallpapers, **Neon Rider** and **Digital Dusk**, are available
+in Themes & Icons and Wallpaper. Selecting Immersive leaves the current wallpaper
+intact. Selecting a stock image saves its palette ID and leaves your imported photo
+available. Android Home synchronization uses the same composed static poster;
+ambient effects are a foreground overlay, not a live-wallpaper service.
+[Generation prompts and provenance](artwork/CYBERPUNK_WALLPAPERS.md).
+
 ## Motion
 
 Panels use a 180 ms decorative sweep with a short displaced line accent. These
-effects leave content legible and have no idle animation loop. The **Panel
+effects leave content legible. Classic has no idle animation loop; Immersive adds
+the optional ambient effects described above. The **Panel
 sweeps & glitch accents** switch controls them; Control Center also exposes
 **HUD Effects**. Reduce Motion and Battery Saver suppress decoration. Cyberpunk
 uses critically damped entry springs and restrained scale, with existing

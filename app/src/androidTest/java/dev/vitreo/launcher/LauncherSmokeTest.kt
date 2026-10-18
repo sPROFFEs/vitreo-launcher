@@ -299,7 +299,7 @@ class LauncherSmokeTest {
         val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
         val original = model.ui.value.layout.appearance
         try {
-            compose.runOnUiThread { model.appearance(original.copy(controlCenter = true, homeBrightness = -1f, controlShortcuts = DEFAULT_CONTROL_SHORTCUTS)) }
+            compose.runOnUiThread { model.appearance(original.copy(controlCenter = true, homeBrightness = -1f, controlShortcuts = DEFAULT_CONTROL_SHORTCUTS, controlWide = emptySet())) }
             openControlsFromEdge()
             val next = if (oldVolume < maximum) oldVolume + 1 else oldVolume - 1
             compose.onNodeWithTag("control_slider:Media volume").performSemanticsAction(SemanticsActions.SetProgress) { it(next.toFloat() / maximum) }
@@ -312,19 +312,34 @@ class LauncherSmokeTest {
             assertEquals(-1f, model.ui.value.layout.appearance.homeBrightness, .001f)
             compose.onNodeWithTag("control_slider:Home brightness").performSemanticsAction(SemanticsActions.SetProgress) { it(.35f) }
             compose.onNodeWithTag("edit_controls").performClick()
+            compose.onNodeWithTag("resize_control:timer").performClick()
+            assertTrue("timer" in model.ui.value.layout.appearance.controlWide)
+            compose.onNodeWithTag("add_control").performScrollTo().performClick()
             compose.onNodeWithTag("control_option:camera").performScrollTo().performClick()
             compose.onNodeWithTag("control_option:nfc").performScrollTo().performClick()
             compose.onNodeWithContentDescription("Move NFC up").performScrollTo().performClick()
             assertTrue("camera" !in model.ui.value.layout.appearance.controlShortcuts)
             assertTrue(model.ui.value.layout.appearance.controlShortcuts.indexOf("nfc") < model.ui.value.layout.appearance.controlShortcuts.lastIndex)
+            compose.onNodeWithTag("control_search").performTextInput("nfc")
+            compose.onNodeWithTag("control_option:nfc").assertExists()
+            compose.onNodeWithTag("control_option:timer").assertDoesNotExist()
+            compose.onNodeWithText("Done").performClick()
+            compose.waitForIdle()
             captureEvidence("control-center-edit")
             compose.onNodeWithTag("edit_controls").performClick()
+            compose.onNodeWithTag("control_page:1").performClick()
+            captureEvidence("control-center-media")
+            compose.onNodeWithTag("control_page:2").performClick()
+            compose.onNodeWithText("Connectivity").assertIsDisplayed()
+            captureEvidence("control-center-connectivity")
+            compose.onNodeWithTag("control_page:0").performClick()
             compose.onNodeWithTag("control:Camera").assertDoesNotExist()
             compose.activityRule.scenario.recreate()
             awaitReady()
             assertEquals(.35f, model.ui.value.layout.appearance.homeBrightness, .001f)
             assertTrue("camera" !in model.ui.value.layout.appearance.controlShortcuts)
             assertTrue("nfc" in model.ui.value.layout.appearance.controlShortcuts)
+            assertTrue("timer" in model.ui.value.layout.appearance.controlWide)
             compose.runOnUiThread { assertEquals(.35f, compose.activity.window.attributes.screenBrightness, .001f) }
         } finally {
             audio.setStreamVolume(AudioManager.STREAM_MUSIC, oldVolume, 0)
@@ -385,6 +400,37 @@ class LauncherSmokeTest {
             home()
             compose.runOnUiThread { model.appearance(original) }
             compose.onNodeWithTag("cyber_backdrop", useUnmergedTree = true).assertDoesNotExist()
+        } finally { compose.runOnUiThread { model.appearance(original) } }
+    }
+
+    @Test fun immersiveCyberpunkIsOptInAndRespectsReducedMotion() {
+        awaitReady()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val original = model.ui.value.layout.appearance
+        val placed = model.ui.value.layout.placedApps()
+        try {
+            compose.runOnUiThread { model.appearance(original.copy(themePreset = 1, cyberImmersive = false, cyberEffects = true, reducedEffects = false, palette = 0, usePhoto = false)) }
+            openSettings()
+            compose.onNodeWithText("Themes & Icons").performClick()
+            compose.onNodeWithTag("cyber_immersive").performScrollTo().performClick()
+            val oldFrame = model.wallpaper.value
+            val oldBackground = model.background.value
+            compose.onNodeWithTag("cyber_wallpaper:0").performScrollTo().performClick()
+            compose.waitUntil(10_000) { model.wallpaper.value !== oldFrame && model.background.value !== oldBackground }
+            compose.onNodeWithText("Done").performClick()
+            returnHome()
+            compose.onNodeWithTag("cyber_ambient", useUnmergedTree = true).assertExists()
+            captureEvidence("cyber-immersive")
+            compose.activityRule.scenario.recreate()
+            awaitReady()
+            assertTrue(model.ui.value.layout.appearance.cyberImmersive)
+            assertEquals(4, model.ui.value.layout.appearance.palette)
+            assertEquals(placed, model.ui.value.layout.placedApps())
+            compose.runOnUiThread { model.appearance(model.ui.value.layout.appearance.copy(reducedEffects = true)) }
+            compose.onNodeWithTag("cyber_ambient", useUnmergedTree = true).assertDoesNotExist()
+            compose.runOnUiThread { model.appearance(model.ui.value.layout.appearance.copy(reducedEffects = false, cyberImmersive = false)) }
+            compose.onNodeWithTag("cyber_ambient", useUnmergedTree = true).assertDoesNotExist()
+            compose.onNodeWithTag("cyber_backdrop", useUnmergedTree = true).assertExists()
         } finally { compose.runOnUiThread { model.appearance(original) } }
     }
 

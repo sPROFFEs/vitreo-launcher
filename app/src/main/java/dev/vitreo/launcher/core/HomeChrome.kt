@@ -15,3 +15,17 @@ fun moveTodaySection(sections: List<String>, id: String, target: Int): List<Stri
     if (source < 0 || target !in sections.indices || source == target) return sections
     return sections.toMutableList().apply { add(target, removeAt(source)) }
 }
+
+/** Stable row packing: wide controls never overlap or push a neighbour outside the four-column grid. */
+fun controlRows(controls: List<String>, wide: Set<String>): List<List<String>> {
+    val rows = mutableListOf<List<String>>()
+    var row = mutableListOf<String>()
+    var columns = 0
+    controls.filter { it in CONTROL_SHORTCUTS }.distinct().forEach { id ->
+        val span = if (id in wide) 2 else 1
+        if (columns + span > 4) { rows += row; row = mutableListOf(); columns = 0 }
+        row += id; columns += span
+    }
+    if (row.isNotEmpty()) rows += row
+    return rows
+}

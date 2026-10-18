@@ -1,5 +1,13 @@
 # Cambios
 
+## 0.5.3 — Cyberpunk Immersive y Control Center por páginas — 2026-10-18
+
+- Cyberpunk conserva Classic y añade Immersive, optativo: lluvia, iluminación ambiental, escáner y bordes HUD en movimiento. Un reloj compartido leído en dibujo; se detiene al perder foco, abrir un panel o salir de Home. Respeta Reducir movimiento, ahorro y HUD Effects.
+- Dos fondos originales incluidos, Neon Rider y Digital Dusk, seleccionables sin descargas; conservar el tema no sustituye automáticamente una foto. Android y el launcher comparten el mismo póster estático al volver de Recientes.
+- Control Center con módulos compactos, círculos sin etiquetas externas, páginas verticales de Favoritos, multimedia y conectividad e indicadores laterales. El botón de energía abre las opciones de batería de Android.
+- Edición sobre los accesos: quitar, ampliar/contraer, mantener y arrastrar para ordenar; selector con búsqueda y flechas accesibles. Preferencias compatibles con copias previas y Classic como valor de migración.
+- Regresiones de empaquetado de todos los tamaños, copias y migración, experiencia Immersive y movimiento reducido, páginas del panel, tamaños y búsqueda de controles. Sin permisos, servicios ni dependencias nuevos.
+
 ## 0.5.2 — Dock continuo, Today editable y Control Center — 2026-10-17
 
 - Dock e indicador inferior siguen el desplazamiento entre Home, Today y App Library con deslizamiento y opacidad continuos. Home reserva su espacio sin recolocar las apps al aparecer o desaparecer.

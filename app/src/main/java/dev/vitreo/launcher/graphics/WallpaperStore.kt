@@ -1,5 +1,6 @@
 package dev.vitreo.launcher.graphics
 
+import dev.vitreo.launcher.R
 import android.content.Context
 import android.graphics.*
 import android.net.Uri
@@ -66,6 +67,9 @@ class WallpaperStore(private val context: Context) {
     }
 
     fun procedural(palette: Int): Bitmap {
+        if (palette == 4 || palette == 5) return requireNotNull(BitmapFactory.decodeResource(context.resources,
+            if (palette == 4) R.drawable.wallpaper_neon_rider else R.drawable.wallpaper_digital_dusk,
+            BitmapFactory.Options().apply { inScaled = false; inSampleSize = 1 }))
         val b = Bitmap.createBitmap(720, 1600, Bitmap.Config.ARGB_8888)
         val colors = when (palette.coerceIn(0, 3)) {
             1 -> intArrayOf(0xff2c246f.toInt(), 0xff9476d7.toInt(), 0xffedacbb.toInt())

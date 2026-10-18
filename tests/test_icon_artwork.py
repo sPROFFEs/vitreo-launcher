@@ -43,3 +43,15 @@ class IconArtworkTests(unittest.TestCase):
                 (ROOT / "app/src/main/assets/licenses" / name).read_bytes())
         self.assertEqual((ROOT / "third_party/cybercore/LICENSE").read_bytes(),
             (ROOT / "app/src/main/assets/licenses/CYBERCORE-MIT.txt").read_bytes())
+
+    def test_original_stock_wallpapers_match_provenance_and_bundled_credits(self):
+        records = (ROOT / "docs/artwork/wallpapers.sha256").read_text().splitlines()
+        self.assertEqual(len(records), 2)
+        for record in records:
+            digest, filename = record.split(maxsplit=1)
+            data = (ROOT / filename).read_bytes()
+            self.assertEqual(data[:8], b"\x89PNG\r\n\x1a\n")
+            self.assertEqual(hashlib.sha256(data).hexdigest(), digest)
+        notice = (ROOT / "app/src/main/assets/licenses/NOTICE.txt").read_text()
+        self.assertIn("Neon Rider and Digital Dusk", notice)
+        self.assertIn("docs/artwork/CYBERPUNK_WALLPAPERS.md", notice)

@@ -43,6 +43,8 @@ object StateCodec {
                 put("wallpaperDim", s.appearance.wallpaperDim.toDouble())
                 put("themePreset", s.appearance.themePreset)
                 put("cyberEffects", s.appearance.cyberEffects)
+                put("cyberImmersive", s.appearance.cyberImmersive)
+                put("controlWide", JSONArray(s.appearance.controlWide.toList()))
                 put("syncWallpaper", s.appearance.syncWallpaper)
                 put("controlCenter", s.appearance.controlCenter)
                 put("controlShortcuts", JSONArray(s.appearance.controlShortcuts))
@@ -99,6 +101,8 @@ object StateCodec {
                 wallpaperDim = a.optDouble("wallpaperDim", .12).toFloat(),
                 themePreset = a.optInt("themePreset", 0),
                 cyberEffects = a.optBoolean("cyberEffects", true),
+                cyberImmersive = a.optBoolean("cyberImmersive", false),
+                controlWide = a.optJSONArray("controlWide")?.let { strings(it, 32).toSet() } ?: emptySet(),
                 syncWallpaper = a.optBoolean("syncWallpaper", true),
                 controlCenter = a.optBoolean("controlCenter", true),
                 controlShortcuts = a.optJSONArray("controlShortcuts")?.let { strings(it, 32) } ?: DEFAULT_CONTROL_SHORTCUTS,

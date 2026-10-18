@@ -297,9 +297,9 @@ private fun HomeAppearancePreview(ui: LauncherViewModel.UiState) {
 private fun WallpaperCollection(a: Appearance, onAppearance: (Appearance) -> Unit) {
     val context = LocalContext.current
     val previews by produceState<List<android.graphics.Bitmap>>(emptyList()) {
-        value = withContext(Dispatchers.Default) { val store = WallpaperStore(context); (0..3).map { store.procedural(it) } }
+        value = withContext(Dispatchers.Default) { val store = WallpaperStore(context); (0..5).map { store.procedural(it) } }
     }
-    listOf("Blue", "Orchid", "Aurora", "Midnight").chunked(2).forEachIndexed { row, names ->
+    listOf("Blue", "Orchid", "Aurora", "Midnight", "Neon Rider", "Digital Dusk").chunked(2).forEachIndexed { row, names ->
         Row(Modifier.fillMaxWidth().padding(bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             names.forEachIndexed { column, title ->
                 val index = row * 2 + column

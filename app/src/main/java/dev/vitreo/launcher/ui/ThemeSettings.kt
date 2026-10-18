@@ -68,9 +68,26 @@ fun ThemeSettings(ui: LauncherViewModel.UiState, onAppearance: (Appearance) -> U
     if (a.iconPack.isNotEmpty() && ui.iconPacks.none { it.packageName == a.iconPack })
         Text("The selected pack is unavailable. Theme defaults are being used.", Modifier.padding(17.dp), color = MaterialTheme.colorScheme.primary, fontSize = 13.sp)
     if (a.themePreset == 1) {
+        IosSectionLabel("Cyberpunk experience")
+        IosGroup {
+            PackChoice("Classic · Quiet HUD", !a.cyberImmersive, "cyber_classic") { onAppearance(a.copy(cyberImmersive = false)) }
+            IosDivider()
+            PackChoice("Immersive · Neon city", a.cyberImmersive, "cyber_immersive") { onAppearance(a.copy(cyberImmersive = true)) }
+        }
+        Text("Immersive adds rain, drifting light, a scanning HUD and animated panel edges. Classic keeps the original restrained appearance. Both keep your layout and wallpaper.",
+            Modifier.padding(17.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        IosSectionLabel("Cyberpunk wallpapers")
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            listOf("Neon Rider" to R.drawable.wallpaper_neon_rider, "Digital Dusk" to R.drawable.wallpaper_digital_dusk).forEachIndexed { index, (title, resource) ->
+                Column(Modifier.weight(1f).testTag("cyber_wallpaper:$index").clickable { onAppearance(a.copy(palette = index + 4, usePhoto = false)) }) {
+                    Image(painterResource(resource), title, Modifier.fillMaxWidth().aspectRatio(.62f).clip(CyberShape), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                    Text(title, Modifier.padding(vertical = 8.dp), fontSize = 14.sp)
+                }
+            }
+        }
         IosSectionLabel("HUD effects")
         IosGroup { IosToggleRow("Panel sweeps & glitch accents", a.cyberEffects) { onAppearance(a.copy(cyberEffects = it)) } }
-        Text("Effects play briefly when panels open. Reduce Motion and Battery Saver turn them off. Press and hold an app, then More > Change Icon to choose an alternate.",
+        Text("Classic uses brief opening effects. Immersive adds ambient animation while Home is visible. Reduce Motion and Battery Saver turn effects off. Press and hold an app, then More > Change Icon to choose an alternate.",
             Modifier.padding(17.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

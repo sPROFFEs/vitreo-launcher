@@ -753,3 +753,8 @@ Copyright (c) 2014 Indian Type Foundry (info@indiantypefoundry.com).
 Medium and Semibold source font bytes unchanged. See Rajdhani-OFL.txt.
 https://raw.githubusercontent.com/google/fonts/47d54ca1ebb14fd864695f1d39dc734f39017c33/ofl/rajdhani/Rajdhani-Medium.ttf
 https://raw.githubusercontent.com/google/fonts/47d54ca1ebb14fd864695f1d39dc734f39017c33/ofl/rajdhani/Rajdhani-SemiBold.ttf
+
+Original stock wallpapers (Vitreo 0.5.3): Neon Rider and Digital Dusk.
+AI-generated with imagegen for this project, distributed under Vitreo's MIT license.
+Prompts and provenance: docs/artwork/CYBERPUNK_WALLPAPERS.md in the source repository.
+No MotionBGS videos, official Cyberpunk game art or IconScout animations are bundled.

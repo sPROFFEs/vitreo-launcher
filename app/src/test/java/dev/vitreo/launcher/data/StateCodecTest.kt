@@ -8,6 +8,14 @@ class StateCodecTest {
     private val a = "com.example.one/.Main"
     private val b = "com.example.two/.Main"
     private val c = "com.example.three/.Main"
+    @Test fun immersiveAndWideControlsSurviveBackupWithClassicAsMigrationDefault() {
+        val state = LauncherState(appearance = Appearance(themePreset = 1, cyberImmersive = true, palette = 5,
+            controlShortcuts = listOf("timer", "camera"), controlWide = setOf("timer"))).sanitized()
+        assertEquals(state, StateCodec.decode(StateCodec.encode(state)))
+        assertFalse(StateCodec.decode("""{"schema":1,"home":[],"dock":[],"appearance":{"themePreset":1}}""").appearance.cyberImmersive)
+        assertEquals(setOf("timer"), Appearance(controlShortcuts = listOf("timer"), controlWide = setOf("timer", "camera", "bad")).sanitized().controlWide)
+        assertEquals(5, Appearance(palette = 999).sanitized().palette)
+    }
     @Test fun roundTrip() {
         val state = LauncherState(initialized = true, home = listOf(HomeEntry.Folder("folder:1", "M\u00fasica", listOf(a, b))),
             dock = listOf(c), appearance = Appearance(palette = 2)).sanitized()

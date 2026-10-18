@@ -4,6 +4,16 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class HomeChromeTest {
+    @Test fun resizedControlRowsKeepOrderAndNeverOverflowFourColumns() {
+        for (mask in 0..4095) {
+            val wide = CONTROL_SHORTCUTS.filterIndexed { index, _ -> mask and (1 shl index) != 0 }.toSet()
+            val rows = controlRows(CONTROL_SHORTCUTS, wide)
+            assertEquals(CONTROL_SHORTCUTS, rows.flatten())
+            assertTrue(rows.all { row -> row.map { if (it in wide) 2 else 1 }.sum() <= 4 })
+        }
+        assertTrue(controlRows(emptyList(), emptySet()).isEmpty())
+        assertEquals(listOf(listOf("camera")), controlRows(listOf("camera", "camera", "bad"), setOf("bad")))
+    }
     @Test fun dockFollowsTheFingerOnBothEdgesAndRemainsVisibleBetweenHomePages() {
         assertEquals(0f, homeChromeVisibility(0f, 3), 0f)
         assertEquals(.35f, homeChromeVisibility(.35f, 3), .001f)

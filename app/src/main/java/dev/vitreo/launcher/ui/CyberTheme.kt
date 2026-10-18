@@ -68,11 +68,17 @@ fun LauncherSymbol(imageVector: ImageVector, contentDescription: String?, modifi
 fun CyberPanel(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
     val appearance = LocalGlass.current.appearance
     val animated = appearance.cyberEffects && !appearance.reducedEffects
+    val phase = LocalCyberPhase.current
     val reveal = remember { Animatable(if (animated) 0f else 1f) }
     LaunchedEffect(animated) { if (animated) reveal.animateTo(1f, tween(180)) else reveal.snapTo(1f) }
     Box(modifier.clip(CyberShape).background(CyberColors.Panel).border(1.dp, CyberColors.Red.copy(alpha = .7f), CyberShape)) {
         Canvas(Modifier.matchParentSize()) {
             val p = reveal.value
+            if (appearance.cyberImmersive && animated) {
+                val sweep = phase.value
+                drawLine(CyberColors.Yellow.copy(alpha = .75f), Offset(size.width * sweep, 1.dp.toPx()),
+                    Offset((size.width * sweep + size.width * .16f).coerceAtMost(size.width), 1.dp.toPx()), 2.dp.toPx())
+            }
             drawLine(CyberColors.Cyan.copy(alpha = .65f), Offset(0f, 1.dp.toPx()), Offset(size.width * .22f, 1.dp.toPx()), 2.dp.toPx())
             drawLine(CyberColors.Red, Offset(size.width - 2.dp.toPx(), size.height * .3f), Offset(size.width - 2.dp.toPx(), size.height * .7f), 2.dp.toPx())
             if (p < 1f) {

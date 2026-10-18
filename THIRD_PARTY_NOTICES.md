@@ -68,3 +68,11 @@ fuentes comerciales, APKs upstream ni una clave privada de firma
 compartida en el repositorio.
 
 El icono de Contactos (`drawable/ios_contacts.xml`) es una ilustración vectorial original de Vitreo: agenda gris con pestañas de color, bajo la licencia MIT del proyecto. Sustituye al icono azul de SVG Stack utilizado en 0.4.1.
+
+## Original Cyberpunk wallpapers
+
+Neon Rider and Digital Dusk are original AI-generated illustrations created for
+Vitreo 0.5.3 with imagegen and distributed under the project's MIT license.
+[Prompts, provenance and references](docs/artwork/CYBERPUNK_WALLPAPERS.md) and
+[SHA-256 hashes](docs/artwork/wallpapers.sha256) are recorded in the repository.
+The referenced MotionBGS videos and IconScout animations are not bundled.
