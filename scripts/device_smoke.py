@@ -159,7 +159,7 @@ def main() -> None:
         adb("push", str(fixtures[0]), "/data/local/tmp/vitreo-uninstall-fixture.apk")
         count = run_instrumentation()
         native_screens = ["category-light", "category-dark", "settings-dark", "wallpaper-fit", "app-menu", "app-menu-more", "alphabetical-library", "installed-icon", "large-icons", "home-widget-small", "home-widget-medium",
-            "cyber-settings", "cyber-home", "cyber-menu", "cyber-library", "cyber-category", "recents-return", "animated-dock", "today-customized", "control-center", "control-center-edit", "control-center-media", "control-center-connectivity", "cyber-immersive", "control-picker", "theme-icon-picker"]
+            "cyber-settings", "cyber-home", "cyber-menu", "cyber-library", "cyber-category", "recents-return", "animated-dock", "today-customized", "control-center", "control-center-edit", "control-center-media", "control-center-connectivity", "cyber-immersive", "control-picker", "theme-icon-picker", "theme-icon-applied", "theme-icon-cyber"]
         if args.api >= 33:
             native_screens += [f"glass-{material}-{effect}" for material in ("clear", "regular") for effect in ("flat", "refracted")]
         collect_native_screens(output, native_screens)

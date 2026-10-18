@@ -455,6 +455,12 @@ class LauncherSmokeTest {
             compose.onNodeWithTag("library_button").performClick()
             compose.onNodeWithTag("search_field").performTextInput(app.label)
         }
+        fun selectedIcon() = compose.onNode(hasTestTag("theme_icon:${app.id}:photos") and
+            hasAnyAncestor(hasTestTag("search_entry:${app.id}")), useUnmergedTree = true)
+        fun awaitSelectedIcon() {
+            compose.waitUntil(10_000) { runCatching { selectedIcon().isDisplayed() }.getOrDefault(false) }
+            selectedIcon().assertIsDisplayed()
+        }
         try {
             compose.runOnUiThread { model.appearance(original.copy(themePreset = 0, iconPack = "", iconOverrides = emptyMap())) }
             search()
@@ -467,15 +473,16 @@ class LauncherSmokeTest {
             captureEvidence("theme-icon-picker")
             compose.onNodeWithTag("pick_icon:photos").performClick()
             assertEquals(dev.vitreo.launcher.core.IconOverride(dev.vitreo.launcher.core.THEME_ICON_PACK, "photos"), model.ui.value.layout.appearance.iconOverrides[app.id])
-            compose.onNode(hasTestTag("theme_icon:${app.id}:photos") and
-                hasAnyAncestor(hasTestTag("search_entry:${app.id}")), useUnmergedTree = true).assertIsDisplayed()
+            awaitSelectedIcon()
+            compose.onNodeWithTag("search_field").assertTextEquals(app.label)
+            captureEvidence("theme-icon-applied")
             compose.activityRule.scenario.recreate()
             awaitReady()
             assertEquals("photos", model.ui.value.layout.appearance.iconOverrides[app.id]?.drawable)
             compose.runOnUiThread { model.appearance(model.ui.value.layout.appearance.copy(themePreset = 1)) }
             search()
-            compose.onNode(hasTestTag("theme_icon:${app.id}:photos") and
-                hasAnyAncestor(hasTestTag("search_entry:${app.id}")), useUnmergedTree = true).assertIsDisplayed()
+            awaitSelectedIcon()
+            captureEvidence("theme-icon-cyber")
             assertEquals(placed, model.ui.value.layout.placedApps())
             compose.onNodeWithTag("search_entry:${app.id}").performTouchInput { longClick() }
             compose.onNodeWithText("More").performClick()

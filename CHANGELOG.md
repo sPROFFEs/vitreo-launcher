@@ -3,6 +3,7 @@
 ## 0.5.3 — Cyberpunk Immersive, iconos por app y Control Center — 2026-10-18
 
 - Change Icon permite asignar cualquiera de los 23 iconos integrados a cualquier app. La elección se adapta a iOS/Cyberpunk, se incluye en las copias y se puede restablecer; no necesita un pack externo ni modifica la app que se abre.
+- Al volver del selector de iconos se conserva la consulta de búsqueda de la app; abrir una búsqueda nueva empieza vacía.
 - La búsqueda desactiva su entrada durante la animación de salida y oculta el teclado al retirar el panel, evitando peticiones tardías de apertura sobre Home.
 - CI compila cada variante una sola vez y comparte sus APKs entre ambos emuladores. Activa caché de tareas/dependencias con escritura en main; pruebas nativas mediante AndroidJUnitRunner/ADB, XML verificable y logcat completo. La firma sigue aislada de los emuladores y la publicación exige ambos dispositivos, lint, JVM y comprobación independiente de firma.
 

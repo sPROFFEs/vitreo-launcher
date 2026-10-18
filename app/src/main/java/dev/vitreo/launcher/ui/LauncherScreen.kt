@@ -28,6 +28,7 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -108,6 +109,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     }
     val appearance = ui.layout.appearance.copy(reducedEffects = ui.layout.appearance.reducedEffects || ui.powerSaver)
     var sheet by remember { mutableStateOf<Sheet?>(null) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
     var navigatingForward by remember { mutableStateOf(true) }
     val pageHistory = remember { mutableStateListOf<Sheet>() }
     val savedPages = rememberSaveableStateHolder()
@@ -216,7 +218,10 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
             while (true) { now = System.currentTimeMillis(); delay(interval - now % interval) }
         }
     }
-    fun openSearch() { editing = false; sheet = Sheet.Search }
+    fun openSearch(alphabetical: Boolean = false) {
+        searchQuery = ""; editing = false
+        sheet = if (alphabetical) Sheet.LibrarySearch else Sheet.Search
+    }
     fun system(action: String) {
         try { context.startActivity(Intent(action)) }
         catch (_: Exception) {
@@ -453,7 +458,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                 if (abs(distance.x) > viewConfiguration.touchSlop && abs(distance.x) > abs(distance.y)) break
                 if (distance.y > (if (controls) 24.dp else 50.dp).toPx() && distance.y > abs(distance.x)) {
                     change.consume()
-                    sheet = if (controls) Sheet.Controls else Sheet.Search
+                    if (controls) sheet = Sheet.Controls else openSearch()
                     break
                 }
             }
@@ -526,7 +531,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                                 onControls = { if (appearance.controlCenter) sheet = Sheet.Controls },
                                 onClock = { system(AlarmClock.ACTION_SHOW_ALARMS) },
                                 onCalendar = ::openCalendar, onLaunch = ::launch, onEditWidget = { sheet = Sheet.Widget(it) })
-                            homePages + 1 -> AppLibrary(ui.apps, apps, suggestions, { sheet = Sheet.LibrarySearch }, ::launch,
+                            homePages + 1 -> AppLibrary(ui.apps, apps, suggestions, { openSearch(alphabetical = true) }, ::launch,
                                 ::actions, { title, records, bounds -> folderAnchor = origin(bounds); sheet = Sheet.Category(title, records) })
                             else -> {
                                 val grid = homeGrid.getOrNull(page - 1) ?: HomeGridPage(emptyList(), emptyList(), false)
@@ -636,7 +641,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                     // A transparent/blurred background must never launch an app.
                     Box(Modifier.fillMaxSize().pointerInput(current) { detectTapGestures(onTap = { closeSurface() }) })
                     when (current) {
-                        Sheet.Search, Sheet.LibrarySearch -> Spotlight(ui.apps, apps, suggestions,
+                        Sheet.Search, Sheet.LibrarySearch -> Spotlight(ui.apps, apps, suggestions, searchQuery, { searchQuery = it },
                             { focusManager.clearFocus(); keyboard?.hide(); sheet = null }, ::launch, ::actions,
                             current == Sheet.LibrarySearch, active = sheet == current)
                         Sheet.Settings -> savedPages.SaveableStateProvider("settings") {

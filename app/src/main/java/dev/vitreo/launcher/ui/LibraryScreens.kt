@@ -7,7 +7,6 @@ import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.runtime.saveable.rememberSaveable
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
@@ -40,9 +39,9 @@ import dev.vitreo.launcher.data.AppRecord
 
 @Composable
 fun Spotlight(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestions: List<AppRecord>,
+    query: String, onQueryChange: (String) -> Unit,
     onClose: () -> Unit, onLaunch: (String, Rect?) -> Unit, onActions: (String, Rect?) -> Unit,
     alphabetical: Boolean = false, active: Boolean = true) {
-    var query by rememberSaveable { mutableStateOf("") }
     val focus = remember { FocusRequester() }
     val view = LocalView.current
     val results = remember(query, records, suggestions, alphabetical) {
@@ -57,7 +56,7 @@ fun Spotlight(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestion
             GlassPanel(Modifier.weight(1f).height(49.dp), radius = 19f, tint = .32f) {
                 Row(Modifier.fillMaxSize().padding(horizontal = 13.dp), verticalAlignment = Alignment.CenterVertically) {
                     LauncherSymbol(Icons.Outlined.Search, null, Modifier.size(21.dp), tint = Color.White.copy(alpha = .8f))
-                    BasicTextField(query, { query = it.take(100) }, Modifier.weight(1f).padding(start = 9.dp)
+                    BasicTextField(query, { onQueryChange(it.take(100)) }, Modifier.weight(1f).padding(start = 9.dp)
                         .focusRequester(focus).testTag("search_field"), singleLine = true, enabled = active,
                         textStyle = TextStyle(color = Color.White, fontSize = 18.sp), cursorBrush = SolidColor(Color.White),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -67,7 +66,7 @@ fun Spotlight(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestion
                             inner()
                         })
                     if (query.isNotEmpty()) LauncherSymbol(Icons.Outlined.Cancel, "Clear Search",
-                        Modifier.size(20.dp).clickable { query = "" }, tint = Color.White.copy(alpha = .6f))
+                        Modifier.size(20.dp).clickable { onQueryChange("") }, tint = Color.White.copy(alpha = .6f))
                 }
             }
             Text("Cancel", color = Color.White, fontSize = 17.sp,
