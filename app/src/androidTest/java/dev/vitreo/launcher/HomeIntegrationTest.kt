@@ -17,12 +17,11 @@ import dev.vitreo.launcher.ui.AppOpeningKey
 import dev.vitreo.launcher.ui.HomeRevealSerialKey
 import dev.vitreo.launcher.ui.LauncherReadyKey
 import org.junit.Assert.*
-import org.junit.After
 import org.junit.Before
 import org.junit.Rule
+import org.junit.ClassRule
 import org.junit.Test
 import org.junit.rules.ExternalResource
-import org.junit.rules.RuleChain
 import org.junit.runner.RunWith
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
@@ -30,42 +29,50 @@ import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class HomeIntegrationTest {
-    private fun shell(command: String): String = InstrumentationRegistry.getInstrumentation().uiAutomation
-        .executeShellCommand(command).use { fd ->
-            java.io.FileInputStream(fd.fileDescriptor).bufferedReader().use { it.readText() }
-        }
-
-    private val context = ApplicationProvider.getApplicationContext<Context>()
-    private val home = object : ExternalResource() {
-        private var previous: String? = null
-        private val animationSettings = listOf("window_animation_scale", "transition_animation_scale", "animator_duration_scale")
-        private var previousAnimations = emptyMap<String, String>()
-        override fun before() {
-            check(shell("getprop ro.kernel.qemu").trim() == "1") { "Requires a disposable emulator." }
-            // Overview is owned by Quickstep. Its Home-stub dismissal races
-            // with task loading when the emulator globally forces duration 0.
-            // Exercise this cross-process motion with normal system timing.
-            previousAnimations = animationSettings.associateWith { shell("settings get global $it").trim() }
-            animationSettings.forEach { shell("settings put global $it 1") }
-            previous = checkNotNull(shell("cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME")
-                .lineSequence().lastOrNull { it.matches(Regex("[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+")) })
-            // Android 15 chooses HOME task identity at creation. Selecting the
-            // default afterwards leaves a standard task that HOME cannot reuse.
-            shell("cmd package set-home-activity ${context.packageName}/dev.vitreo.launcher.MainActivity")
-        }
-        fun restore() {
-            previous?.let { shell("cmd package set-home-activity $it") }
-            previous = null
-            previousAnimations.forEach { (key, value) ->
-                if (value == "null") shell("settings delete global $key")
-                else { check(value.matches(Regex("[0-9.]+"))); shell("settings put global $key $value") }
+    companion object {
+        private fun shell(command: String): String = InstrumentationRegistry.getInstrumentation().uiAutomation
+            .executeShellCommand(command).use { fd ->
+                java.io.FileInputStream(fd.fileDescriptor).bufferedReader().use { it.readText() }
             }
-            previousAnimations = emptyMap()
+
+        @JvmField @ClassRule val home = object : ExternalResource() {
+            private var previous: String? = null
+            private val animationSettings = listOf("window_animation_scale", "transition_animation_scale", "animator_duration_scale")
+            private var previousAnimations = emptyMap<String, String>()
+            override fun before() {
+                val context = ApplicationProvider.getApplicationContext<Context>()
+                check(shell("getprop ro.kernel.qemu").trim() == "1") { "Requires a disposable emulator." }
+                // Overview is owned by Quickstep. Its Home-stub dismissal races
+                // with task loading when the emulator globally forces duration 0.
+                // Exercise this cross-process motion with normal system timing.
+                previousAnimations = animationSettings.associateWith { shell("settings get global $it").trim() }
+                animationSettings.forEach { shell("settings put global $it 1") }
+                previous = checkNotNull(shell("cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME")
+                    .lineSequence().lastOrNull { it.matches(Regex("[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+")) })
+                // Android 15 chooses HOME task identity at creation. Selecting the
+                // default afterwards leaves a standard task that HOME cannot reuse.
+                shell("cmd package set-home-activity ${context.packageName}/dev.vitreo.launcher.MainActivity")
+            }
+            fun restore() {
+                previous?.let { shell("cmd package set-home-activity $it") }
+                previous = null
+                previousAnimations.forEach { (key, value) ->
+                    if (value == "null") shell("settings delete global $key")
+                    else { check(value.matches(Regex("[0-9.]+"))); shell("settings put global $key $value") }
+                }
+                previousAnimations = emptyMap()
+            }
+            override fun after() {
+                restore()
+                InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                    Stage.values().flatMap { ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(it) }
+                        .filterIsInstance<MainActivity>().distinct().forEach { it.finishAndRemoveTask() }
+                }
+            }
         }
-        override fun after() = restore()
     }
-    private val compose = createEmptyComposeRule()
-    @get:Rule val rules: RuleChain = RuleChain.outerRule(home).around(compose)
+    private val context = ApplicationProvider.getApplicationContext<Context>()
+    @get:Rule val compose = createEmptyComposeRule()
 
     // Instrumentation.startActivitySync always sets an explicit component.
     // AOSP ActivityRecord therefore assigns a standard task to that launch,
@@ -75,13 +82,6 @@ class HomeIntegrationTest {
         // exercise an empty/task-removal transition instead of an app switch.
         check(shell("am start -W -a android.settings.SETTINGS").contains("Status: ok"))
         shell("am start -W -a android.intent.action.MAIN -c android.intent.category.HOME -f 0x10008000")
-    }
-    @After fun restoreHomeAndCloseActivity() {
-        home.restore()
-        InstrumentationRegistry.getInstrumentation().runOnMainSync {
-            Stage.values().flatMap { ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(it) }
-                .filterIsInstance<MainActivity>().distinct().forEach { it.finishAndRemoveTask() }
-        }
     }
     private fun activity(): MainActivity {
         var found: MainActivity? = null

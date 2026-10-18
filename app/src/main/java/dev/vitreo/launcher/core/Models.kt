@@ -77,8 +77,12 @@ data class Appearance(
 fun isPackageName(value: String): Boolean = value.length in 3..255 &&
     Regex("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+").matches(value)
 
+val THEME_ICON_KINDS = listOf("phone", "messages", "browser", "camera", "photos", "clock", "calendar", "settings", "contacts", "music", "files", "calculator", "store", "maps", "mail", "notes", "weather", "telegram", "whatsapp", "signal", "youtube", "spotify", "youtube_music")
+const val THEME_ICON_PACK = "@theme"
+
 data class IconOverride(val pack: String, val drawable: String) {
-    fun valid() = isPackageName(pack) && drawable.length in 1..128 && Regex("[a-z0-9_]+").matches(drawable)
+    val isTheme: Boolean get() = pack == THEME_ICON_PACK && drawable in THEME_ICON_KINDS
+    fun valid() = isTheme || isPackageName(pack) && drawable.length in 1..128 && Regex("[a-z0-9_]+").matches(drawable)
 }
 
 data class LauncherState(

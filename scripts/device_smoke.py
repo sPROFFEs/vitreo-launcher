@@ -10,6 +10,7 @@ import subprocess
 import time
 import xml.etree.ElementTree as ET
 from release_common import ROOT
+from instrumentation_results import write_junit
 
 PACKAGE = "dev.vitreo.launcher.preview"
 COMPONENT = PACKAGE + "/dev.vitreo.launcher.MainActivity"
@@ -110,11 +111,30 @@ def collect_native_screens(output: Path, names: list[str]) -> None:
             raise RuntimeError(f"Invalid native screenshot {name}: {len(data)} bytes; header {data[:16].hex()}.")
 
 def run_instrumentation() -> int:
-    # AGP normally uninstalls both APKs, deleting their private/external files.
-    # Keep them on this disposable emulator until screenshot collection completes.
-    subprocess.run(["bash", "gradlew", "--no-daemon", "--console=plain",
-        "-Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true", ":app:connectedDebugAndroidTest"], cwd=ROOT, check=True)
-    return passed_tests(ROOT / "app/build/outputs/androidTest-results/connected")
+    # APKs are built once, then downloaded by both disposable emulator jobs.
+    for directory in ("app/build/outputs/apk/debug", "app/build/outputs/apk/androidTest/debug"):
+        apks = list((ROOT / directory).glob("*.apk"))
+        if len(apks) != 1: raise RuntimeError(f"Expected one prebuilt APK in {directory}.")
+        adb("install", "-r", "-t", str(apks[0]))
+    reports = ROOT / "app/build/outputs/androidTest-results/connected"
+    reports.mkdir(parents=True, exist_ok=True)
+    adb("logcat", "-c")
+    with (reports / "instrumentation-logcat.txt").open("w") as log:
+        logging = subprocess.Popen(["adb", "logcat", "-v", "threadtime"], stdout=log, stderr=subprocess.STDOUT)
+        try:
+            result = subprocess.run(["adb", "shell", "am", "instrument", "-w", "-r",
+                "dev.vitreo.launcher.debug.test/androidx.test.runner.AndroidJUnitRunner"],
+                cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=1200)
+            (reports / "instrumentation-output.txt").write_text(result.stdout)
+            print(result.stdout, flush=True)
+            count = write_junit(result.stdout, reports / "TEST-instrumentation.xml")
+            if result.returncode: raise RuntimeError(f"Instrumentation command failed: {result.returncode}")
+            return count
+        finally:
+            logging.terminate()
+            try: logging.wait(timeout=10)
+            except subprocess.TimeoutExpired: logging.kill(); logging.wait()
+
 
 def main() -> None:
     parser = argparse.ArgumentParser()
@@ -139,7 +159,7 @@ def main() -> None:
         adb("push", str(fixtures[0]), "/data/local/tmp/vitreo-uninstall-fixture.apk")
         count = run_instrumentation()
         native_screens = ["category-light", "category-dark", "settings-dark", "wallpaper-fit", "app-menu", "app-menu-more", "alphabetical-library", "installed-icon", "large-icons", "home-widget-small", "home-widget-medium",
-            "cyber-settings", "cyber-home", "cyber-menu", "cyber-library", "cyber-category", "recents-return", "animated-dock", "today-customized", "control-center", "control-center-edit", "control-center-media", "control-center-connectivity", "cyber-immersive", "control-picker"]
+            "cyber-settings", "cyber-home", "cyber-menu", "cyber-library", "cyber-category", "recents-return", "animated-dock", "today-customized", "control-center", "control-center-edit", "control-center-media", "control-center-connectivity", "cyber-immersive", "control-picker", "theme-icon-picker"]
         if args.api >= 33:
             native_screens += [f"glass-{material}-{effect}" for material in ("clear", "regular") for effect in ("flat", "refracted")]
         collect_native_screens(output, native_screens)

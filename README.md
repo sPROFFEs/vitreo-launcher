@@ -102,7 +102,12 @@ stop when Home is obscured or loses focus, and respect Reduce Motion/Battery Sav
 iOS remains the default; changing theme keeps your layout.
 
 Select an installed ADW/Nova-compatible icon pack from the same page. To choose an
-alternate for one app, hold it and use **More → Change Icon**. Missing artwork
+alternate for one app, hold it and use **More → Change Icon**. **Current theme**
+contains the 23 built-in icons, so you can give any gallery app the Photos icon
+or assign any other theme icon without installing a pack. These choices follow
+iOS/Cyberpunk when you change themes, and survive backups. **Use Default** resets
+that app's override. Installed icon packs remain available under **Icon source**.
+Missing artwork
 falls back to the theme/native icon. See [Cyberpunk & icon packs](docs/CYBERPUNK.md)
 for coverage, supported formats, credits and motion controls.
 

@@ -441,6 +441,45 @@ class LauncherSmokeTest {
         } finally { compose.runOnUiThread { model.appearance(original) } }
     }
 
+    @Test fun builtInIconCanBeAssignedToAnyAppAndFollowsTheSelectedTheme() {
+        awaitReady()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val original = model.ui.value.layout.appearance
+        val app = model.ui.value.apps.first { it.packageName == "com.android.settings" }
+        val placed = model.ui.value.layout.placedApps()
+        fun search() {
+            returnHome()
+            compose.onNodeWithTag("library_button").performClick()
+            compose.onNodeWithTag("search_field").performTextInput(app.label)
+        }
+        try {
+            compose.runOnUiThread { model.appearance(original.copy(themePreset = 0, iconPack = "", iconOverrides = emptyMap())) }
+            search()
+            compose.onNodeWithTag("search_entry:${app.id}").performTouchInput { longClick() }
+            compose.onNodeWithText("More").performClick()
+            compose.onNodeWithText("Change Icon").performClick()
+            compose.onNodeWithText("Current theme").assertIsDisplayed()
+            compose.onNodeWithTag("icon_search").performTextInput("photos")
+            compose.waitUntil(10_000) { compose.onAllNodesWithTag("pick_icon:photos").fetchSemanticsNodes().isNotEmpty() }
+            captureEvidence("theme-icon-picker")
+            compose.onNodeWithTag("pick_icon:photos").performClick()
+            assertEquals(dev.vitreo.launcher.core.IconOverride(dev.vitreo.launcher.core.THEME_ICON_PACK, "photos"), model.ui.value.layout.appearance.iconOverrides[app.id])
+            compose.onNodeWithTag("theme_icon:${app.id}:photos", useUnmergedTree = true).assertExists()
+            compose.activityRule.scenario.recreate()
+            awaitReady()
+            assertEquals("photos", model.ui.value.layout.appearance.iconOverrides[app.id]?.drawable)
+            compose.runOnUiThread { model.appearance(model.ui.value.layout.appearance.copy(themePreset = 1)) }
+            search()
+            compose.onNodeWithTag("theme_icon:${app.id}:photos", useUnmergedTree = true).assertExists()
+            assertEquals(placed, model.ui.value.layout.placedApps())
+            compose.onNodeWithTag("search_entry:${app.id}").performTouchInput { longClick() }
+            compose.onNodeWithText("More").performClick()
+            compose.onNodeWithText("Change Icon").performClick()
+            compose.onNodeWithTag("reset_app_icon").performClick()
+            assertTrue(model.ui.value.layout.appearance.iconOverrides[app.id] == null)
+        } finally { compose.runOnUiThread { model.appearance(original) } }
+    }
+
     @Test fun iconPackSelectionAndPerAppPickerSurviveRecreationAndPackRemoval() {
         awaitReady()
         val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]

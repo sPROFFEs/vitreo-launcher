@@ -18,8 +18,12 @@ and `third_party/fonts`; notices/licenses are also packaged in the APK.
 
 Install an ADW/Nova-compatible icon pack and return to **Themes & Icons** to
 select it. This works with either theme. Hold an app, choose **More → Change
-Icon**, select a pack and search for an alternate. **Use Default** clears that
-app's override. The picker reads installed resources and never runs pack code.
+Icon**, and choose **Current theme** to assign any of the 23 built-in icons to
+that app. For example, assign Photos to your preferred gallery or Browser to
+another browser. These overrides follow the selected iOS or Cyberpunk theme and
+remain after restarting or importing a backup. Installed packs are also available
+under **Icon source**. **Use Default** clears that app's override. The picker reads
+installed resources and never runs pack code.
 
 Resolution order: per-app override, the selected pack's exact activity mapping,
 theme artwork, native artwork. A missing drawable, unknown alias or unavailable

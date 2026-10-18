@@ -16,6 +16,16 @@ class StateCodecTest {
         assertEquals(setOf("timer"), Appearance(controlShortcuts = listOf("timer"), controlWide = setOf("timer", "camera", "bad")).sanitized().controlWide)
         assertEquals(5, Appearance(palette = 999).sanitized().palette)
     }
+    @Test fun builtInOverridesAreAllowlistedPortableAndFollowAliasChanges() {
+        val icon = IconOverride(THEME_ICON_PACK, "photos")
+        val state = LauncherState(initialized = true, home = listOf(HomeEntry.App(a)),
+            appearance = Appearance(iconOverrides = mapOf(a to icon))).sanitized()
+        assertEquals(state, StateCodec.decode(StateCodec.encode(state)))
+        assertEquals(icon, LayoutOps.remapApps(state, mapOf(a to b)).appearance.iconOverrides[b])
+        assertTrue(IconOverride(THEME_ICON_PACK, "clock").valid())
+        for (name in listOf("wallpaper_neon_rider", "../../file", "unknown", "")) assertFalse(IconOverride(THEME_ICON_PACK, name).valid())
+        assertTrue(state.copy(appearance = state.appearance.copy(iconOverrides = mapOf(a to IconOverride(THEME_ICON_PACK, "bad")))).sanitized().appearance.iconOverrides.isEmpty())
+    }
     @Test fun roundTrip() {
         val state = LauncherState(initialized = true, home = listOf(HomeEntry.Folder("folder:1", "M\u00fasica", listOf(a, b))),
             dock = listOf(c), appearance = Appearance(palette = 2)).sanitized()

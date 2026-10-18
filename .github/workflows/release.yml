@@ -34,10 +34,12 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: python3 scripts/prepare_signing.py --require-private --check-only
   device-tests:
-    needs: source-checks
+    needs: [source-checks, build]
     uses: ./.github/workflows/device-smoke.yml
+    with:
+      prebuilt: true
   build:
-    needs: [source-checks, device-tests]
+    needs: source-checks
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
@@ -51,13 +53,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
         with:
           gradle-version: '8.11.1'
-          cache-read-only: true
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - run: bash scripts/install_sdk.sh
-      - name: Restore executed device evidence
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          pattern: device-evidence-api-*-${{ github.run_id }}
-          path: device-evidence
       - name: Prepare private signing (required for a versioned release)
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -65,21 +62,31 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: python3 scripts/prepare_signing.py --require-private
-      - name: JVM tests, release lint and signed optimized build
-        run: bash gradlew --no-daemon --console=plain :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleRelease
-      - name: Verify APK, signer, permissions, checksums and device evidence
-        run: python3 scripts/collect_apk.py release --device-reports device-evidence
+      - name: Compile once, JVM tests, lint, optimized Preview and signed Release
+        run: bash gradlew --no-daemon --console=plain :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleDebug :app:assembleDebugAndroidTest :app:assemblePreview :app:assembleRelease :uninstallFixture:assembleDebug
       - name: Remove temporary private keystore
         if: always()
         run: python3 scripts/prepare_signing.py --clean
-      - name: Upload verified release candidate
+      - name: Share test APKs with both emulators
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: release-candidate-${{ github.sha }}-${{ github.run_id }}
-          path: dist/
-          overwrite: true
+          name: test-apks-${{ github.sha }}-${{ github.run_id }}
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/androidTest/debug/*.apk
+            app/build/outputs/apk/preview/*.apk
+            test-fixtures/uninstall-app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 7
+      - name: Stage signed build for verification after device tests
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: signed-build-${{ github.sha }}-${{ github.run_id }}
+          path: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: error
+          retention-days: 7
       - name: Keep build reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -90,8 +97,47 @@ jobs:
             app/build/test-results/
           if-no-files-found: ignore
           retention-days: 14
+  verify:
+    needs: [source-checks, build, device-tests]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: bash scripts/install_sdk.sh
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: signed-build-${{ github.sha }}-${{ github.run_id }}
+          path: app/build/outputs
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: device-evidence-api-*-${{ github.run_id }}
+          path: device-evidence
+      - name: Restore signing identity for independent APK verification
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: python3 scripts/prepare_signing.py --require-private
+      - name: Verify APK, signer, permissions, checksums and passing device evidence
+        run: python3 scripts/collect_apk.py release --device-reports device-evidence
+      - name: Remove temporary private keystore
+        if: always()
+        run: python3 scripts/prepare_signing.py --clean
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-candidate-${{ github.sha }}-${{ github.run_id }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
   publish:
-    needs: [source-checks, device-tests, build]
+    needs: [source-checks, device-tests, build, verify]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:

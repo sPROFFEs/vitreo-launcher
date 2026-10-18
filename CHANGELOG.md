@@ -1,6 +1,9 @@
 # Cambios
 
-## 0.5.3 — Cyberpunk Immersive y Control Center por páginas — 2026-10-18
+## 0.5.3 — Cyberpunk Immersive, iconos por app y Control Center — 2026-10-18
+
+- Change Icon permite asignar cualquiera de los 23 iconos integrados a cualquier app. La elección se adapta a iOS/Cyberpunk, se incluye en las copias y se puede restablecer; no necesita un pack externo ni modifica la app que se abre.
+- CI compila cada variante una sola vez y comparte sus APKs entre ambos emuladores. Activa caché de tareas/dependencias con escritura en main; pruebas nativas mediante AndroidJUnitRunner/ADB, XML verificable y logcat completo. La firma sigue aislada de los emuladores y la publicación exige ambos dispositivos, lint, JVM y comprobación independiente de firma.
 
 - Cyberpunk conserva Classic y añade Immersive, optativo: lluvia, iluminación ambiental, escáner y bordes HUD en movimiento. Un reloj compartido leído en dibujo; se detiene al perder foco, abrir un panel o salir de Home. Respeta Reducir movimiento, ahorro y HUD Effects.
 - Dos fondos originales incluidos, Neon Rider y Digital Dusk, seleccionables sin descargas; conservar el tema no sustituye automáticamente una foto. Android y el launcher comparten el mismo póster estático al volver de Recientes.

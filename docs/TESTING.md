@@ -90,3 +90,10 @@ animations stay enabled. The Overview check waits for the stock emulator's visib
 The tests keep the same Activity/ViewModel, search query, app layout and wallpaper
 identity assertions. This fixture depends on the pinned Google APIs emulators;
 it is not a compatibility claim for a manufacturer's private Recents implementation.
+
+The default HOME role and system animation scales are held for the whole integration
+test class, then restored once. Each method replaces the real Home task with an
+implicit clear-task launch. This avoids switching Quickstep's asynchronous default
+Home observer back and forth between adjacent tests. Back and HOME use actual
+system key events. CI invokes the same AndroidJUnitRunner directly against prebuilt
+APKs; JUnit XML and full logcat are retained in instrumentation artifacts.

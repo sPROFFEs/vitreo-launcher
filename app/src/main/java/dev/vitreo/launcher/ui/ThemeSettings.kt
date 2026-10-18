@@ -23,6 +23,8 @@ import dev.vitreo.launcher.LauncherViewModel
 import dev.vitreo.launcher.R
 import dev.vitreo.launcher.core.Appearance
 import dev.vitreo.launcher.core.IconOverride
+import dev.vitreo.launcher.core.THEME_ICON_PACK
+import dev.vitreo.launcher.core.THEME_ICON_KINDS
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -105,11 +107,13 @@ private fun PackChoice(label: String, checked: Boolean, tag: String, onClick: ()
 fun IconPickerSheet(model: LauncherViewModel, ui: LauncherViewModel.UiState, appId: String, onClose: () -> Unit) {
     val packs = ui.iconPacks
     var selectedPack by rememberSaveable(appId) { mutableStateOf(ui.layout.appearance.iconOverrides[appId]?.pack
-        ?: ui.layout.appearance.iconPack.takeIf { it.isNotEmpty() } ?: packs.firstOrNull()?.packageName.orEmpty()) }
+        ?: ui.layout.appearance.iconPack.takeIf { it.isNotEmpty() } ?: THEME_ICON_PACK) }
     var query by rememberSaveable(appId) { mutableStateOf("") }
     var choosingPack by remember { mutableStateOf(false) }
     val names by produceState<List<String>?>(null, selectedPack, ui.iconRevision) {
-        value = null; value = withContext(Dispatchers.IO) { model.iconPacks.names(selectedPack) }
+        value = null
+        value = if (selectedPack == THEME_ICON_PACK) THEME_ICON_KINDS
+            else withContext(Dispatchers.IO) { model.iconPacks.names(selectedPack) }
     }
     val results by produceState(emptyList<String>(), names, query) {
         value = withContext(Dispatchers.Default) { names.orEmpty().filter { it.contains(query.trim().replace(' ', '_'), ignoreCase = true) } }
@@ -122,18 +126,25 @@ fun IconPickerSheet(model: LauncherViewModel, ui: LauncherViewModel.UiState, app
         }
         Text("Change Icon", fontSize = 30.sp, fontWeight = FontWeight.Bold)
         Text(ui.apps.find { it.id == appId }?.label.orEmpty(), Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        IosGroup { IosRow("Icon pack", packs.find { it.packageName == selectedPack }?.label ?: "Choose", onClick = { choosingPack = true }) }
+        IosGroup { IosRow("Icon source", if (selectedPack == THEME_ICON_PACK) "Current theme" else packs.find { it.packageName == selectedPack }?.label ?: "Choose", onClick = { choosingPack = true }) }
+        Text("Choose any built-in icon for this app. Theme icons follow iOS or Cyberpunk when you switch themes.", Modifier.padding(top = 10.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedTextField(query, { query = it.take(80) }, Modifier.fillMaxWidth().padding(vertical = 12.dp).testTag("icon_search"),
             label = { Text("Search icons") }, singleLine = true)
         when {
-            packs.isEmpty() -> Text("Install an icon pack to choose alternate icons. Your current icon is kept.", Modifier.padding(17.dp))
+            selectedPack != THEME_ICON_PACK && packs.none { it.packageName == selectedPack } -> Text("This icon pack is unavailable. Choose Current theme or another pack.", Modifier.padding(17.dp))
             names == null -> CircularProgressIndicator(Modifier.padding(20.dp))
             results.isEmpty() -> Text("No icons found. Choose another pack or search term.", Modifier.padding(17.dp))
             else -> LazyVerticalGrid(GridCells.Adaptive(74.dp), Modifier.weight(1f), contentPadding = PaddingValues(bottom = 24.dp)) {
                 items(results, key = { it }) { name ->
                     Column(Modifier.testTag("pick_icon:$name").clickable { model.overrideIcon(appId, IconOverride(selectedPack, name)); onClose() }
                         .padding(7.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        PackArtwork(selectedPack, name, model, ui.iconRevision, Modifier.size(48.dp))
+                        if (selectedPack == THEME_ICON_PACK) {
+                            val cyber = LocalCyber.current
+                            Box(Modifier.size(48.dp).clip(if (cyber) CyberShape else IconShape).then(if (cyber) Modifier.background(CyberColors.Panel).border(1.dp, CyberColors.Red, CyberShape) else Modifier)) {
+                                if (cyber) cyberArtwork(name)?.let { Image(painterResource(it), null, Modifier.fillMaxSize().padding(4.dp), colorFilter = ColorFilter.tint(CyberColors.Cyan)) }
+                                else IosAppIcon(name, ui.layout.appearance.iconStyle, Color(ui.layout.appearance.tintColor), Modifier.fillMaxSize())
+                            }
+                        } else PackArtwork(selectedPack, name, model, ui.iconRevision, Modifier.size(48.dp))
                         Text(name.replace('_', ' '), Modifier.padding(top = 5.dp), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
@@ -142,6 +153,7 @@ fun IconPickerSheet(model: LauncherViewModel, ui: LauncherViewModel.UiState, app
     }
     if (choosingPack) AlertDialog(onDismissRequest = { choosingPack = false }, title = { Text("Icon packs") }, text = {
         Column(Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState())) {
+            PackChoice("Current theme · Built-in icons", selectedPack == THEME_ICON_PACK, "picker_pack:theme") { selectedPack = THEME_ICON_PACK; choosingPack = false }
             packs.forEach { pack -> PackChoice(pack.label, selectedPack == pack.packageName, "picker_pack:${pack.packageName}") {
                 selectedPack = pack.packageName; choosingPack = false
             } }

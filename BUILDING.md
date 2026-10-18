@@ -152,3 +152,21 @@ actualiza y desinstala exclusivamente `dev.vitreo.fixture.uninstall`; comprueba 
 dock, carpetas y recientes. No toca apps de usuario ni se distribuye ese fixture
 con la release. Una prueba separada comprueba la limpieza de paquetes ausentes al
 refrescar y la conservación de alias deshabilitados y paquetes en actualización.
+
+
+CI prepares Debug, its test APK, optimized Preview and signed Release once in the
+build job. Both emulator jobs download the exact same test APK artifact for the
+run and invoke AndroidJUnitRunner using `adb shell am instrument -w -r`.
+`instrumentation_results.py` requires complete matching start/finish events,
+counts and a successful runner terminal before it can emit passing JUnit evidence.
+Failures, skips, crashes and truncated output block publication; full instrumentation
+logcat is retained. The APKs remain installed until screenshot collection finishes.
+
+Gradle task/dependency caching is enabled. Only main builds may write shared caches;
+PRs and other refs read them. Configuration caching is not enabled. Signing keys
+are temporary in trusted build/verification jobs and are never uploaded or sent to
+emulators. After both API 31/35 jobs pass, a separate verification job checks the
+already built Release APK against the private signing identity, permissions,
+version, checksums and exact-commit evidence. Publishing still uses a separate job
+with no signing key. Fresh emulators are retained; no stale app-state snapshot is
+used to speed up the tests.

@@ -156,12 +156,20 @@ class DeviceEvidenceTests(unittest.TestCase):
 
 class NativeScreenshotTests(unittest.TestCase):
     def test_instrumentation_keeps_apks_and_output_until_collection(self):
-        with patch("device_smoke.subprocess.run") as run, patch("device_smoke.passed_tests", return_value=26):
-            self.assertEqual(run_instrumentation(), 26)
-        command = run.call_args.args[0]
-        self.assertIn("-Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true", command)
-        self.assertIn(":app:connectedDebugAndroidTest", command)
-        self.assertTrue(run.call_args.kwargs["check"])
+        from test_instrumentation_results import transcript
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for relative in ("app/build/outputs/apk/debug/app.apk", "app/build/outputs/apk/androidTest/debug/test.apk"):
+                file = root / relative; file.parent.mkdir(parents=True); file.write_bytes(b"fixture")
+            with patch("device_smoke.ROOT", root), patch("device_smoke.adb") as device, \
+                patch("device_smoke.subprocess.Popen") as logging, \
+                patch("device_smoke.subprocess.run", return_value=SimpleNamespace(returncode=0, stdout=transcript())) as run:
+                self.assertEqual(run_instrumentation(), 2)
+            self.assertTrue((root / "app/build/outputs/androidTest-results/connected/TEST-instrumentation.xml").is_file())
+            self.assertFalse(any("uninstall" in call.args for call in device.call_args_list))
+            self.assertIn("instrument", run.call_args.args[0])
+            self.assertFalse(any("gradlew" in part for part in run.call_args.args[0]))
 
     def test_file_transfer_preserves_binary_png_header(self):
         data = bytes([137,80,78,71,13,10,26,10,0,255,13,10])

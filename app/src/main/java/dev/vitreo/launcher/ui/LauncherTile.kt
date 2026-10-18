@@ -60,20 +60,24 @@ fun EntryIcon(entry: HomeEntry, apps: Map<String, AppRecord>, size: Dp, modifier
             }
         } else {
             val app = apps[entry.id]
-            val external = packIcon(entry.id)
-            val bundled = if (cyber) cyberArtwork(commonIconKind(app?.packageName.orEmpty())) else null
-            val kind = if (appearance.iosIcons) commonIconKind(app?.packageName.orEmpty()) else null
+            val external = if (appearance.iconOverrides[entry.id]?.isTheme == true) null else packIcon(entry.id)
+            val override = appearance.iconOverrides[entry.id]
+            val themeKind = override?.takeIf { it.isTheme }?.drawable
+            val bundled = if (cyber) cyberArtwork(themeKind ?: commonIconKind(app?.packageName.orEmpty())) else null
+            val kind = themeKind ?: if (appearance.iosIcons) commonIconKind(app?.packageName.orEmpty()) else null
             val style = appearance.iconStyle
             if (external != null) {
                 Image(external.asImageBitmap(), null, Modifier.fillMaxSize().padding(if (cyber) size * .08f else 0.dp)
                     .testTag("external_icon:${entry.id}"), contentScale = ContentScale.Fit)
             } else if (cyber) {
-                if (bundled != null) Image(painterResource(bundled), null, Modifier.fillMaxSize().padding(size * .08f),
+                if (bundled != null) Image(painterResource(bundled), null, Modifier.fillMaxSize().padding(size * .08f)
+                    .then(if (themeKind != null) Modifier.testTag("theme_icon:${entry.id}:$themeKind") else Modifier),
                     colorFilter = ColorFilter.tint(CyberColors.Cyan))
                 else if (app?.icon != null) Image(app.icon.asImageBitmap(), null, Modifier.fillMaxSize().padding(size * .15f), contentScale = ContentScale.Fit)
                 else Icon(Icons.Outlined.Android, null, Modifier.align(Alignment.Center).size(size * .6f), tint = CyberColors.Cyan)
             } else if (kind != null) {
-                IosAppIcon(kind, style, Color(appearance.tintColor), Modifier.fillMaxSize())
+                IosAppIcon(kind, style, Color(appearance.tintColor), Modifier.fillMaxSize()
+                    .then(if (themeKind != null) Modifier.testTag("theme_icon:${entry.id}:$themeKind") else Modifier))
             } else {
             if (style == 3) GlassPanel(Modifier.fillMaxSize(), radius = size.value * .25f, tint = .08f) {}
             else Box(Modifier.fillMaxSize().background(if (style == 1 || style == 2) Color(0xff1e2229) else Color.White))

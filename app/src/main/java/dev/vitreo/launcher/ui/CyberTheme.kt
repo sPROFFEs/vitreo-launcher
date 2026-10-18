@@ -132,7 +132,7 @@ fun packIcon(id: String): Bitmap? {
     val pack = appearance.iconPack
     val bitmap by produceState<Bitmap?>(null, id, pack, override, env) {
         value = null
-        if (env.reader != null && (pack.isNotEmpty() || override != null))
+        if (env.reader != null && override?.isTheme != true && (pack.isNotEmpty() || override != null))
             value = withContext(Dispatchers.IO) { env.reader.resolve(id, pack, override) }
     }
     return bitmap
