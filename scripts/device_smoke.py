@@ -238,7 +238,10 @@ def main() -> None:
         adb("shell", "input", "swipe", str(int(width * .85)), str(int(height * .09)),
             str(int(width * .85)), str(int(height * .45)), "350")
         time.sleep(.7)
-        capture_screen(output, "controls", "Control Center")
+        controls = capture_screen(output, "controls", "Focus")
+        if not any(node.get("package") == PACKAGE and node.get("content-desc") == "Internet settings"
+                   and node.get("clickable") == "true" for node in controls.iter("node")):
+            raise RuntimeError("Optimized Control Center is missing its accessible Internet control.")
         adb("shell", "input", "keyevent", "KEYCODE_HOME")
         # Native tests use disabled system animations; record the optimized app with real motion enabled as well.
         for setting in ("window_animation_scale", "transition_animation_scale", "animator_duration_scale"):
