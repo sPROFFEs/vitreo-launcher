@@ -218,7 +218,8 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
                 IconButton(onClick = onClose) { ControlSymbol(Icons.Outlined.Close, "Close", Modifier.size(21.dp), tint = Color.White.copy(alpha = .7f)) }
             }
             Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = rail, top = 5.dp, bottom = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(DateFormat.getTimeFormat(context).format(Date(LocalHomeClock.current)), color = Color.White, fontSize = 13.sp)
+                if (device.wifi == true) ControlSymbol(Icons.Outlined.Wifi, "Wi-Fi enabled", Modifier.size(19.dp), tint = Color.White)
+                else if (device.airplane == true) ControlSymbol(Icons.Outlined.AirplanemodeActive, "Airplane mode", Modifier.size(19.dp), tint = Color.White)
                 Spacer(Modifier.weight(1f))
                 if (device.battery >= 0) Text("${device.battery}%", color = Color.White, fontSize = 13.sp)
                 ControlSymbol(Icons.Outlined.BatteryStd, null, Modifier.padding(start = 4.dp).size(19.dp), tint = Color.White)

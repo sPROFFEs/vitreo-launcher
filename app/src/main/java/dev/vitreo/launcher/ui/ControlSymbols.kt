@@ -42,6 +42,8 @@ internal object ControlSymbols {
         "Podcasts" to symbol("MediaOutput", "M8 21 L16 21 L12 15 Z M7.5 16 A6 6 0 1 1 16.5 16 M4.5 19 A10 10 0 1 1 19.5 19"),
         "FavoriteBorder" to symbol("Favorites", "M12 21 C9 18 2 13 2 8 A5 5 0 0 1 12 6 A5 5 0 0 1 22 8 C22 13 15 18 12 21 Z", true),
         "Timer" to symbol("Timer", "M9 2 L15 2 M12 2 L12 5 M12 9 L12 14 L15 16 M21 14 A9 9 0 1 1 3 14 A9 9 0 1 1 21 14"),
+        "BatteryStd" to symbol("Battery", "M3 6 L19 6 Q21 6 21 8 L21 16 Q21 18 19 18 L3 18 Q1 18 1 16 L1 8 Q1 6 3 6 Z M23 10 L23 14 M5 10 L17 10 L17 14 L5 14 Z"),
+        "BatterySaver" to symbol("BatterySaver", "M3 6 L19 6 Q21 6 21 8 L21 16 Q21 18 19 18 L3 18 Q1 18 1 16 L1 8 Q1 6 3 6 Z M23 10 L23 14 M11 9 L11 15 M8 12 L14 12"),
         "PowerSettingsNew" to symbol("Power", "M12 2 L12 11 M6.5 5 A9 9 0 1 0 17.5 5"),
         "Add" to symbol("Add", "M12 4 L12 20 M4 12 L20 12"),
         "Close" to symbol("Close", "M5 5 L19 19 M19 5 L5 19"),

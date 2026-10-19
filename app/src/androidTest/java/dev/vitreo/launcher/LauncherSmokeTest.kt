@@ -337,8 +337,18 @@ class LauncherSmokeTest {
                 session.setPlaybackState(playback(false)); session.isActive = true
             }
             shell("cmd notification allow_listener $listener")
-            compose.waitUntil(15_000) { dev.vitreo.launcher.data.SystemBridge.state.value.media.title == "CI track" }
+            try {
+                compose.waitUntil(15_000) { dev.vitreo.launcher.data.SystemBridge.state.value.media.title == "CI track" }
+            } catch (failure: Throwable) {
+                val bridge = dev.vitreo.launcher.data.SystemBridge.state.value
+                val active = runCatching { context.getSystemService(android.media.session.MediaSessionManager::class.java)
+                    .getActiveSessions(dev.vitreo.launcher.data.SystemBridge.component(context)).map { "${it.packageName}:${it.metadata?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE)}:${it.playbackState?.state}" } }.getOrElse { listOf(it.javaClass.simpleName) }
+                // Disposable emulator fixture only; never log notification content in the app.
+                android.util.Log.e("VitreoBridgeTest", "access=${bridge.access}; connected=${bridge.connected}; media=${bridge.media}; active=$active; enabled=${model.ui.value.layout.appearance.mediaIntegration}")
+                throw failure
+            }
             compose.onNodeWithTag("home_status_bar").assertIsDisplayed()
+            compose.onNodeWithTag("home_battery").assertIsDisplayed()
             compose.waitUntil(5_000) { androidx.core.view.ViewCompat.getRootWindowInsets(compose.activity.window.decorView)?.isVisible(androidx.core.view.WindowInsetsCompat.Type.statusBars()) == false }
             captureEvidence("home-status-bar")
             compose.onNodeWithTag("launcher_root").performTouchInput {

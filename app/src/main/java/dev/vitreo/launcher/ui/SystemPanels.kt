@@ -52,7 +52,13 @@ private data class StatusSnapshot(val battery: Int = -1, val charging: Boolean =
 @Composable
 internal fun HomeStatusBar(now: Long, modifier: Modifier = Modifier, onNotices: (() -> Unit)?, onControls: (() -> Unit)?) {
     val context = LocalContext.current
-    var state by remember { mutableStateOf(StatusSnapshot()) }
+    var state by remember(context) {
+        val battery = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val level = battery?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale = battery?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100
+        mutableStateOf(StatusSnapshot(battery = if (level >= 0 && scale > 0) level * 100 / scale else -1,
+            charging = (battery?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0) != 0))
+    }
     DisposableEffect(context) {
         val connectivity = context.getSystemService(ConnectivityManager::class.java)
         fun network() {
@@ -80,7 +86,7 @@ internal fun HomeStatusBar(now: Long, modifier: Modifier = Modifier, onNotices: 
     val ink = LocalGlassContentColor.current
     Row(modifier.fillMaxWidth().testTag("home_status_bar").padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.weight(1f).fillMaxHeight().then(if (onNotices != null) Modifier.clickable(onClick = onNotices) else Modifier), contentAlignment = Alignment.CenterStart) {
-            Text(DateFormat.getTimeFormat(context).format(Date(now)), color = ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Text(SimpleDateFormat(if (DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm", Locale.getDefault()).format(Date(now)), color = ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         }
         Row(Modifier.fillMaxHeight().then(if (onControls != null) Modifier.clickable(onClick = onControls) else Modifier)
             .semantics { contentDescription = "${if (state.wifi) "Wi-Fi" else if (state.cellular) "Mobile network" else "No active network"}, ${if (state.connected) "connected" else "offline"}. Battery ${state.battery}%${if (state.charging) ", charging" else ""}" },
@@ -91,7 +97,7 @@ internal fun HomeStatusBar(now: Long, modifier: Modifier = Modifier, onNotices: 
             if (state.wifi) ControlSymbol(Icons.Outlined.Wifi, null, Modifier.size(19.dp), ink)
             if (!state.connected) ControlSymbol(Icons.Outlined.WifiOff, null, Modifier.size(17.dp), ink.copy(alpha = .65f))
             if (state.battery >= 0) {
-                Text("${state.battery}", color = ink, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Text("${state.battery}", Modifier.testTag("home_battery"), color = ink, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 Canvas(Modifier.size(27.dp, 14.dp)) {
                     val bodyWidth = size.width - 3.dp.toPx()
                     drawRoundRect(ink.copy(alpha = .6f), size = androidx.compose.ui.geometry.Size(bodyWidth, size.height),
@@ -121,7 +127,7 @@ internal fun NotificationCenter(onClose: () -> Unit, onAccess: () -> Unit, onErr
         }
         Text(SimpleDateFormat("EEEE, MMMM d", Locale.ENGLISH).format(Date(now)), color = Color.White,
             fontSize = 19.sp, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 16.dp))
-        Text(DateFormat.getTimeFormat(context).format(Date(now)), color = Color.White, fontSize = 68.sp,
+        Text(SimpleDateFormat(if (DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm", Locale.getDefault()).format(Date(now)), color = Color.White, fontSize = 68.sp,
             fontWeight = FontWeight.Light, modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 24.dp))
         if (!bridge.access) {
             GlassPanel(Modifier.fillMaxWidth(), material = GlassMaterial.Regular) {

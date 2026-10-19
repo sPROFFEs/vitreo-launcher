@@ -469,7 +469,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val currentModal by rememberUpdatedState(modalPresent || launching)
     val currentAppearance by rememberUpdatedState(appearance)
     val safePanelTop by rememberUpdatedState(if (integratedBar) 8f else WindowInsets.statusBars.getTop(density) / density.density)
-    val gestureModifier = if (editing) Modifier.pointerInput(editing) {
+    val gestureModifier = if (editing && (modalPresent || launching)) Modifier else if (editing) Modifier.pointerInput(editing) {
         detectDragGesturesAfterLongPress(onDragStart = { startDrag(it) },
             onDrag = { change, amount -> if (drag != null || widgetDrag != null) {
                 change.consume()

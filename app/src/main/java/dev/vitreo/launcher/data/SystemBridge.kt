@@ -46,8 +46,10 @@ object SystemBridge {
     private val handler = Handler(Looper.getMainLooper())
     private val controllers = mutableListOf<MediaController>()
     private var selected: MediaController? = null
+    private var artworkSource: Bitmap? = null
+    private var artworkPreview: Bitmap? = null
     private var observing = false
-    private val sessions = MediaSessionManager.OnActiveSessionsChangedListener { bindControllers(it.orEmpty()) }
+    private val sessions = MediaSessionManager.OnActiveSessionsChangedListener { refreshSessions() }
     private val callback = object : MediaController.Callback() {
         override fun onMetadataChanged(metadata: MediaMetadata?) = publishMedia()
         override fun onPlaybackStateChanged(state: PlaybackState?) = publishMedia()
@@ -100,7 +102,7 @@ object SystemBridge {
                 }.toList()
         }.getOrDefault(emptyList())
         mutable.value = mutable.value.copy(notices = notices)
-        if (media && !observing) startMedia(listener)
+        if (media && !observing) startMedia(listener) else if (media) refreshSessions()
     }
     fun dismiss(key: String) {
         if (notifications && mutable.value.notices.any { it.key == key && it.clearable }) runCatching { service?.cancelNotification(key) }
@@ -118,8 +120,17 @@ object SystemBridge {
     private fun stopMedia() {
         controllers.forEach { runCatching { it.unregisterCallback(callback) } }; controllers.clear(); selected = null
         if (observing) runCatching { manager?.removeOnActiveSessionsChangedListener(sessions) }
-        observing = false; manager = null
+        observing = false; manager = null; artworkSource = null; artworkPreview = null
         mutable.value = mutable.value.copy(media = NowPlaying())
+    }
+    private fun refreshSessions() {
+        val listener = service ?: return
+        if (!media || !observing) return
+        runCatching {
+            val current = manager?.getActiveSessions(component(listener)).orEmpty().take(12)
+            if (current.map { it.sessionToken } != controllers.map { it.sessionToken }) bindControllers(current)
+            else publishMedia()
+        }.onFailure { stopMedia() }
     }
     private fun bindControllers(values: List<MediaController>) {
         controllers.forEach { runCatching { it.unregisterCallback(callback) } }
@@ -133,16 +144,20 @@ object SystemBridge {
             ?: controllers.firstOrNull()
         selected = current
         val snapshot = runCatching {
-            current ?: return@runCatching NowPlaying()
+            if (current == null) { artworkSource = null; artworkPreview = null; return@runCatching NowPlaying() }
             val metadata = current.metadata
             val playback = current.playbackState
             val art = metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART) ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_ART) ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
-            val smallArt = art?.takeUnless { it.isRecycled }?.let {
-                val factor = minOf(1f, 512f / maxOf(it.width, it.height))
-                if (factor < 1f) Bitmap.createScaledBitmap(it, (it.width * factor).toInt().coerceAtLeast(1), (it.height * factor).toInt().coerceAtLeast(1), true) else it
+            val validArt = art?.takeUnless { it.isRecycled }
+            if (validArt !== artworkSource) {
+                artworkSource = validArt
+                artworkPreview = validArt?.let {
+                    val factor = minOf(1f, 512f / maxOf(it.width, it.height))
+                    if (factor < 1f) Bitmap.createScaledBitmap(it, (it.width * factor).toInt().coerceAtLeast(1), (it.height * factor).toInt().coerceAtLeast(1), true) else it
+                }
             }
             NowPlaying(current.packageName, (metadata?.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE) ?: metadata?.getString(MediaMetadata.METADATA_KEY_TITLE))?.take(256) ?: "Audio",
-                metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST)?.take(256).orEmpty(), smallArt,
+                metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST)?.take(256).orEmpty(), artworkPreview,
                 playback?.state == PlaybackState.STATE_PLAYING, playback?.actions ?: 0,
                 playback?.position?.coerceAtLeast(0) ?: 0, metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION)?.coerceAtLeast(0) ?: 0,
                 playback?.lastPositionUpdateTime ?: 0, playback?.playbackSpeed ?: 0f)
