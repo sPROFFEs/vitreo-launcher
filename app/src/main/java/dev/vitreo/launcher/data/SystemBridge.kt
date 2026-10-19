@@ -140,8 +140,7 @@ object SystemBridge {
     }
     private fun publishMedia() {
         if (!media) return
-        val current = controllers.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING }
-            ?: controllers.firstOrNull()
+        val current = selectMediaSession(controllers) { it.playbackState?.state }
         selected = current
         val snapshot = runCatching {
             if (current == null) { artworkSource = null; artworkPreview = null; return@runCatching NowPlaying() }

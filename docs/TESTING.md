@@ -116,7 +116,9 @@ immediately, and removing its surface cancels pending keyboard visibility reques
 `LauncherSmokeTest.optionalPanelsShowRealNotificationsAndControlTheActiveMediaSession`
 authorizes the notification listener **only on an emulator**, creates a real
 MediaSession with deterministic metadata/callbacks and posts alerts from the
-separate disposable fixture APK. It verifies the real Play callback, unsupported
+separate disposable fixture APK. An additional active-but-idle assistant session
+must not displace the paused track; JVM cases also cover player priority and empty/error sessions.
+It verifies the real Play callback, unsupported
 Previous action, notification dismissal, custom status-bar visibility/restoration,
 disable cleanup and access revocation. It restores listener authorization and
 appearance and removes the fixture in `finally`. Production authorization always

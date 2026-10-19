@@ -313,6 +313,7 @@ class LauncherSmokeTest {
         val listener = dev.vitreo.launcher.data.SystemBridge.component(context).flattenToString()
         val oldAccess = dev.vitreo.launcher.data.SystemBridge.hasAccess(context)
         val session = android.media.session.MediaSession(context, "Vitreo integration fixture")
+        val idleSession = android.media.session.MediaSession(context, "Vitreo idle assistant fixture")
         var playCount = 0
         fun playback(playing: Boolean) = android.media.session.PlaybackState.Builder()
             .setActions(android.media.session.PlaybackState.ACTION_PLAY or android.media.session.PlaybackState.ACTION_PAUSE or
@@ -323,6 +324,9 @@ class LauncherSmokeTest {
             if (Build.VERSION.SDK_INT >= 33) shell("pm grant dev.vitreo.fixture.uninstall android.permission.POST_NOTIFICATIONS")
             compose.runOnUiThread {
                 model.appearance(original.copy(homeStatusBar = true, notificationCenter = true, mediaIntegration = true, controlCenter = true))
+                idleSession.setPlaybackState(android.media.session.PlaybackState.Builder()
+                    .setState(android.media.session.PlaybackState.STATE_NONE, 0, 0f).build())
+                idleSession.isActive = true
                 session.setCallback(object : android.media.session.MediaSession.Callback() {
                     override fun onPlay() { playCount++; session.setPlaybackState(playback(true)) }
                     override fun onPause() { session.setPlaybackState(playback(false)) }
@@ -391,7 +395,7 @@ class LauncherSmokeTest {
                 compose.waitUntil(10_000) { !dev.vitreo.launcher.data.SystemBridge.state.value.access && !dev.vitreo.launcher.data.SystemBridge.state.value.media.available && dev.vitreo.launcher.data.SystemBridge.state.value.notices.isEmpty() }
             }
         } finally {
-            compose.runOnUiThread { session.release(); model.appearance(original) }
+            compose.runOnUiThread { session.release(); idleSession.release(); model.appearance(original) }
             if (!oldAccess) shell("cmd notification disallow_listener $listener")
             shell("pm uninstall dev.vitreo.fixture.uninstall")
         }

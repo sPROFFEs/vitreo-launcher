@@ -5,6 +5,7 @@
 - Optional Home status bar and Notification Center with independently configurable gesture zones. Android SystemUI remains in other apps.
 - User-authorized notification listener displays live alerts, expansion, actions and clearable dismissal without saving content.
 - Optional real MediaSession integration: title, artist, artwork, supported transport actions and seeking; clean disconnect on disable/revocation.
+- Paused players remain selectable when Android ranks an idle voice-assistant session first; empty and failed sessions do not appear as music.
 - Control Center gains original iOS 26-inspired symbols, a diffuse wallpaper backdrop and continuous pull/release/cancel motion. Reduced motion/transparency remain respected.
 - Removed redundant widget captions from Home and Today; catalog names and accessible editing remain.
 - Native emulator coverage for notification access, real notifications/media, status bar restoration and permission revocation. Release verification now enforces the exact system-bound listener contract.
