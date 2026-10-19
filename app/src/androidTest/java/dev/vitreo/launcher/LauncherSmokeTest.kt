@@ -348,7 +348,7 @@ class LauncherSmokeTest {
                 throw failure
             }
             compose.onNodeWithTag("home_status_bar").assertIsDisplayed()
-            compose.onNodeWithTag("home_battery").assertIsDisplayed()
+            compose.onNodeWithTag("home_battery", useUnmergedTree = true).assertIsDisplayed()
             compose.waitUntil(5_000) { androidx.core.view.ViewCompat.getRootWindowInsets(compose.activity.window.decorView)?.isVisible(androidx.core.view.WindowInsetsCompat.Type.statusBars()) == false }
             captureEvidence("home-status-bar")
             compose.onNodeWithTag("launcher_root").performTouchInput {
