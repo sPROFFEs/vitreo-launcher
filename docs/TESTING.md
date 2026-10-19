@@ -100,6 +100,16 @@ Home observer back and forth between adjacent tests. Back and HOME use actual
 system key events. CI invokes the same AndroidJUnitRunner directly against prebuilt
 APKs; JUnit XML and full logcat are retained in instrumentation artifacts.
 
+CI first runs the application suite with AndroidJUnitRunner's `notClass` filter
+for `HomeIntegrationTest`, then the optimized Preview walkthrough. It runs the
+two real Home/Recents tests last, in a separate instrumentation process with the
+`class` filter. Changing the global HOME role and Quickstep state must not leak
+into subsequent ActivityScenario windows. Both phases are mandatory, independently
+parsed for failures/skips, and their exact combined count is checked before
+publication. Their XML/output/logcat files are retained separately; the Home phase
+does not reinstall APKs or remove the earlier captures. See the official
+[runner filters](https://developer.android.com/reference/androidx/test/runner/AndroidJUnitRunner).
+
 `LocalWallpaperRule` disables system synchronization before unrelated UI scenarios
 start and restores the saved setting after their class. This prevents SystemUI's
 delayed wallpaper color overlays from recreating an unrelated menu/search test.

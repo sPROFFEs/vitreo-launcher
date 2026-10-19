@@ -10,6 +10,7 @@
 - Removed redundant widget captions from Home and Today; catalog names and accessible editing remain.
 - Widget search has an explicit Done action that keeps the filter and dismisses the keyboard before choosing a provider.
 - Native emulator coverage for notification access, real notifications/media, status bar restoration and permission revocation. Release verification now enforces the exact system-bound listener contract.
+- CI isolates real Home/Recents tests in a final instrumentation process, with separate reports and mandatory totals, so global launcher-role changes cannot disturb the remaining UI checks.
 
 
 ## 0.5.3 — Cyberpunk Immersive, iconos por app y Control Center — 2026-10-18

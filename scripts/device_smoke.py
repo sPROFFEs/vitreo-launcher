@@ -14,6 +14,7 @@ from instrumentation_results import write_junit
 
 PACKAGE = "dev.vitreo.launcher.preview"
 COMPONENT = PACKAGE + "/dev.vitreo.launcher.MainActivity"
+SYSTEM_HOME_TEST = "dev.vitreo.launcher.HomeIntegrationTest"
 
 def adb(*args: str) -> str:
     result = subprocess.run(["adb", *args], text=True, capture_output=True, timeout=90)
@@ -110,25 +111,34 @@ def collect_native_screens(output: Path, names: list[str]) -> None:
         if not data.startswith(bytes([137, 80, 78, 71, 13, 10, 26, 10])):
             raise RuntimeError(f"Invalid native screenshot {name}: {len(data)} bytes; header {data[:16].hex()}.")
 
-def run_instrumentation() -> int:
+def run_instrumentation(system_home: bool = False) -> int:
     # APKs are built once, then downloaded by both disposable emulator jobs.
-    for directory in ("app/build/outputs/apk/debug", "app/build/outputs/apk/androidTest/debug"):
-        apks = list((ROOT / directory).glob("*.apk"))
-        if len(apks) != 1: raise RuntimeError(f"Expected one prebuilt APK in {directory}.")
-        adb("install", "-r", "-t", str(apks[0]))
+    if not system_home:
+        for directory in ("app/build/outputs/apk/debug", "app/build/outputs/apk/androidTest/debug"):
+            apks = list((ROOT / directory).glob("*.apk"))
+            if len(apks) != 1: raise RuntimeError(f"Expected one prebuilt APK in {directory}.")
+            adb("install", "-r", "-t", str(apks[0]))
     reports = ROOT / "app/build/outputs/androidTest-results/connected"
     reports.mkdir(parents=True, exist_ok=True)
+    name = "system-home" if system_home else "instrumentation"
     adb("logcat", "-c")
-    with (reports / "instrumentation-logcat.txt").open("w") as log:
+    with (reports / f"{name}-logcat.txt").open("w") as log:
         logging = subprocess.Popen(["adb", "logcat", "-v", "threadtime"], stdout=log, stderr=subprocess.STDOUT)
         try:
             result = subprocess.run(["adb", "shell", "am", "instrument", "-w", "-r",
+                "-e", "class" if system_home else "notClass", SYSTEM_HOME_TEST,
                 "dev.vitreo.launcher.debug.test/androidx.test.runner.AndroidJUnitRunner"],
                 cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=1200)
-            (reports / "instrumentation-output.txt").write_text(result.stdout)
+            (reports / f"{name}-output.txt").write_text(result.stdout)
             print(result.stdout, flush=True)
-            count = write_junit(result.stdout, reports / "TEST-instrumentation.xml")
+            report = reports / f"TEST-{name}.xml"
+            count = write_junit(result.stdout, report)
             if result.returncode: raise RuntimeError(f"Instrumentation command failed: {result.returncode}")
+            classes = {case.get("classname") for case in ET.parse(report).getroot().findall("testcase")}
+            if system_home and (classes != {SYSTEM_HOME_TEST} or count != 2):
+                raise RuntimeError("Both real Home integration tests must execute in their isolated phase.")
+            if not system_home and SYSTEM_HOME_TEST in classes:
+                raise RuntimeError("System Home tests must not run before the app UI/optimized checks.")
             return count
         finally:
             logging.terminate()
@@ -157,12 +167,11 @@ def main() -> None:
         if len(fixtures) != 1:
             raise RuntimeError("Build :uninstallFixture:assembleDebug before device smoke tests.")
         adb("push", str(fixtures[0]), "/data/local/tmp/vitreo-uninstall-fixture.apk")
-        count = run_instrumentation()
+        application_count = run_instrumentation()
         native_screens = ["category-light", "category-dark", "settings-dark", "wallpaper-fit", "app-menu", "app-menu-more", "alphabetical-library", "installed-icon", "large-icons", "home-widget-small", "home-widget-medium",
             "cyber-settings", "cyber-home", "cyber-menu", "cyber-library", "cyber-category", "recents-return", "animated-dock", "today-customized", "control-center", "control-center-edit", "control-center-media", "control-center-connectivity", "cyber-immersive", "control-picker", "theme-icon-picker", "theme-icon-applied", "theme-icon-cyber", "home-status-bar", "control-center-session", "notification-center"]
         if args.api >= 33:
             native_screens += [f"glass-{material}-{effect}" for material in ("clear", "regular") for effect in ("flat", "refracted")]
-        collect_native_screens(output, native_screens)
         apks = list((ROOT / "app/build/outputs/apk/preview").glob("*.apk"))
         if len(apks) != 1:
             raise RuntimeError("Expected exactly one optimized Preview APK.")
@@ -313,8 +322,17 @@ def main() -> None:
         (output / "crash-log.txt").write_text(crash_log)
         if "FATAL EXCEPTION" in crash_log or "Fatal signal" in crash_log:
             raise RuntimeError("A fatal crash occurred during optimized APK smoke testing.")
+        # HOME role/Quickstep changes affect the whole emulator. Run these last,
+        # in a fresh instrumentation process, so their teardown cannot steal
+        # input focus from later ActivityScenario windows or optimized Preview.
+        system_home_count = run_instrumentation(system_home=True)
+        count = application_count + system_home_count
+        if passed_tests(ROOT / "app/build/outputs/androidTest-results/connected") != count:
+            raise RuntimeError("The two native phases must account for exactly all passing test reports.")
+        collect_native_screens(output, native_screens)
         result_path.write_text(json.dumps({"schema": 1, "commit": commit, "api": args.api,
             "status": "passed", "debugTestsPassed": count, "optimizedPreviewStarted": True,
+            "debugTestPhases": {"application": application_count, "systemHome": system_home_count},
             "uiScreens": ["home", "today", "settings", "glass-settings", "wallpaper-settings", "widgets", "widget-previews", "spotlight", "library", "category", "app-menu", "app-menu-more", "category-return", "controls", "motion-app-search", "app-return", "recents-return"],
             "motionRecordedWithAnimationsEnabled": True,
             "nativeScreens": native_screens,

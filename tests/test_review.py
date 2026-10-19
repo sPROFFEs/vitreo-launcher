@@ -169,7 +169,37 @@ class NativeScreenshotTests(unittest.TestCase):
             self.assertTrue((root / "app/build/outputs/androidTest-results/connected/TEST-instrumentation.xml").is_file())
             self.assertFalse(any("uninstall" in call.args for call in device.call_args_list))
             self.assertIn("instrument", run.call_args.args[0])
+            self.assertIn("notClass", run.call_args.args[0])
             self.assertFalse(any("gradlew" in part for part in run.call_args.args[0]))
+
+    def test_system_home_phase_keeps_earlier_reports_and_requires_both_tests(self):
+        from test_instrumentation_results import transcript
+        from types import SimpleNamespace
+        from device_smoke import SYSTEM_HOME_TEST
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            earlier = root / "app/build/outputs/androidTest-results/connected/TEST-instrumentation.xml"
+            earlier.parent.mkdir(parents=True); earlier.write_text("existing application results")
+            output = transcript().replace("example.Tests", SYSTEM_HOME_TEST)
+            with patch("device_smoke.ROOT", root), patch("device_smoke.adb") as device, \
+                patch("device_smoke.subprocess.Popen"), \
+                patch("device_smoke.subprocess.run", return_value=SimpleNamespace(returncode=0, stdout=output)) as run:
+                self.assertEqual(run_instrumentation(system_home=True), 2)
+            self.assertEqual(earlier.read_text(), "existing application results")
+            self.assertTrue(earlier.with_name("TEST-system-home.xml").is_file())
+            self.assertIn("class", run.call_args.args[0])
+            self.assertFalse(any(call.args[0] in ("install", "uninstall") for call in device.call_args_list))
+
+    def test_system_home_phase_rejects_wrong_filter_or_missing_test(self):
+        from test_instrumentation_results import transcript
+        from types import SimpleNamespace
+        from device_smoke import SYSTEM_HOME_TEST
+        for output in (transcript(), transcript((0,)).replace("example.Tests", SYSTEM_HOME_TEST)):
+            with self.subTest(output=output), tempfile.TemporaryDirectory() as directory:
+                with patch("device_smoke.ROOT", Path(directory)), patch("device_smoke.adb"), \
+                    patch("device_smoke.subprocess.Popen"), \
+                    patch("device_smoke.subprocess.run", return_value=SimpleNamespace(returncode=0, stdout=output)):
+                    with self.assertRaises(RuntimeError): run_instrumentation(system_home=True)
 
     def test_file_transfer_preserves_binary_png_header(self):
         data = bytes([137,80,78,71,13,10,26,10,0,255,13,10])
