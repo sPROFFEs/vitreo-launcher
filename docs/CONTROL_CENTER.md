@@ -1,56 +1,96 @@
-# Control Center
+# Control Center and Home integration
 
-Vitreo's optional panel uses an iOS-inspired grouped layout and local customization.
-Open it with a short downward swipe in the upper-right area below Android's status
-bar on Home, Today or App Library, or with Today's button. Dismiss upward from the
-bottom handle, with Close or Back. Settings → Control Center enables/disables it.
+Settings → Control Center provides independent switches for Control Center, a
+Vitreo status bar on Home, Notification Center and active-player integration.
+The three integration options default to **off**, including when upgrading old
+layouts. Turning off Control Center removes its gesture and Today button.
+
+## Gestures and system boundaries
+
+Start a downward pull in the upper-right 38% for Control Center, or the left 62%
+for Notification Center when enabled. The sensitive band starts below Android's
+status bar (8 dp inside Home in custom-bar mode) and defaults to 112 dp tall.
+Settings lets you adjust it from 64–180 dp and test both zones on a diagram.
+Outside those zones, Home's downward gesture opens Search. Disabled panels do
+not reserve their zones. Horizontal paging and provider-widget gestures retain
+priority when a panel pull has not started.
+
+A panel follows the finger after 24 dp of downward travel. Release after 60 dp,
+or flick after 24 dp at 700 dp/s, to open. A short slow pull or an upward reversal
+cancels. The retained panel springs from its current position; its wallpaper
+material and Home blur share the same progress. Swipe up from the bottom 100 dp
+to dismiss, or use Close, Back or Home. Reduce Motion uses a short fade; Battery
+Saver also reduces effects. No per-frame wallpaper capture or bitmap blur is used.
+
+**Android SystemUI is not replaced globally.** The custom bar uses immersive status
+bar handling in Vitreo's window. Android still owns the physical top edge: a swipe
+from that edge reveals its transient bar. Other apps, the lock screen, Recents,
+system navigation and security prompts retain Android's UI. No root, overlay or
+accessibility service is installed. This is not an iOS lock screen.
+
+The custom bar shows device time, battery percentage/charging and the validated
+active network. Wi-Fi indicates a Wi-Fi connection, not measured strength; M
+identifies mobile transport. Cellular signal bars are not fabricated. Network
+state uses the normal ACCESS_NETWORK_STATE permission; no SSID, location, phone
+state or nearby-device permission is requested.
+
+## Controls
 
 | Control | Actual behavior |
 | --- | --- |
-| Media volume | Reads and writes Android STREAM_MUSIC; respects fixed-volume devices and rejected changes |
-| Playback | Sends previous/play-pause/next to Android's media handler; no track metadata, notification access or player selection |
-| Home brightness | Overrides only Vitreo's window; the system button restores -1 (Android default) |
-| Flashlight | Public CameraManager torch; callback confirms availability/state; no camera capture |
-| Connectivity | Android Internet, Bluetooth, airplane and tethering settings; state highlights only when readable |
+| Media volume | Reads/writes Android STREAM_MUSIC and respects fixed-volume devices |
+| Connected player | Real MediaSession title, artist, bounded artwork, playback state, supported previous/play/pause/next and seeking |
+| Playback without connection | System media keys while Android reports active audio; no guessed track metadata |
+| Home brightness | Vitreo window only; System restores Android's default |
+| Flashlight | CameraManager torch callback confirms actual availability/state; no camera session |
+| Connectivity | Opens Android Internet, Bluetooth, airplane and hotspot settings; read-back highlights where available |
 | Focus / rotation | Android Do Not Disturb / Display settings |
 | Dark Mode / HUD Effects | Changes Vitreo's appearance |
-| Timer / alarms / calculator / camera / music | Opens compatible installed apps, or explains that none is available |
-| Battery / cast / NFC / accessibility / display | Android settings, with a message if the device has no handler |
-| Widgets / Vitreo Settings | Opens the launcher's corresponding page |
+| Timer / alarms / calculator / camera / music | Compatible installed apps, or a message if none is available |
+| Battery / cast / NFC / accessibility / display | Android settings |
+| Widgets / Vitreo Settings | Corresponding launcher page |
 
-Edit adds/removes/reorders the shortcut grid and can restore its defaults.
-Preferences survive restarts and travel with portable layout backups. Android
-restricts radio, rotation, global brightness and Do Not Disturb changes for ordinary
-apps; Vitreo uses public settings screens for these controls. No extra permissions,
-privileged service or system replacement is installed.
+Favorites, Media and Connectivity are vertical pages with a side rail. Tap + to
+edit shortcuts: remove, resize to one/two columns, or hold/drag to reorder. Add a
+Control opens a searchable picker; accessible arrows and Restore Default remain
+available. Android restricts radio toggles, global brightness and system power
+controls for ordinary launchers; Vitreo opens supported system screens.
 
-## References
+## Notification access and media
 
-Reviewed 2026-10-17:
+Enabling a feature does **not** grant notification access. Use Android notification
+access in Settings, or Connect player in the Media page, and explicitly authorize
+Vitreo in Android's system screen. The service is non-exported and protected by
+BIND_NOTIFICATION_LISTENER_SERVICE. Android alone binds it after authorization.
 
-- [Apple: use and customize Control Center (iOS 26)](https://support.apple.com/en-euro/guide/iphone/iph59095ec58/26/ios/26)
-- [Apple HIG: Controls](https://developer.apple.com/design/human-interface-guidelines/controls)
-- [Android AudioManager](https://developer.android.com/reference/android/media/AudioManager)
-- [Android CameraManager](https://developer.android.com/reference/android/hardware/camera2/CameraManager)
-- [Android window brightness](https://developer.android.com/reference/android/view/WindowManager.LayoutParams#screenBrightness)
+Notification Center shows actual current-user alerts, expandable text and simple
+notification actions. Tap to open the app, swipe left or use Clear to dismiss
+clearable alerts. Ongoing alerts remain; Clear processes only clearable items.
+Group-summary duplicates are excluded. Work profiles, private spaces and sensitive
+content can be restricted by Android. No notification content is displayed while
+the device reports itself locked. Reply actions that need text input are opened
+in the source app rather than imitated.
 
-Apple's layout/interaction is the visual reference. UIKit APIs and private system
-capabilities are not Android implementation dependencies.
+Media selection follows Android's active-session priority, preferring a playing
+session. Callbacks update metadata and state; unavailable transport actions are
+disabled. The artwork/title opens the selected session's activity when supplied,
+with the installed music-app chooser as fallback. Turning either feature off
+clears its corresponding in-memory data/listeners. Revoking Android access clears
+both and disconnects media. Notification text, artwork and playback details are
+never written to layout files, backups, diagnostics or network requests.
 
+## Visual references
 
-## 0.5.3 composition and customization
+Reviewed 2026-10-19:
 
-The [iOS 18 reference](https://9to5mac.com/2024/09/17/customize-use-control-center-in-ios-18/)
-and [Apple's Control Center guide](https://support.apple.com/guide/iphone/use-and-customize-control-center-iph59095ec58/ios)
-inform the compact four-column grid, circular controls, tall sliders, + editing,
-searchable picker and vertical page rail. Favorites, Media and Connectivity
-are functional pages. There is no simulated HomeKit, AirDrop or shutdown control.
-The top power symbol opens Android battery/power settings and is labeled accordingly.
+- [Apple Control Center, iOS 26](https://support.apple.com/guide/iphone/use-and-customize-control-center-iph59095ec58/26/ios/26): grouped geometry, round controls, lenses, side rail and tall sliders.
+- [Apple Liquid Glass design](https://www.apple.com/newsroom/2025/06/apple-introduces-a-delightful-and-elegant-new-software-design/): diffuse backdrop, optical edges and restrained motion.
+- [Android immersive bars](https://developer.android.com/develop/ui/views/layout/immersive).
+- [Android NotificationListenerService](https://developer.android.com/reference/android/service/notification/NotificationListenerService).
+- [Android MediaSessionManager](https://developer.android.com/reference/android/media/session/MediaSessionManager).
 
-Tap + to edit the shortcut grid. Minus removes a shortcut; its corner toggles
-one/two columns. Hold and drag to reorder; picker arrows provide an accessible
-alternative. The four-column packer preserves order and prevents overflow for every
-combination of widths. Add a Control opens the searchable picker. Sizes and order
-survive restarts and backups; old backups use the compact defaults. The base
-connectivity/media/focus/slider modules retain a stable position. The entire panel
-can still be disabled in Settings. Page transitions respect Reduce Motion.
+Control symbols are original code-native vectors in ControlSymbols.kt, inspired
+by those proportions. No SF Symbols font or Apple artwork is bundled. Full-screen
+wallpaper diffusion uses the cached frosted wallpaper; the individual glass lenses
+retain live edge refraction on supported devices. UIKit is a reference, not an
+Android dependency, and the result is an approximation of Apple's proprietary material.

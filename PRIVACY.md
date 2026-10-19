@@ -24,19 +24,39 @@ se añaden de nuevo en otro dispositivo.
 
 ## Control Center
 
-El panel es opcional y no añade permisos al manifiesto. Mientras está visible lee
-volumen multimedia, batería, brillo del sistema y, cuando Android lo permite,
-indicadores de modo avión/Wi-Fi/Bluetooth. No consulta SSID, redes cercanas,
-notificaciones, metadatos de canciones ni historial de reproducción. Los listeners
-de ajustes, reproducción y linterna se retiran al cerrar el panel o detener la actividad.
+El panel es opcional. La barra propia de Home, Notification Center y la conexión
+con el reproductor tienen interruptores independientes, apagados por defecto.
+La barra se limita a la ventana del launcher: no sustituye SystemUI ni la pantalla
+de bloqueo. ACCESS_NETWORK_STATE permite indicar la conexión activa; no consulta
+SSID, redes cercanas, ubicación ni intensidad de señal telefónica.
 
-El volumen modifica el canal multimedia de Android. Los botones de reproducción
-envían comandos al reproductor que el sistema seleccione. La linterna usa la API
-pública sin abrir una sesión de cámara ni capturar imágenes. Los accesos a redes,
-Focus y ajustes del dispositivo abren pantallas del sistema. El brillo de Home
-modifica únicamente la ventana de Vitreo. Se guardan localmente sus preferencias,
-los accesos elegidos y el orden/visibilidad de las tarjetas de Today; estos ajustes
-forman parte de la copia portable. Los IDs de widgets siguen siendo locales.
+Notification Center y el reproductor conectado requieren autorización explícita
+en la pantalla de acceso a notificaciones de Android. El único servicio declarado
+es un NotificationListenerService no exportado, protegido por
+BIND_NOTIFICATION_LISTENER_SERVICE y vinculado por el sistema. No hay servicio de
+accesibilidad, overlay, grabación de pantalla ni servicio en primer plano.
+
+Solo con Notification Center activado se leen las notificaciones actuales del
+usuario Android actual: aplicación, título, texto, hora y acciones. Los resúmenes
+de grupo se omiten y los avisos no borrables se conservan. No se muestra contenido
+mientras el dispositivo indica que está bloqueado. Android puede restringir
+notificaciones sensibles y perfiles de trabajo. Solo con Connect media player
+activado se consultan sesiones multimedia, metadatos, carátulas (máximo 512 píxeles)
+y acciones compatibles. Los botones usan la sesión real, sin historial de escucha.
+
+Estos datos se mantienen únicamente en memoria. **No se guardan en disco, copias,
+diagnósticos ni registros**, ni se envían a ninguna red. Desactivar cada opción
+borra sus datos y retira los listeners multimedia correspondientes. Revocar el
+permiso en Android desconecta el servicio y borra ambos. El propio sistema puede
+mantener autorizado el listener hasta que revoques el acceso; desactivar una
+opción no cambia permisos del sistema automáticamente.
+
+El panel lee volumen, batería, brillo e indicadores públicos de redes. Los accesos
+a redes, Focus y ajustes abren pantallas del sistema; el brillo modifica únicamente
+Vitreo. El volumen cambia el canal multimedia real y la linterna usa la API pública
+sin capturar imágenes. Sin conexión multimedia autorizada, los comandos genéricos
+solo se habilitan mientras Android informa de audio activo. Las preferencias de
+integración viajan en el layout, pero la autorización de Android nunca se exporta.
 
 ## Imágenes, copias y diagnóstico
 
@@ -64,7 +84,7 @@ Las referencias de pack e icono elegido se guardan en el layout y en sus copias;
 no se copian imágenes de packs externos al exportar.
 
 El cristal procesa exclusivamente el fondo propio del launcher. No captura otras apps ni
-sustituye las funciones de seguridad, notificaciones, bloqueo o Recientes de Android.
+sustituye las funciones de seguridad, bloqueo o Recientes de Android. El panel opcional de notificaciones presenta los avisos que Android autoriza.
 
 Las fotos elegidas se copian al almacenamiento privado únicamente al guardar en el editor. Cancelar no sustituye el fondo. Se conserva una copia del original (limitada a 1600 píxeles en su lado mayor); el zoom y la posición se guardan por separado. Las previsualizaciones de widgets proceden de recursos de las apps instaladas y se muestran sin asignar ni vincular un ID de widget.
 

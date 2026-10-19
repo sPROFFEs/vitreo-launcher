@@ -3,8 +3,9 @@
   <!-- Ordinary widget hosts use ACTION_APPWIDGET_BIND for explicit system authorization. -->
   <uses-permission android:name="android.permission.BIND_APPWIDGET" tools:ignore="ProtectedPermissions" />
   <uses-permission android:name="android.permission.SET_WALLPAPER" />
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
   <!-- Deliberately no INTERNET, QUERY_ALL_PACKAGES, storage, contacts,
-       accessibility, notification listener, or overlay permission. -->
+       accessibility, or overlay permission. Notification access is separately authorized in Android Settings. -->
   <queries>
     <intent><action android:name="org.adw.ActivityStarter.THEMES" /></intent>
     <intent><action android:name="com.novalauncher.THEME" /></intent>
@@ -23,6 +24,14 @@
       android:supportsRtl="true"
       android:usesCleartextTraffic="false"
       android:theme="@style/Theme.Vitreo">
+    <service android:name=".data.VitreoNotificationListener"
+        android:label="@string/notification_access_label"
+        android:exported="false"
+        android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+      <intent-filter>
+        <action android:name="android.service.notification.NotificationListenerService" />
+      </intent-filter>
+    </service>
     <activity
         android:name=".MainActivity"
         android:exported="true"

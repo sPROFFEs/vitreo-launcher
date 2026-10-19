@@ -82,7 +82,6 @@ fun HomeWidgets(now: Long, modifier: Modifier = Modifier, onClock: () -> Unit, o
                     drawCircle(Color(0xffff9f0a), 3.dp.toPx(), center)
                 }
             }
-            Text("Clock", color = LocalGlassContentColor.current, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
         }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(Color(0xfff9f9f6))
@@ -101,7 +100,6 @@ fun HomeWidgets(now: Long, modifier: Modifier = Modifier, onClock: () -> Unit, o
                     color = Color(0xff757579), maxLines = 1)
                 }
             }
-            Text("Calendar", color = LocalGlassContentColor.current, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
         }
     }
 }
@@ -119,8 +117,7 @@ internal fun WidgetCaption(controller: WidgetController, id: Int, onEdit: () -> 
     val context = LocalContext.current
     val label = controller.manager.getAppWidgetInfo(id)?.loadLabel(context.packageManager).orEmpty()
     Row(Modifier.fillMaxWidth().height(30.dp).padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, Modifier.weight(1f), fontSize = 12.sp, maxLines = 1,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, color = LocalGlassContentColor.current)
+        Spacer(Modifier.weight(1f))
         IconButton(onClick = onEdit, modifier = Modifier.size(30.dp).testTag("edit_widget:$id")) {
             LauncherSymbol(Icons.Outlined.MoreHoriz, "Edit $label widget", Modifier.size(19.dp), tint = LocalGlassContentColor.current)
         }

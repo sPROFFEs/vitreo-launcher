@@ -146,3 +146,19 @@ Vitreo es una Activity HOME. Android conserva SystemUI, Recientes, teclado y
 bloqueo seguro. No hay root, servicio de accesibilidad ni soporte completo de
 perfiles de trabajo/espacio privado. Las pruebas de emulador no sustituyen pruebas
 físicas en un Pixel con GrapheneOS.
+
+## Optional Android integration
+
+`SystemBridge` holds ephemeral notification/media StateFlows. The sole new service,
+`VitreoNotificationListener`, is non-exported and protected by Android's notification
+binding permission. Android binds it after explicit user authorization. Feature
+switches independently gate notification collection and MediaSession callbacks;
+disable/revocation clears the corresponding memory. No content enters StateStore,
+portable backups or diagnostics. Network state is a normal permission used by the
+optional Home-only status bar, with no cellular-strength/SSID/location access.
+
+`homePanelAt` defines upper-left/right gesture zones. Opening progress is a separate
+State consumed by SurfaceHost; blur/scrim progress is read in drawing layers so
+finger movement does not recompose the Home grid every frame. The retained modal
+uses one continuous progress for entry, interruption, cancellation and dismissal.
+Android still owns its physical edge and all SystemUI outside Vitreo's window.

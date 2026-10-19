@@ -73,14 +73,17 @@ from installed Android apps; their content and network use belong to their provi
 ## Control Center
 
 Connectivity and media cards, Focus, appearance, vertical brightness/volume
-sliders and editable shortcuts use the compact composition of iOS 18. Swipe vertically
+sliders and editable shortcuts follow the proportions of iOS 26, with a diffuse
+wallpaper backdrop and original control symbols. Swipe vertically
 or tap the side rail for **Favorites**, **Media** and **Connectivity**. Tap **+** to
 edit the shortcut grid: remove with **−**, resize from its corner, or hold and drag
 to reorder. **Add a Control** opens a searchable picker with accessible ordering
 arrows; **Restore Default Controls** resets the shortcuts and sizes.
 
-Media volume changes Android's actual music stream. Playback buttons send system
-media commands; no track metadata or notification access is requested. Flashlight
+Media volume changes Android's actual music stream. Enable **Connect media player**
+and authorize notification access in Android Settings for real track details, artwork,
+play/pause, supported previous/next actions and seeking. Without this optional access,
+system media keys are available while audio is playing. Flashlight
 uses the public torch API when the device makes it available. Timer, Calculator,
 Camera and Music launch suitable installed apps. Network, rotation, Focus, cast,
 NFC and battery controls open Android's settings or panels.
@@ -88,6 +91,15 @@ NFC and battery controls open Android's settings or panels.
 **Home brightness** affects Vitreo's window; **Use system brightness** restores
 Android's value. It does not change other apps' brightness. Disabling Vitreo's
 Control Center removes its gesture/button; Android's Quick Settings stays available.
+**Settings → Control Center → Home integration** also offers a custom Home status
+bar and Notification Center, independently off by default. The top-right 38% opens
+controls; the top-left 62% opens notifications when enabled. Adjust/test the gesture
+area in Settings. The pull follows your finger and short reversed pulls cancel.
+Notification Center displays real alerts with expansion, actions and dismissal;
+notification access is explicitly authorized in Android and content stays in memory.
+The custom bar shows time, battery and network connection. It replaces the status
+bar **inside Home only**; other apps and Android's physical top-edge gesture keep
+system behavior.
 See [Control Center](docs/CONTROL_CENTER.md) for platform behavior and references.
 
 ## Themes and icon packs

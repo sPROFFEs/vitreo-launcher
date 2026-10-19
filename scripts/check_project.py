@@ -5,6 +5,7 @@ import re
 import sys
 import xml.etree.ElementTree as ET
 from release_common import ROOT, read_version
+from manifest_policy import validate_source
 
 def main() -> None:
     version, code = read_version()
@@ -17,13 +18,10 @@ def main() -> None:
     for file in (ROOT / "app/src/main").rglob("*.xml"): ET.parse(file)
     manifest = ET.parse(ROOT / "app/src/main/AndroidManifest.xml").getroot()
     ns = "{http://schemas.android.com/apk/res/android}"
-    allowed_permissions = {"android.permission.BIND_APPWIDGET", "android.permission.SET_WALLPAPER"}
-    if any(p.get(ns + "name") not in allowed_permissions for p in manifest.findall("uses-permission")):
-        raise RuntimeError("Unexpected permission: only widget binding and system Home wallpaper setting are allowed.")
+    validate_source(manifest)
     activities = manifest.findall("application/activity")
     if not any(i.get(ns + "name") == "android.intent.category.HOME" for a in activities for i in a.findall("intent-filter/category")):
         raise RuntimeError("Missing HOME intent category.")
-    if manifest.findall("application/service"): raise RuntimeError("Unexpected Android service.")
     for file in (ROOT / ".github/workflows").glob("*.yml"):
         for action in re.findall(r"\buses:\s+([^\s#]+)", file.read_text()):
             if action.startswith("./.github/workflows/"):
@@ -36,7 +34,7 @@ def main() -> None:
     properties = (ROOT / "gradle/wrapper/gradle-wrapper.properties").read_text()
     if "f397b287023acdba1e9f6fc5ea72d22dd63669d59ed4a289a29b1a76eee151c6" not in properties:
         raise RuntimeError("Unexpected Gradle distribution checksum; update source checks when upgrading.")
-    print(f"SOURCE CHECKS PASSED: Vitreo {version} ({code}); XML, HOME manifest, widget binding/Home wallpaper only, no services, pinned actions, required files.")
+    print(f"SOURCE CHECKS PASSED: Vitreo {version} ({code}); XML, HOME manifest, widget/wallpaper/network state permissions, protected optional notification listener, pinned actions, required files.")
 if __name__ == "__main__":
     try: main()
     except Exception as exc:

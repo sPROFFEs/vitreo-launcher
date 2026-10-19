@@ -41,6 +41,12 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import android.media.session.PlaybackState
+import dev.vitreo.launcher.data.SystemBridge
+import dev.vitreo.launcher.data.NowPlaying
 import dev.vitreo.launcher.core.*
 import dev.vitreo.launcher.data.ControlCenterController
 import kotlinx.coroutines.launch
@@ -76,7 +82,7 @@ private fun RoundControl(title: String, icon: ImageVector, modifier: Modifier = 
         Row(Modifier.fillMaxSize().background(if (active) color.copy(alpha = .86f) else Color.Transparent)
             .graphicsLayer { alpha = if (enabled) 1f else .35f }.padding(if (wide) 16.dp else 0.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = if (wide) Arrangement.spacedBy(12.dp) else Arrangement.Center) {
-            LauncherSymbol(icon, null, Modifier.size(28.dp), tint = Color.White)
+            ControlSymbol(icon, null, Modifier.size(28.dp), tint = Color.White)
             if (wide) Text(title, color = Color.White, fontSize = 14.sp, maxLines = 2, lineHeight = 16.sp, overflow = TextOverflow.Ellipsis)
         }
     }
@@ -113,12 +119,12 @@ private fun ControlSlider(title: String, icon: ImageVector, value: Float, enable
                         }
                     } finally { finish(last) }
                 }
-            }), radius = 31f, tint = .23f) {
+            }), radius = 31f, tint = .14f, interactive = enabled) {
             Box(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxWidth().fillMaxHeight(rangeValue).align(Alignment.BottomCenter)
                     .background(if (LocalCyber.current) CyberColors.Cyan.copy(alpha = .8f) else Color.White.copy(alpha = .94f)))
-                LauncherSymbol(icon, null, Modifier.align(Alignment.BottomCenter).padding(bottom = 18.dp).size(27.dp),
-                    tint = if (rangeValue > .18f) Color(0xff33343a) else Color.White)
+                ControlSymbol(icon, null, Modifier.align(Alignment.BottomCenter).padding(bottom = 18.dp).size(27.dp),
+                    tint = if (rangeValue <= .18f) Color.White else if (title == "Home brightness") Color(0xffffc700) else Color(0xff00bfe8))
             }
         }
 
@@ -158,6 +164,7 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
         onDispose { lifecycle.removeObserver(observer); context.unregisterReceiver(receiver); controller.stop() }
     }
     val device = controller.state
+    val bridge by SystemBridge.state.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf(false) }
     BackHandler(editing) { editing = false }
     var volumeErrorShown by remember { mutableStateOf(false) }
@@ -202,19 +209,19 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().height(54.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { editing = !editing }, modifier = Modifier.testTag("edit_controls")) {
-                    LauncherSymbol(if (editing) Icons.Outlined.Check else Icons.Outlined.Add, if (editing) "Done" else "Edit controls", tint = Color.White)
+                    ControlSymbol(if (editing) Icons.Outlined.Check else Icons.Outlined.Add, if (editing) "Done" else "Edit controls", tint = Color.White)
                 }
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = { onSystem(Settings.ACTION_BATTERY_SAVER_SETTINGS) }) {
-                    LauncherSymbol(Icons.Outlined.PowerSettingsNew, "Android power settings", Modifier.size(23.dp), tint = Color.White)
+                    ControlSymbol(Icons.Outlined.PowerSettingsNew, "Android power settings", Modifier.size(23.dp), tint = Color.White)
                 }
-                IconButton(onClick = onClose) { LauncherSymbol(Icons.Outlined.Close, "Close", Modifier.size(21.dp), tint = Color.White.copy(alpha = .7f)) }
+                IconButton(onClick = onClose) { ControlSymbol(Icons.Outlined.Close, "Close", Modifier.size(21.dp), tint = Color.White.copy(alpha = .7f)) }
             }
             Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = rail, top = 5.dp, bottom = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(DateFormat.getTimeFormat(context).format(Date(LocalHomeClock.current)), color = Color.White, fontSize = 13.sp)
                 Spacer(Modifier.weight(1f))
                 if (device.battery >= 0) Text("${device.battery}%", color = Color.White, fontSize = 13.sp)
-                LauncherSymbol(Icons.Outlined.BatteryStd, null, Modifier.padding(start = 4.dp).size(19.dp), tint = Color.White)
+                ControlSymbol(Icons.Outlined.BatteryStd, null, Modifier.padding(start = 4.dp).size(19.dp), tint = Color.White)
             }
             Row(Modifier.weight(1f)) {
                 VerticalPager(pager, Modifier.weight(1f).testTag("control_pages"), userScrollEnabled = !editing,
@@ -225,7 +232,7 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
                                 Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
                                     ConnectivityTile(Modifier.size(double), device.airplane, device.wifi, device.bluetooth, onSystem,
                                         onExpand = { pageTo(2) })
-                                    MediaTile(Modifier.size(double), device.musicActive, onUtility, { if (!controller.mediaKey(it)) onError("Android could not send the media command.") },
+                                    MediaTile(Modifier.size(double), bridge.media, device.musicActive, onUtility, { if (!(if (bridge.media.available) SystemBridge.command(it) else controller.mediaKey(it))) onError("Android could not send the media command.") },
                                         onExpand = { pageTo(1) })
                                 }
                                 Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
@@ -290,7 +297,7 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
                                 }
                                 if (editing) {
                                     TextButton(onClick = { choosing = true; query = "" }, modifier = Modifier.align(Alignment.CenterHorizontally).testTag("add_control")) {
-                                        LauncherSymbol(Icons.Outlined.AddCircleOutline, null, Modifier.size(18.dp), tint = Color.White)
+                                        ControlSymbol(Icons.Outlined.AddCircleOutline, null, Modifier.size(18.dp), tint = Color.White)
                                         Text("  Add a Control", color = Color.White)
                                     }
                                     Text("Hold and drag a shortcut to reorder it. Use its corner to resize.", color = Color.White.copy(alpha = .65f), fontSize = 11.sp)
@@ -301,10 +308,16 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
                                 }
                             }
                             1 -> {
-                                MediaTile(Modifier.fillMaxWidth().heightIn(min = double * 2 + gap), device.musicActive, onUtility,
-                                    { if (!controller.mediaKey(it)) onError("Android could not send the media command.") }, expanded = true)
+                                MediaTile(Modifier.fillMaxWidth().heightIn(min = double * 2 + gap), bridge.media, device.musicActive, onUtility,
+                                    { if (!(if (bridge.media.available) SystemBridge.command(it) else controller.mediaKey(it))) onError("Android could not send the media command.") }, expanded = true)
                                 Text("Media", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
-                                Text("Playback commands go to Android's active media app. Open your player for track details.", color = Color.White.copy(alpha = .65f), fontSize = 13.sp)
+                                Text(if (appearance.mediaIntegration && bridge.access) "Playback follows the active Android media session. Unavailable actions are disabled."
+                                    else "Connect your player for track details, artwork and precise playback controls. This uses Android notification access.", color = Color.White.copy(alpha = .65f), fontSize = 13.sp)
+                                if (!appearance.mediaIntegration || !bridge.access) TextButton(onClick = {
+                                    onAppearance(appearance.copy(mediaIntegration = true))
+                                    if (!bridge.access) runCatching { context.startActivity(SystemBridge.accessIntent(context)) }
+                                        .onFailure { onSystem(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS) }
+                                }, modifier = Modifier.testTag("connect_media")) { Text("Connect player", color = Color.White) }
                                 RoundControl("Open music app", Icons.Outlined.MusicNote, Modifier.fillMaxWidth().height(unit), wide = true) { onUtility("music") }
                             }
                             2 -> {
@@ -326,7 +339,7 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
                 Column(Modifier.width(rail).fillMaxHeight(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                     listOf(Icons.Outlined.FavoriteBorder, Icons.Outlined.MusicNote, Icons.Outlined.Wifi).forEachIndexed { index, icon ->
                         IconButton(onClick = { editing = false; pageTo(index) }, modifier = Modifier.width(rail).height(44.dp).testTag("control_page:$index")) {
-                            LauncherSymbol(icon, listOf("Favorites page", "Media page", "Connectivity page")[index], Modifier.size(if (pager.currentPage == index) 19.dp else 15.dp),
+                            ControlSymbol(icon, listOf("Favorites page", "Media page", "Connectivity page")[index], Modifier.size(if (pager.currentPage == index) 19.dp else 15.dp),
                                 tint = Color.White.copy(alpha = if (pager.currentPage == index) 1f else .38f))
                         }
                     }
@@ -367,7 +380,7 @@ private fun ConnectivityTile(modifier: Modifier, airplane: Boolean?, wifi: Boole
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 NetworkButton("Bluetooth", Icons.Outlined.Bluetooth, Modifier.weight(1f), bluetooth) { onSystem(Settings.ACTION_BLUETOOTH_SETTINGS) }
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    IconButton(onClick = onExpand) { LauncherSymbol(Icons.Outlined.MoreHoriz, "Expand connectivity", tint = Color.White) }
+                    IconButton(onClick = onExpand) { ControlSymbol(Icons.Outlined.MoreHoriz, "Expand connectivity", tint = Color.White) }
                 }
             }
         }
@@ -375,27 +388,47 @@ private fun ConnectivityTile(modifier: Modifier, airplane: Boolean?, wifi: Boole
 }
 
 @Composable
-private fun MediaTile(modifier: Modifier, active: Boolean, onUtility: (String) -> Unit, onMedia: (Int) -> Unit,
+private fun MediaTile(modifier: Modifier, media: NowPlaying, legacyActive: Boolean, onUtility: (String) -> Unit, onMedia: (Int) -> Unit,
     expanded: Boolean = false, onExpand: () -> Unit = {}) {
-    GlassPanel(modifier, radius = 30f, tint = .2f) {
+    val active = if (media.available) media.playing else legacyActive
+    fun openPlayer() { if (!SystemBridge.openPlayer()) onUtility("music") }
+    GlassPanel(modifier, radius = 30f, tint = .16f) {
         Column(Modifier.fillMaxSize().padding(if (expanded) 22.dp else 12.dp), verticalArrangement = Arrangement.SpaceBetween) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(if (expanded) 100.dp else 35.dp).background(Color.White.copy(alpha = .1f), RoundedCornerShape(9.dp)).clickable { onUtility("music") }, contentAlignment = Alignment.Center) {
-                    LauncherSymbol(Icons.Outlined.MusicNote, "Open music app", Modifier.size(if (expanded) 44.dp else 22.dp), tint = Color.White.copy(alpha = .7f))
+                Box(Modifier.size(if (expanded) 100.dp else 35.dp).background(Color.White.copy(alpha = .1f), RoundedCornerShape(9.dp)).clickable { openPlayer() }, contentAlignment = Alignment.Center) {
+                    if (media.artwork != null) Image(media.artwork.asImageBitmap(), "Album artwork", Modifier.fillMaxSize().clip(RoundedCornerShape(9.dp)), contentScale = ContentScale.Crop)
+                    else ControlSymbol(Icons.Outlined.MusicNote, "Open music app", Modifier.size(if (expanded) 44.dp else 22.dp), tint = Color.White.copy(alpha = .7f))
                 }
                 Spacer(Modifier.weight(1f))
-                IconButton(onClick = if (expanded) { { onUtility("music") } } else onExpand, modifier = Modifier.size(32.dp)) {
-                    LauncherSymbol(Icons.Outlined.Podcasts, if (expanded) "Open player" else "Expand media", Modifier.size(20.dp), tint = Color.White)
+                IconButton(onClick = if (expanded) { { openPlayer() } } else onExpand, modifier = Modifier.size(32.dp)) {
+                    ControlSymbol(Icons.Outlined.Podcasts, if (expanded) "Open player" else "Expand media", Modifier.size(20.dp), tint = Color.White)
                 }
             }
-            Text(if (active) "Playing audio" else "Not Playing", color = Color.White, fontSize = if (expanded) 24.sp else 14.sp,
+            Text(if (media.available) media.title else if (active) "Playing audio" else "Not Playing", color = Color.White, fontSize = if (expanded) 24.sp else 14.sp,
                 fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (media.available && media.artist.isNotBlank()) Text(media.artist, color = Color.White.copy(alpha = .65f), fontSize = if (expanded) 16.sp else 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (expanded && media.available && media.duration > 0) {
+                val tick = LocalHomeClock.current
+                val elapsed = if (media.playing && media.updatedAt > 0) (android.os.SystemClock.elapsedRealtime() - media.updatedAt).coerceAtLeast(0) * media.speed else 0f
+                val position = (media.position + elapsed.toLong()).coerceIn(0, media.duration)
+                Column {
+                    IosSlider(position.toFloat() / media.duration, { SystemBridge.seek((it * media.duration).toLong()) }, Modifier.testTag("media_seek"),
+                        enabled = media.supports(PlaybackState.ACTION_SEEK_TO), onDark = true)
+                    Row { Text("${position / 60000}:${(position / 1000 % 60).toString().padStart(2, '0')}", color = Color.White, fontSize = 11.sp)
+                        Spacer(Modifier.weight(1f)); Text("${media.duration / 60000}:${(media.duration / 1000 % 60).toString().padStart(2, '0')}", color = Color.White, fontSize = 11.sp) }
+                }
+            }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 listOf(Triple(KeyEvent.KEYCODE_MEDIA_PREVIOUS, Icons.Outlined.SkipPrevious, "Previous track"),
                     Triple(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, if (active) Icons.Outlined.Pause else Icons.Outlined.PlayArrow, "Play or pause"),
                     Triple(KeyEvent.KEYCODE_MEDIA_NEXT, Icons.Outlined.SkipNext, "Next track")).forEach { (code, icon, label) ->
-                    IconButton(onClick = { onMedia(code) }, modifier = Modifier.size(if (expanded) 56.dp else 34.dp)) {
-                        LauncherSymbol(icon, label, Modifier.size(if (expanded) 36.dp else 25.dp), tint = Color.White)
+                    val supported = if (!media.available) legacyActive else when (code) {
+                        KeyEvent.KEYCODE_MEDIA_PREVIOUS -> media.supports(PlaybackState.ACTION_SKIP_TO_PREVIOUS)
+                        KeyEvent.KEYCODE_MEDIA_NEXT -> media.supports(PlaybackState.ACTION_SKIP_TO_NEXT)
+                        else -> media.supports(PlaybackState.ACTION_PLAY_PAUSE) || media.supports(if (active) PlaybackState.ACTION_PAUSE else PlaybackState.ACTION_PLAY)
+                    }
+                    IconButton(onClick = { onMedia(code) }, enabled = supported, modifier = Modifier.size(if (expanded) 56.dp else 34.dp).testTag("media_command:$code")) {
+                        ControlSymbol(icon, label, Modifier.size(if (expanded) 36.dp else 25.dp), tint = Color.White.copy(alpha = if (supported) 1f else .3f))
                     }
                 }
             }
@@ -411,8 +444,8 @@ private fun NetworkButton(title: String, icon: ImageVector, modifier: Modifier, 
         stateDescription = when (active) { true -> "On"; false -> "Off"; else -> "Android settings" }
     },
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Box(Modifier.size(38.dp).background(if (active == true) activeColor else Color.White.copy(alpha = .15f), CircleShape), contentAlignment = Alignment.Center) {
-            LauncherSymbol(icon, null, Modifier.size(22.dp), tint = Color.White)
+        Box(Modifier.size(38.dp).background(if (active == true) activeColor else Color.White.copy(alpha = .12f), CircleShape), contentAlignment = Alignment.Center) {
+            ControlSymbol(icon, null, Modifier.size(22.dp), tint = Color.White)
         }
 
     }
@@ -435,11 +468,11 @@ private fun ControlShortcutEditor(appearance: Appearance, onChange: (Appearance)
                         if (position >= 0) {
                             IconButton(onClick = { onChange(appearance.copy(controlShortcuts = appearance.controlShortcuts.toMutableList().apply {
                                 add(position - 1, removeAt(position)) })) }, enabled = position > 0, modifier = Modifier.size(34.dp)) {
-                                LauncherSymbol(Icons.Outlined.KeyboardArrowUp, "Move ${shortcut(id).title} up", Modifier.size(20.dp), tint = Color.White)
+                                ControlSymbol(Icons.Outlined.KeyboardArrowUp, "Move ${shortcut(id).title} up", Modifier.size(20.dp), tint = Color.White)
                             }
                             IconButton(onClick = { onChange(appearance.copy(controlShortcuts = appearance.controlShortcuts.toMutableList().apply {
                                 add(position + 1, removeAt(position)) })) }, enabled = position < appearance.controlShortcuts.lastIndex, modifier = Modifier.size(34.dp)) {
-                                LauncherSymbol(Icons.Outlined.KeyboardArrowDown, "Move ${shortcut(id).title} down", Modifier.size(20.dp), tint = Color.White)
+                                ControlSymbol(Icons.Outlined.KeyboardArrowDown, "Move ${shortcut(id).title} down", Modifier.size(20.dp), tint = Color.White)
                             }
                         }
                     }

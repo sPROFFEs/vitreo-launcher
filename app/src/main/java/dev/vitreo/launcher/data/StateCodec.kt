@@ -47,6 +47,10 @@ object StateCodec {
                 put("controlWide", JSONArray(s.appearance.controlWide.toList()))
                 put("syncWallpaper", s.appearance.syncWallpaper)
                 put("controlCenter", s.appearance.controlCenter)
+                put("homeStatusBar", s.appearance.homeStatusBar)
+                put("notificationCenter", s.appearance.notificationCenter)
+                put("mediaIntegration", s.appearance.mediaIntegration)
+                put("panelGestureHeight", s.appearance.panelGestureHeight.toDouble())
                 put("controlShortcuts", JSONArray(s.appearance.controlShortcuts))
                 put("homeBrightness", s.appearance.homeBrightness.toDouble())
                 put("todaySections", JSONArray(s.appearance.todaySections))
@@ -105,6 +109,10 @@ object StateCodec {
                 controlWide = a.optJSONArray("controlWide")?.let { strings(it, 32).toSet() } ?: emptySet(),
                 syncWallpaper = a.optBoolean("syncWallpaper", true),
                 controlCenter = a.optBoolean("controlCenter", true),
+                homeStatusBar = a.optBoolean("homeStatusBar", false),
+                notificationCenter = a.optBoolean("notificationCenter", false),
+                mediaIntegration = a.optBoolean("mediaIntegration", false),
+                panelGestureHeight = a.optDouble("panelGestureHeight", 112.0).toFloat(),
                 controlShortcuts = a.optJSONArray("controlShortcuts")?.let { strings(it, 32) } ?: DEFAULT_CONTROL_SHORTCUTS,
                 homeBrightness = a.optDouble("homeBrightness", -1.0).toFloat(),
                 todaySections = a.optJSONArray("todaySections")?.let { strings(it, 32) } ?: DEFAULT_TODAY_SECTIONS,

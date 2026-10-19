@@ -1,5 +1,15 @@
 # Cambios
 
+## 0.5.4
+
+- Optional Home status bar and Notification Center with independently configurable gesture zones. Android SystemUI remains in other apps.
+- User-authorized notification listener displays live alerts, expansion, actions and clearable dismissal without saving content.
+- Optional real MediaSession integration: title, artist, artwork, supported transport actions and seeking; clean disconnect on disable/revocation.
+- Control Center gains original iOS 26-inspired symbols, a diffuse wallpaper backdrop and continuous pull/release/cancel motion. Reduced motion/transparency remain respected.
+- Removed redundant widget captions from Home and Today; catalog names and accessible editing remain.
+- Native emulator coverage for notification access, real notifications/media, status bar restoration and permission revocation. Release verification now enforces the exact system-bound listener contract.
+
+
 ## 0.5.3 — Cyberpunk Immersive, iconos por app y Control Center — 2026-10-18
 
 - Change Icon permite asignar cualquiera de los 23 iconos integrados a cualquier app. La elección se adapta a iOS/Cyberpunk, se incluye en las copias y se puede restablecer; no necesita un pack externo ni modifica la app que se abre.

@@ -110,3 +110,21 @@ changes, and HOME helpers wait for their marked intent to be delivered.
 Search closing also checks Android's actual IME inset visibility, rather than the
 presence of an accessibility window. The retained closing text field is disabled
 immediately, and removing its surface cancels pending keyboard visibility requests.
+
+## Optional system panels (0.5.4)
+
+`LauncherSmokeTest.optionalPanelsShowRealNotificationsAndControlTheActiveMediaSession`
+authorizes the notification listener **only on an emulator**, creates a real
+MediaSession with deterministic metadata/callbacks and posts alerts from the
+separate disposable fixture APK. It verifies the real Play callback, unsupported
+Previous action, notification dismissal, custom status-bar visibility/restoration,
+disable cleanup and access revocation. It restores listener authorization and
+appearance and removes the fixture in `finally`. Production authorization always
+uses Android's user-facing Settings screen. Required captures include the custom
+bar, connected player and actual notifications on both API levels.
+
+Core gesture tests cover panel boundaries, the reserved Android edge, disabled
+panels and cancellation/flick thresholds. Codec tests verify off-by-default
+migration, backup round trips and clamped gesture preferences. Python manifest
+checks reject exported/unprotected listeners, extra services and extra permissions;
+APK collection independently checks the compiled listener contract.

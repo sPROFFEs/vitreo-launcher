@@ -161,7 +161,6 @@ fun CyberHomeWidgets(now: Long, modifier: Modifier, onClock: () -> Unit, onCalen
                         }
                     }
                 }
-                Text(if (clock) "Clock" else "Calendar", Modifier.padding(top = 6.dp), color = CyberColors.Text, fontSize = 12.sp)
             }
         }
     }

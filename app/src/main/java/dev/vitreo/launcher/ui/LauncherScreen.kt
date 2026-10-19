@@ -51,6 +51,10 @@ import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import dev.vitreo.launcher.data.SystemBridge
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.repeatOnLifecycle
@@ -65,6 +69,7 @@ import dev.vitreo.launcher.graphics.Viewport
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlin.math.roundToInt
 import kotlin.math.abs
 
@@ -82,6 +87,7 @@ private sealed interface Sheet {
     data object Widgets : Sheet
     data class Widget(val id: Int) : Sheet
     data object Controls : Sheet
+    data object Notifications : Sheet
     data object Wallpaper : Sheet
     data class IconPicker(val app: String) : Sheet
     data class Folder(val id: String) : Sheet
@@ -119,7 +125,9 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     var launching by remember { mutableStateOf(false) }
     val departure = remember { Animatable(0f) }
     val arrival = remember { Animatable(1f) }
-    var surfaceProgress by remember { mutableFloatStateOf(0f) }
+    val panelOpeningProgress = remember { mutableStateOf<Float?>(null) }
+    var panelBackdrop by remember { mutableStateOf(false) }
+    val surfaceProgress = remember { mutableFloatStateOf(0f) }
     val modalPresent = sheet != null || actionTarget != null || choiceSheet != null
     var editing by remember { mutableStateOf(false) }
     var todayEditing by remember { mutableStateOf(false) }
@@ -311,6 +319,30 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val lightWallpaper = appearance.themePreset != 1 && (frame?.brightness ?: 0f) * (1f - appearance.wallpaperDim) > .62f
     val lightChrome = opaqueScreen && sheet != Sheet.Wallpaper && MaterialTheme.colorScheme.background.luminance() > .5f ||
         sheet == null && lightWallpaper
+    val integratedBar = appearance.homeStatusBar && !opaqueScreen
+    val customBarHeight = maxOf(52.dp, with(density) { WindowInsets.displayCutout.getTop(density).toDp() + 8.dp })
+    LaunchedEffect(ui.ready, appearance.notificationCenter, appearance.mediaIntegration) {
+        if (ui.ready) SystemBridge.configure(context, appearance.notificationCenter, appearance.mediaIntegration)
+    }
+    val currentReady by rememberUpdatedState(ui.ready)
+    DisposableEffect(lifecycle, appearance.notificationCenter, appearance.mediaIntegration) {
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME && currentReady)
+            SystemBridge.configure(context, appearance.notificationCenter, appearance.mediaIntegration) }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
+    DisposableEffect(integratedBar, localView) {
+        val window = (context as? Activity)?.window
+        val controller = window?.let { WindowCompat.getInsetsController(it, localView) }
+        if (integratedBar) {
+            controller?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller?.hide(WindowInsetsCompat.Type.statusBars())
+        } else controller?.show(WindowInsetsCompat.Type.statusBars())
+        onDispose { controller?.show(WindowInsetsCompat.Type.statusBars()) }
+    }
+    LaunchedEffect(sheet) { if (sheet == Sheet.Controls || sheet == Sheet.Notifications) panelBackdrop = true }
+    LaunchedEffect(sheet) { if (sheet == null) { snapshotFlow { surfaceProgress.floatValue }.first { it <= .001f }; panelBackdrop = false } }
+    LaunchedEffect(appearance.notificationCenter) { if (!appearance.notificationCenter && sheet == Sheet.Notifications) sheet = null }
     SideEffect {
         (context as? Activity)?.let { activity -> WindowCompat.getInsetsController(activity.window, localView).apply {
             isAppearanceLightStatusBars = lightChrome; isAppearanceLightNavigationBars = lightChrome
@@ -434,7 +466,10 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val currentSheet by rememberUpdatedState(sheet)
     val controlsEnabled by rememberUpdatedState(appearance.controlCenter)
     val currentTodayEditing by rememberUpdatedState(todayEditing)
-    val gestureModifier = if (modalPresent || launching) Modifier else if (editing) Modifier.pointerInput(editing) {
+    val currentModal by rememberUpdatedState(modalPresent || launching)
+    val currentAppearance by rememberUpdatedState(appearance)
+    val safePanelTop by rememberUpdatedState(if (integratedBar) 8f else WindowInsets.statusBars.getTop(density) / density.density)
+    val gestureModifier = if (editing) Modifier.pointerInput(editing) {
         detectDragGesturesAfterLongPress(onDragStart = { startDrag(it) },
             onDrag = { change, amount -> if (drag != null || widgetDrag != null) {
                 change.consume()
@@ -447,19 +482,43 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         // drags even when all rows fit, preventing the Spotlight gesture.
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            if (currentSheet != null) return@awaitEachGesture
-            val controls = controlsEnabled && !(currentTodayEditing && currentPage == 0) && down.position.y < 180.dp.toPx() && down.position.x > size.width * .58f
-            if (!controls && currentPage !in 1..currentHomePages) return@awaitEachGesture
-            if (!controls && cellBounds.any { (id, bounds) -> id.startsWith("widget:") && bounds.contains(down.position + rootPosition) }) return@awaitEachGesture
-            while (true) {
-                val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: break
-                if (!change.pressed) break
-                val distance = change.position - down.position
-                if (abs(distance.x) > viewConfiguration.touchSlop && abs(distance.x) > abs(distance.y)) break
-                if (distance.y > (if (controls) 24.dp else 50.dp).toPx() && distance.y > abs(distance.x)) {
-                    change.consume()
-                    if (controls) sheet = Sheet.Controls else openSearch()
-                    break
+            if (currentModal || currentSheet != null) return@awaitEachGesture
+            val a = currentAppearance
+            val panel = if (currentTodayEditing && currentPage == 0) null else homePanelAt(
+                down.position.x / size.width, down.position.y / density.density, safePanelTop,
+                a.panelGestureHeight, controlsEnabled, a.notificationCenter)
+            if (panel == null && currentPage !in 1..currentHomePages) return@awaitEachGesture
+            if (panel == null && cellBounds.any { (id, bounds) -> id.startsWith("widget:") && bounds.contains(down.position + rootPosition) }) return@awaitEachGesture
+            val tracker = VelocityTracker().apply { addPosition(down.uptimeMillis, down.position) }
+            var pulling = false
+            var distanceY = 0f
+            var released = false
+            try {
+                while (true) {
+                    val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: break
+                    tracker.addPosition(change.uptimeMillis, change.position)
+                    if (!change.pressed) { released = true; if (pulling) change.consume(); break }
+                    val distance = change.position - down.position
+                    if (!pulling && abs(distance.x) > viewConfiguration.touchSlop && abs(distance.x) > abs(distance.y)) break
+                    distanceY = distance.y
+                    if (panel != null && (pulling || distance.y > 24.dp.toPx() && distance.y > abs(distance.x))) {
+                        change.consume()
+                        if (!pulling) {
+                            pulling = true
+                            panelOpeningProgress.value = 0f
+                            sheet = if (panel == HomePanel.Controls) Sheet.Controls else Sheet.Notifications
+                        }
+                        panelOpeningProgress.value = ((distance.y - 24.dp.toPx()) / (size.height * .34f)).coerceIn(0f, 1f)
+                    } else if (panel == null && distance.y > 50.dp.toPx() && distance.y > abs(distance.x)) {
+                        change.consume(); openSearch(); break
+                    }
+                }
+            } finally {
+                if (pulling) {
+                    val velocity = if (released) tracker.calculateVelocity().y / density.density else 0f
+                    if (!released || !shouldOpenHomePanel(distanceY / density.density, velocity)) sheet = null
+                    else haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    panelOpeningProgress.value = null
                 }
             }
         }
@@ -495,8 +554,9 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                 Box(Modifier.fillMaxSize().testTag("cyber_backdrop"))
                 if (appearance.cyberImmersive && appearance.cyberEffects && !appearance.reducedEffects && sheet == null) CyberAmbient()
             }
-            Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.displayCutout))
-                .padding(top = if (editing) 42.dp else 9.dp)
+            Box(Modifier.fillMaxSize().windowInsetsPadding(if (integratedBar) WindowInsets.navigationBars.union(
+                WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)) else WindowInsets.systemBars.union(WindowInsets.displayCutout))
+                .padding(top = (if (integratedBar) customBarHeight else 0.dp) + if (editing) 42.dp else 9.dp)
                 .then(if (modalPresent) Modifier.clearAndSetSemantics {} else Modifier)
                 .graphicsLayer {
                     if (!appearance.reducedEffects) {
@@ -504,8 +564,8 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                     }
                     // Read the animation in the drawing phase. Rebuilding the entire
                     // workspace for every blur frame causes avoidable layout/recomposition.
-                    alpha = if (opaqueScreen && surfaceProgress >= .999f) 0f else 1f
-                    val blurRadius = if (appearance.reducedEffects || opaqueScreen) 0f else maxOf(surfaceProgress, menuBlur.value) * 20.dp.toPx()
+                    alpha = if (opaqueScreen && surfaceProgress.floatValue >= .999f) 0f else 1f
+                    val blurRadius = if (appearance.reducedEffects || opaqueScreen) 0f else maxOf(surfaceProgress.floatValue, menuBlur.value) * 20.dp.toPx()
                     renderEffect = if (blurRadius > .05f) BlurEffect(blurRadius, blurRadius, TileMode.Clamp) else null
                 }) {
                 Box(Modifier.fillMaxSize().testTag("home_workspace")
@@ -592,7 +652,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                     Spacer(Modifier.height(5.dp))
                 }
             }
-            if (editing && !modalPresent) Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 18.dp),
+            if (editing && !modalPresent) Row(Modifier.fillMaxWidth().statusBarsPadding().padding(top = if (integratedBar) customBarHeight else 0.dp).padding(horizontal = 18.dp),
                 horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 GlassPanel(radius = 20f) { Text("Add Widgets", color = Color.White, fontSize = 13.sp,
                     modifier = Modifier.testTag("add_home_widgets").clickable { widgetGalleryHomePage = pager.currentPage - 1; sheet = Sheet.Widgets }.padding(horizontal = 14.dp, vertical = 10.dp)) }
@@ -617,11 +677,30 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                     }
                 }
             }
+            if (integratedBar && sheet != Sheet.Controls && sheet != Sheet.Notifications) {
+                HomeStatusBar(now,
+                Modifier.height(customBarHeight).padding(top = with(density) { WindowInsets.displayCutout.getTop(density).toDp() / 2 }),
+                onNotices = if (appearance.notificationCenter && !modalPresent) ({ sheet = Sheet.Notifications }) else null,
+                onControls = if (appearance.controlCenter && !modalPresent) ({ sheet = Sheet.Controls }) else null)
+            }
+            if (panelBackdrop && !opaqueScreen) {
+                // Full-screen diffusion includes the wallpaper; panel lenses sample the same
+                // cached frosted frame. No bitmap capture or per-frame blur allocation.
+                if (appearance.opaquePanels) {
+                    Box(Modifier.fillMaxSize().graphicsLayer { alpha = surfaceProgress.floatValue }.background(Color(0xff18202c)))
+                } else {
+                    frame?.let { wallpaper -> Image(wallpaper.frosted.asImageBitmap(), null,
+                        Modifier.fillMaxSize().graphicsLayer { alpha = surfaceProgress.floatValue * .92f }, contentScale = ContentScale.Crop) }
+                }
+                Box(Modifier.fillMaxSize().drawBehind {
+                    drawRect(Brush.verticalGradient(listOf(Color(0xff141a26).copy(alpha = .27f), Color(0xff0d1623).copy(alpha = .48f))), alpha = surfaceProgress.floatValue)
+                })
+            }
             // Scrim stays in screen space while the panel grows from its icon.
             Box(Modifier.fillMaxSize().then(if (sheet != null && !opaqueScreen) Modifier.pointerInput(sheet) {
                 detectTapGestures(onTap = { closeSurface() })
             } else Modifier).drawBehind {
-                if (!opaqueScreen) drawRect(Color.Black.copy(alpha = surfaceProgress * if (lightWallpaper) .58f else .28f))
+                if (!opaqueScreen) drawRect(Color.Black.copy(alpha = surfaceProgress.floatValue * if (lightWallpaper) .58f else .28f))
             })
             SurfaceHost(sheet, kind = {
                 when (it) {
@@ -629,9 +708,10 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                     is Sheet.Category -> SurfaceKind.Category
                     Sheet.Search, Sheet.LibrarySearch -> SurfaceKind.Search
                     Sheet.Controls -> SurfaceKind.Controls
+                    Sheet.Notifications -> SurfaceKind.Notifications
                     else -> SurfaceKind.Page
                 }
-            }, origin = folderAnchor, onClose = ::closeSurface, progressChanged = { surfaceProgress = it }, forward = navigatingForward) { current ->
+            }, origin = folderAnchor, onClose = ::closeSurface, progressChanged = { surfaceProgress.floatValue = it }, forward = navigatingForward, openingState = panelOpeningProgress) { current ->
                 Box(Modifier.fillMaxSize().then(if (actionTarget != null || choiceSheet != null) Modifier.clearAndSetSemantics {} else Modifier)
                     .graphicsLayer {
                         val r = if (appearance.reducedEffects) 0f else menuBlur.value * 9.dp.toPx()
@@ -672,10 +752,17 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                             onRemove = { widgets.remove(current.id); closeSurface() },
                             onConfigure = { onConfigureWidget(widgets.host, current.id) {} }, onClose = ::closeSurface,
                             onMoveToday = { widgets.moveInToday(current.id, it); closeSurface() })
+                        Sheet.Notifications -> CompositionLocalProvider(LocalGlass provides LocalGlass.current.copy(
+                            appearance = appearance.copy(frost = maxOf(.88f, appearance.frost)))) {
+                            NotificationCenter(::closeSurface, {
+                                runCatching { context.startActivity(SystemBridge.accessIntent(context)) }
+                                    .onFailure { system(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS) }
+                            }, model::message)
+                        }
                         Sheet.Licenses -> LicensesSheet(::closeSurface)
                         is Sheet.IconPicker -> IconPickerSheet(model, ui, current.app, ::closeSurface)
-                        Sheet.Controls -> ControlCenter(ui.layout.appearance, MaterialTheme.colorScheme.background.luminance() < .5f, model::appearance,
-                            ::closeSurface, ::system, ::utility, { pushPage(Sheet.Settings) }, { pushPage(Sheet.Widgets) }, model::message)
+                        Sheet.Controls -> CompositionLocalProvider(LocalGlass provides LocalGlass.current.copy(appearance = appearance.copy(frost = maxOf(.88f, appearance.frost)))) { ControlCenter(ui.layout.appearance, MaterialTheme.colorScheme.background.luminance() < .5f, model::appearance,
+                            ::closeSurface, ::system, ::utility, { pushPage(Sheet.Settings) }, { pushPage(Sheet.Widgets) }, model::message) }
                         is Sheet.Folder -> {
                             val live = ui.layout.home.filterIsInstance<HomeEntry.Folder>().find { it.id == current.id }
                             var snapshot by remember(current.id) { mutableStateOf(live) }

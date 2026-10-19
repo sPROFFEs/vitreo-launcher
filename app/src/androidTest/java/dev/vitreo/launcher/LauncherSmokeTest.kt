@@ -166,7 +166,7 @@ class LauncherSmokeTest {
     private fun openControlsFromEdge() {
         val startY = with(compose.density) { 100.dp.toPx() }
         val distance = with(compose.density) { 65.dp.toPx() }
-        compose.onNodeWithTag("home_workspace").performTouchInput {
+        compose.onNodeWithTag("launcher_root").performTouchInput {
             swipe(Offset(width * .8f, startY), Offset(width * .8f, startY + distance), 400)
         }
         compose.onNodeWithTag("control_center").assertIsDisplayed()
@@ -298,6 +298,93 @@ class LauncherSmokeTest {
             awaitReady()
             assertTrue(!model.ui.value.layout.appearance.controlCenter)
         } finally { compose.runOnUiThread { model.appearance(original) } }
+    }
+
+    @Test fun optionalPanelsShowRealNotificationsAndControlTheActiveMediaSession() {
+        awaitReady()
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        fun shell(command: String) = instrumentation.uiAutomation.executeShellCommand(command).use { fd ->
+            java.io.FileInputStream(fd.fileDescriptor).bufferedReader().use { it.readText().trim() }
+        }
+        check(shell("getprop ro.kernel.qemu") == "1")
+        val context = compose.activity
+        val model = ViewModelProvider(context)[LauncherViewModel::class.java]
+        val original = model.ui.value.layout.appearance
+        val listener = dev.vitreo.launcher.data.SystemBridge.component(context).flattenToString()
+        val oldAccess = dev.vitreo.launcher.data.SystemBridge.hasAccess(context)
+        val session = android.media.session.MediaSession(context, "Vitreo integration fixture")
+        var playCount = 0
+        fun playback(playing: Boolean) = android.media.session.PlaybackState.Builder()
+            .setActions(android.media.session.PlaybackState.ACTION_PLAY or android.media.session.PlaybackState.ACTION_PAUSE or
+                android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or android.media.session.PlaybackState.ACTION_SEEK_TO)
+            .setState(if (playing) android.media.session.PlaybackState.STATE_PLAYING else android.media.session.PlaybackState.STATE_PAUSED, 10000, if (playing) 1f else 0f).build()
+        try {
+            check(shell("pm install -r -t /data/local/tmp/vitreo-uninstall-fixture.apk").contains("Success"))
+            if (Build.VERSION.SDK_INT >= 33) shell("pm grant dev.vitreo.fixture.uninstall android.permission.POST_NOTIFICATIONS")
+            compose.runOnUiThread {
+                model.appearance(original.copy(homeStatusBar = true, notificationCenter = true, mediaIntegration = true, controlCenter = true))
+                session.setCallback(object : android.media.session.MediaSession.Callback() {
+                    override fun onPlay() { playCount++; session.setPlaybackState(playback(true)) }
+                    override fun onPause() { session.setPlaybackState(playback(false)) }
+                    override fun onSeekTo(position: Long) {
+                        session.setPlaybackState(android.media.session.PlaybackState.Builder(playback(false))
+                            .setState(android.media.session.PlaybackState.STATE_PAUSED, position, 0f).build())
+                    }
+                }, android.os.Handler(android.os.Looper.getMainLooper()))
+                session.setMetadata(android.media.MediaMetadata.Builder().putString(android.media.MediaMetadata.METADATA_KEY_TITLE, "CI track")
+                    .putString(android.media.MediaMetadata.METADATA_KEY_ARTIST, "Vitreo fixture")
+                    .putLong(android.media.MediaMetadata.METADATA_KEY_DURATION, 180000).build())
+                session.setPlaybackState(playback(false)); session.isActive = true
+            }
+            shell("cmd notification allow_listener $listener")
+            compose.waitUntil(15_000) { dev.vitreo.launcher.data.SystemBridge.state.value.media.title == "CI track" }
+            compose.onNodeWithTag("home_status_bar").assertIsDisplayed()
+            compose.waitUntil(5_000) { androidx.core.view.ViewCompat.getRootWindowInsets(compose.activity.window.decorView)?.isVisible(androidx.core.view.WindowInsetsCompat.Type.statusBars()) == false }
+            captureEvidence("home-status-bar")
+            compose.onNodeWithTag("launcher_root").performTouchInput {
+                swipe(Offset(width * .85f, 80f * context.resources.displayMetrics.density),
+                    Offset(width * .85f, 120f * context.resources.displayMetrics.density), 600)
+            }
+            compose.onNodeWithTag("control_center").assertDoesNotExist()
+            openControlsFromEdge()
+            compose.onNodeWithText("CI track").assertIsDisplayed()
+            compose.onNodeWithTag("media_command:88").assertIsNotEnabled()
+            compose.onNodeWithTag("media_command:85").performClick()
+            compose.waitUntil(5_000) { playCount == 1 && dev.vitreo.launcher.data.SystemBridge.state.value.media.playing }
+            captureEvidence("control-center-session")
+            compose.onNodeWithTag("control_page:1").performClick()
+            compose.onNodeWithTag("media_seek").performSemanticsAction(SemanticsActions.SetProgress) { it(.5f) }
+            compose.waitUntil(5_000) { dev.vitreo.launcher.data.SystemBridge.state.value.media.position == 90000L }
+            returnHome()
+            shell("am start -W -n dev.vitreo.fixture.uninstall/.MainActivity --ez postNotifications true")
+            awaitReady()
+            compose.waitUntil(10_000) { dev.vitreo.launcher.data.SystemBridge.state.value.notices.any { it.title == "Native fixture alert" } }
+            compose.onNodeWithTag("launcher_root").performTouchInput {
+                swipe(Offset(width * .3f, 80f * context.resources.displayMetrics.density),
+                    Offset(width * .3f, 175f * context.resources.displayMetrics.density), 500)
+            }
+            compose.onNodeWithTag("notification_center").assertIsDisplayed()
+            compose.onNodeWithText("Native fixture alert").assertIsDisplayed()
+            captureEvidence("notification-center")
+            compose.onNodeWithTag("clear_notifications").performClick()
+            compose.waitUntil(5_000) { dev.vitreo.launcher.data.SystemBridge.state.value.notices.none { it.title == "Native fixture alert" } }
+            returnHome()
+            compose.runOnUiThread { model.appearance(original.copy(notificationCenter = false, mediaIntegration = false, homeStatusBar = false)) }
+            compose.waitUntil(5_000) { dev.vitreo.launcher.data.SystemBridge.state.value.notices.isEmpty() && !dev.vitreo.launcher.data.SystemBridge.state.value.media.available }
+            compose.onNodeWithTag("home_status_bar").assertDoesNotExist()
+            assertTrue(!dev.vitreo.launcher.data.StateCodec.encode(model.ui.value.layout).contains("CI track"))
+            compose.waitUntil(5_000) { androidx.core.view.ViewCompat.getRootWindowInsets(compose.activity.window.decorView)?.isVisible(androidx.core.view.WindowInsetsCompat.Type.statusBars()) == true }
+            if (!oldAccess) {
+                compose.runOnUiThread { model.appearance(original.copy(notificationCenter = true, mediaIntegration = true)) }
+                compose.waitUntil(5_000) { dev.vitreo.launcher.data.SystemBridge.state.value.media.available }
+                shell("cmd notification disallow_listener $listener")
+                compose.waitUntil(10_000) { !dev.vitreo.launcher.data.SystemBridge.state.value.access && !dev.vitreo.launcher.data.SystemBridge.state.value.media.available && dev.vitreo.launcher.data.SystemBridge.state.value.notices.isEmpty() }
+            }
+        } finally {
+            compose.runOnUiThread { session.release(); model.appearance(original) }
+            if (!oldAccess) shell("cmd notification disallow_listener $listener")
+            shell("pm uninstall dev.vitreo.fixture.uninstall")
+        }
     }
 
     @Test fun controlsChangeRealVolumeAndPersistHomeBrightnessAndShortcuts() {

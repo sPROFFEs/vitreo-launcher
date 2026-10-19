@@ -26,6 +26,15 @@ class StateCodecTest {
         for (name in listOf("wallpaper_neon_rider", "../../file", "unknown", "")) assertFalse(IconOverride(THEME_ICON_PACK, name).valid())
         assertTrue(state.copy(appearance = state.appearance.copy(iconOverrides = mapOf(a to IconOverride(THEME_ICON_PACK, "bad")))).sanitized().appearance.iconOverrides.isEmpty())
     }
+    @Test fun homeIntegrationIsOptionalAndPortableWithoutNotificationContent() {
+        val old = StateCodec.decode("""{"schema":1,"home":[],"dock":[],"appearance":{}}""").appearance
+        assertFalse(old.homeStatusBar); assertFalse(old.notificationCenter); assertFalse(old.mediaIntegration)
+        val configured = LauncherState(appearance = Appearance(homeStatusBar = true, notificationCenter = true,
+            mediaIntegration = true, panelGestureHeight = 140f)).sanitized()
+        assertEquals(configured, StateCodec.decode(StateCodec.encode(configured)))
+        assertEquals(180f, Appearance(panelGestureHeight = 999f).sanitized().panelGestureHeight)
+        assertEquals(112f, Appearance(panelGestureHeight = Float.NaN).sanitized().panelGestureHeight)
+    }
     @Test fun roundTrip() {
         val state = LauncherState(initialized = true, home = listOf(HomeEntry.Folder("folder:1", "M\u00fasica", listOf(a, b))),
             dock = listOf(c), appearance = Appearance(palette = 2)).sanitized()

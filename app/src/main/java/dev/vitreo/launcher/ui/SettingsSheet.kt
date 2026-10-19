@@ -101,6 +101,7 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                             IosRow("Wallpaper", if (a.usePhoto) "Photo" else "Collection") { page = SettingsPage.Wallpaper }; IosDivider()
                             IosRow("Motion & Glass") { page = SettingsPage.Glass }; IosDivider()
                             IosRow("Control Center", if (a.controlCenter) "On" else "Off") { page = SettingsPage.Controls }; IosDivider()
+                            IosRow("Status Bar & Notifications") { page = SettingsPage.Controls }; IosDivider()
                             IosRow("Widgets", onClick = onWidgets)
                         }
                         IosSectionLabel("General")
@@ -159,12 +160,13 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                         }
                         SettingsFootnote("Available on Home, Today and App Library. Swipe down from the upper-right area below the status bar, or tap the controls button in Today. Swipe up from the panel's bottom handle to close it.")
                         IosSectionLabel("Controls")
-                        SettingsFootnote("Media volume and flashlight use Android's public controls. Network, Focus, rotation and device shortcuts open Android settings. Playback buttons send commands to Android's current media player without reading track metadata.")
-                        SettingsFootnote("Brightness applies to Vitreo only. Use Display settings for system brightness. No camera recording, notification access or overlay service is used.")
+                        SettingsFootnote("Media volume and flashlight use Android's public controls. Network, Focus, rotation and device shortcuts open Android settings. Connect media player below to show real track metadata and supported playback actions. Without access, media keys are available while Android reports active playback.")
+                        SettingsFootnote("Brightness applies to Vitreo only. Use Display settings for system brightness. No camera recording or overlay service is used.")
                         IosGroup {
                             IosRow("Use system brightness", if (a.homeBrightness < 0) "Selected" else "Reset") { onAppearance(a.copy(homeBrightness = -1f)) }
                         }
                         SettingsFootnote("Turn Control Center off to remove its gesture and Today button. Android's own Quick Settings remain available from the status bar.")
+                        SystemIntegrationSettings(a, onAppearance)
                     }
                     SettingsPage.Glass -> {
                         if (a.themePreset == 1) {

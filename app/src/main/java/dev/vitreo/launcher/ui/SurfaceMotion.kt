@@ -27,16 +27,19 @@ object LauncherMotion {
     fun <T> close() = spring<T>(dampingRatio = 1f, stiffness = 700f)
 }
 
-enum class SurfaceKind { Folder, Category, Search, Controls, Page }
+enum class SurfaceKind { Folder, Category, Search, Controls, Notifications, Page }
 
 /** One progress drives both directions, including an interrupted close and a finger-driven dismissal.
  * Keep the outgoing content alive until its last frame, including a folder's icon and page position. */
 @Composable
 fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: TransformOrigin,
-    onClose: () -> Unit, progressChanged: (Float) -> Unit = {}, forward: Boolean = true, content: @Composable (T) -> Unit) {
+    onClose: () -> Unit, progressChanged: (Float) -> Unit = {}, forward: Boolean = true, openingState: State<Float?>? = null, content: @Composable (T) -> Unit) {
+    val openingProgress = openingState?.value
     var retained by remember { mutableStateOf(target) }
     val displayed = target ?: retained
     val progress = remember { Animatable(0f) }
+    var lastOpeningProgress by remember { mutableStateOf<Float?>(null) }
+    SideEffect { if (openingProgress != null) lastOpeningProgress = openingProgress }
     var fingerProgress by remember { mutableStateOf<Float?>(null) }
     var releaseVelocity by remember { mutableStateOf<Float?>(null) }
     var dismissDown by remember { mutableStateOf(false) }
@@ -48,6 +51,7 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current.density
     val currentTarget by rememberUpdatedState(target)
+    val currentOpening by rememberUpdatedState(openingProgress)
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
@@ -61,13 +65,15 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }
     }
-    LaunchedEffect(target, reduced) {
+    LaunchedEffect(target, reduced, openingProgress != null) {
         // Let Animatable interrupt its preceding mutation. Cancelling the
         // animation's coroutine on every target change would zero its velocity
         // before the next spring can inherit it. This scope still dies with UI.
         scope.launch {
             if (currentTarget != target) return@launch
             if (target != null) retained = target
+            if (openingProgress != null) { progress.stop(); return@launch }
+            lastOpeningProgress?.let { progress.snapTo(it); lastOpeningProgress = null }
             fingerProgress?.let { progress.snapTo(it); fingerProgress = null }
             val velocity = releaseVelocity ?: progress.velocity
             releaseVelocity = null
@@ -79,17 +85,17 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
         }
     }
     // Scrim/blur use bounded opacity; geometry keeps the spring's small overshoot.
-    LaunchedEffect(Unit) { snapshotFlow { (fingerProgress ?: progress.value).coerceIn(0f, 1f) }.collect(progressChanged) }
+    LaunchedEffect(Unit) { snapshotFlow { (fingerProgress ?: currentOpening ?: lastOpeningProgress ?: progress.value).coerceIn(0f, 1f) }.collect(progressChanged) }
     if (displayed != null) {
         val style = kind(displayed)
         val gesture = if (style == SurfaceKind.Page || target == null) Modifier else Modifier.pointerInput(style, cyber) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
                 // Scrolling app grids and text fields keep their gestures. The header is a dismissal handle.
-                if (style == SurfaceKind.Controls) {
+                if (style == SurfaceKind.Controls || style == SurfaceKind.Notifications) {
                     if (down.position.y < size.height - 100 * density) return@awaitEachGesture
                 } else if (down.position.y > 170 * density && style != SurfaceKind.Folder) return@awaitEachGesture
-                val direction = if (style == SurfaceKind.Controls) -1f else 1f
+                val direction = if (style == SurfaceKind.Controls || style == SurfaceKind.Notifications) -1f else 1f
                 var dragging = false
                 var released = false
                 var delta = 0f
@@ -108,12 +114,12 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
                             start = progress.value
                             val openingTravel = when (style) {
                                 SurfaceKind.Search -> -65 * density
-                                SurfaceKind.Controls -> -size.height * .3f
+                                SurfaceKind.Controls, SurfaceKind.Notifications -> -size.height * .58f
                                 else -> 0f
                             }
                             val closingTravel = when (style) {
                                 SurfaceKind.Search -> size.height * .22f
-                                SurfaceKind.Controls -> -size.height * .3f
+                                SurfaceKind.Controls, SurfaceKind.Notifications -> -size.height * .58f
                                 else -> 0f
                             }
                             val previousBlend = if (start <= handoffProgress) start / handoffProgress.coerceAtLeast(.001f)
@@ -153,7 +159,7 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
             }
         }
         Box(Modifier.fillMaxSize().then(gesture).graphicsLayer {
-            val p = (fingerProgress ?: progress.value).coerceIn(-.05f, 1.06f)
+            val p = (fingerProgress ?: openingProgress ?: lastOpeningProgress ?: progress.value).coerceIn(-.05f, 1.06f)
             alpha = (p * 2.5f).coerceIn(0f, 1f)
             if (!reduced) {
                 val start = when (style) {
@@ -165,7 +171,7 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
                 transformOrigin = if (style == SurfaceKind.Folder || style == SurfaceKind.Category) origin else TransformOrigin.Center
                 translationY = when (style) {
                     SurfaceKind.Search -> (1f - p) * if (dismissDown) size.height * .22f else -65 * density
-                    SurfaceKind.Controls -> (1f - p) * size.height * -.3f
+                    SurfaceKind.Controls, SurfaceKind.Notifications -> (1f - p) * size.height * -.58f
                     SurfaceKind.Page -> (1f - p) * size.height * .16f
                     else -> 0f
                 }

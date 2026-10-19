@@ -1,4 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
   <application android:label="Uninstall fixture" android:icon="@android:drawable/ic_menu_info_details" android:allowBackup="false">
     <activity android:name=".MainActivity" android:exported="true">
       <intent-filter><action android:name="org.adw.ActivityStarter.THEMES" /></intent-filter>
