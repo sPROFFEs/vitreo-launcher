@@ -8,6 +8,7 @@
 - Paused players remain selectable when Android ranks an idle voice-assistant session first; empty and failed sessions do not appear as music.
 - Control Center gains original iOS 26-inspired symbols, a diffuse wallpaper backdrop and continuous pull/release/cancel motion. Reduced motion/transparency remain respected.
 - Removed redundant widget captions from Home and Today; catalog names and accessible editing remain.
+- Widget search has an explicit Done action that keeps the filter and dismisses the keyboard before choosing a provider.
 - Native emulator coverage for notification access, real notifications/media, status bar restoration and permission revocation. Release verification now enforces the exact system-bound listener contract.
 
 

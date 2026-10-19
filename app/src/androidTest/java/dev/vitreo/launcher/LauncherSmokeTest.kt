@@ -659,12 +659,26 @@ class LauncherSmokeTest {
             compose.onNodeWithText("Edit Home Screen").performClick()
             compose.onNodeWithTag("add_home_widgets").performClick()
             compose.onNodeWithTag("widget_search").performScrollTo().performTextInput("Vitreo Test Widget")
+            // Gboard changes the viewport asynchronously. Finish the query before
+            // measuring/tapping the Add row, so it cannot move during the click.
+            compose.onNodeWithTag("widget_search").performImeAction()
+            compose.onNodeWithTag("widget_search").assertIsNotFocused()
+            compose.waitUntil(5_000) {
+                val insets = compose.activity.window.decorView.rootWindowInsets
+                insets != null && !insets.isVisible(android.view.WindowInsets.Type.ime()) &&
+                    insets.getInsets(android.view.WindowInsets.Type.ime()).bottom == 0
+            }
             val addWidget = hasText("Vitreo Test Widget") and hasClickAction() and !hasSetTextAction()
             compose.onNodeWithTag("widget_catalog").performScrollToNode(addWidget)
-            compose.onNode(addWidget).performClick()
-            compose.waitUntil(10_000) {
-                context.getSharedPreferences("today-widgets", Context.MODE_PRIVATE).getString("ids", "").orEmpty()
-                    .split(',').mapNotNull(String::toIntOrNull).any { it !in before }
+            compose.onNode(addWidget).assertIsDisplayed().performClick()
+            try {
+                compose.waitUntil(10_000) {
+                    context.getSharedPreferences("today-widgets", Context.MODE_PRIVATE).getString("ids", "").orEmpty()
+                        .split(',').mapNotNull(String::toIntOrNull).any { it !in before }
+                }
+            } catch (failure: Throwable) {
+                runCatching { captureEvidence("widget-add-failure", dialogTag = "widget_catalog") }
+                throw failure
             }
             id = WidgetController(context).ids.first { it !in before }
             compose.onNodeWithTag("home_widget:$id").assertIsDisplayed()

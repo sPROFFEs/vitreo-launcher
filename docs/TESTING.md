@@ -125,6 +125,12 @@ appearance and removes the fixture in `finally`. Production authorization always
 uses Android's user-facing Settings screen. Required captures include the custom
 bar, connected player and actual notifications on both API levels.
 
+The widget scenario completes the search with the keyboard's Done action and
+waits for the real IME insets to clear before locating/tapping Add. This avoids
+injecting a touch into a row moving with Gboard's viewport animation; binding,
+resizing, page moves and removal remain mandatory. A failed add saves the actual
+screen for inspection.
+
 Core gesture tests cover panel boundaries, the reserved Android edge, disabled
 panels and cancellation/flick thresholds. Codec tests verify off-by-default
 migration, backup round trips and clamped gesture preferences. Python manifest
