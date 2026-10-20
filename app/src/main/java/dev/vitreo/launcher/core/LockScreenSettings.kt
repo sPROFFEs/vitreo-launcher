@@ -4,7 +4,8 @@ package dev.vitreo.launcher.core
 data class LockScreenSettings(
     val theme: Int = 0, // Follow Home, iOS, Cyberpunk
     val clockSize: Float = 104f,
-    val clockStyle: Int = 0, // Rounded, light, bold
+    val clockStyle: Int = 0, // Rounded, light, bold, serif, mono, condensed; append-only IDs
+    val clockHeight: Float = 1f,
     val clockColor: Int = 0xfff5f8ff.toInt(),
     val glassClock: Boolean = true,
     val showDate: Boolean = true,
@@ -17,7 +18,9 @@ data class LockScreenSettings(
 ) {
     fun sanitized() = copy(theme = theme.coerceIn(0, 2),
         clockSize = if (clockSize.isFinite()) clockSize.coerceIn(72f, 132f) else 104f,
-        clockStyle = clockStyle.coerceIn(0, 2), clockColor = clockColor or 0xff000000.toInt(),
+        clockStyle = clockStyle.coerceIn(0, 5),
+        clockHeight = if (clockHeight.isFinite()) clockHeight.coerceIn(1f, 2.4f) else 1f,
+        clockColor = clockColor or 0xff000000.toInt(),
         wallpaper = wallpaper.coerceIn(-1, WALLPAPER_NAMES.lastIndex), dim = if (dim.isFinite()) dim.coerceIn(0f, .65f) else .18f)
 
     fun appearance(home: Appearance): Appearance = home.copy(

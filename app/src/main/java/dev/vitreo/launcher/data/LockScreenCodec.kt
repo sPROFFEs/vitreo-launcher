@@ -6,6 +6,7 @@ import org.json.JSONObject
 object LockScreenCodec {
     fun encode(value: LockScreenSettings): JSONObject = value.sanitized().let { a -> JSONObject().apply {
         put("theme", a.theme); put("clockSize", a.clockSize.toDouble()); put("clockStyle", a.clockStyle)
+        put("clockHeight", a.clockHeight.toDouble())
         put("clockColor", a.clockColor); put("glassClock", a.glassClock); put("showDate", a.showDate)
         put("showBattery", a.showBattery); put("showAlarm", a.showAlarm)
         put("notificationCount", a.notificationCount); put("wallpaper", a.wallpaper)
@@ -15,6 +16,7 @@ object LockScreenCodec {
         if (a == null) return LockScreenSettings()
         return LockScreenSettings(theme = a.optInt("theme", 0), clockSize = a.optDouble("clockSize", 104.0).toFloat(),
             clockStyle = a.optInt("clockStyle", 0), clockColor = a.optInt("clockColor", 0xfff5f8ff.toInt()),
+            clockHeight = a.optDouble("clockHeight", 1.0).toFloat(),
             glassClock = a.optBoolean("glassClock", true), showDate = a.optBoolean("showDate", true),
             showBattery = a.optBoolean("showBattery", true), showAlarm = a.optBoolean("showAlarm", true),
             notificationCount = a.optBoolean("notificationCount", false), wallpaper = a.optInt("wallpaper", -1),

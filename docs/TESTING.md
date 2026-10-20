@@ -167,3 +167,5 @@ lockdown, secondary PIN if enabled, cold boot, switching users, incoming calls,
 secure camera and its return, System / Emergency, process death, delayed locking,
 Battery Saver and large text. Always retain Android's native lock and system
 launcher. No physical GrapheneOS result is claimed by emulator CI.
+
+Lock customization evidence also includes the full-screen draft editor and Cyberpunk Home/status, Notification Center and Control Center. Native checks exercise Save / Cancel, height and font persistence without activation; the large-clock preview uses 210% vertical stretch.

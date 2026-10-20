@@ -7,7 +7,7 @@ import org.junit.Test
 
 class LockScreenSettingsTest {
     @Test fun backupRoundTripKeepsAppearanceButNeverContainsActivation() {
-        val options = LockScreenSettings(theme = 2, clockSize = 126f, clockStyle = 2, clockColor = 0xffb9eaff.toInt(),
+        val options = LockScreenSettings(theme = 2, clockSize = 126f, clockStyle = 5, clockHeight = 2.1f, clockColor = 0xffb9eaff.toInt(),
             glassClock = false, showDate = false, showBattery = false, showAlarm = false, notificationCount = true,
             wallpaper = 5, dim = .48f, immersive = true)
         val text = StateCodec.encode(LauncherState(appearance = Appearance(lockScreen = options)))
@@ -27,6 +27,12 @@ class LockScreenSettingsTest {
         assertEquals(0xff123456.toInt(), options.clockColor); assertEquals(WALLPAPER_NAMES.lastIndex, options.wallpaper); assertEquals(.18f, options.dim)
         assertEquals(72f, LockScreenSettings(clockSize = -3f).sanitized().clockSize)
         assertEquals(132f, LockScreenSettings(clockSize = 999f).sanitized().clockSize)
+        assertEquals(1f, LockScreenSettings(clockHeight = Float.NaN).sanitized().clockHeight)
+        assertEquals(2.4f, LockScreenSettings(clockHeight = 99f).sanitized().clockHeight)
+        assertEquals(1f, LockScreenSettings(clockHeight = -2f).sanitized().clockHeight)
+        assertEquals(5, LockScreenSettings(clockStyle = 99).sanitized().clockStyle)
+        val legacy = LockScreenCodec.encode(LockScreenSettings()).apply { remove("clockHeight") }
+        assertEquals(1f, LockScreenCodec.decode(legacy).clockHeight)
     }
     @Test fun themeAndWallpaperFollowHomeOrOverrideIndependently() {
         val home = Appearance(themePreset = 1, usePhoto = true, palette = 4, reducedEffects = true)

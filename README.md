@@ -153,7 +153,9 @@ to the system; it cannot replace iOS's compositor or Android's system launcher i
 
 **Settings → Lock Screen** provides iOS-inspired and Cyberpunk styles, a clock
 editor, glass lettering, independent wallpapers, battery/alarm widgets and a
-full-screen preview. Cyberpunk has Classic and optional Immersive HUD motion.
+full-screen preview. **Customize Lock Screen** edits a draft with Cancel / Done:
+six font designs, color, Glass / Solid, vertical clock resizing, wallpaper
+thumbnails, dimming and accessory switches. Cyberpunk has Classic and optional Immersive HUD motion.
 It is **off by default** and requires Vitreo to be the default Home and an Android
 PIN, password or pattern to be configured.
 

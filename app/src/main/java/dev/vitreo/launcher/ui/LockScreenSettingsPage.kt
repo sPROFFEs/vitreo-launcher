@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,8 +42,11 @@ fun LockScreenSettingsPage(a: Appearance, onAppearance: (Appearance) -> Unit, on
     val enabled by LockScreenRuntime.enabled.collectAsState()
     val options = a.lockScreen
     var error by remember { mutableStateOf<String?>(null) }
+    var editing by rememberSaveable { mutableStateOf(false) }
     fun change(value: LockScreenSettings) { onAppearance(a.copy(lockScreen = value.sanitized())) }
+    if (editing) LockScreenEditor(a, onCancel = { editing = false }, onSave = { change(it); editing = false })
     LockScreenPreviewCard(a) { LockScreenActivity.preview(context, a) }
+    IosGroup { IosRow("Customize Lock Screen", "Font, color & wallpaper") { editing = true } }
     IosSectionLabel("On this device")
     IosGroup {
         IosToggleRow("Custom lock screen", enabled, modifier = Modifier.testTag("lock_enable")) {
@@ -68,7 +72,7 @@ fun LockScreenSettingsPage(a: Appearance, onAppearance: (Appearance) -> Unit, on
     LockFootnote("Cyberpunk Classic stays still. Immersive adds native rain, scanning light and HUD motion. Battery Saver and Reduce Motion pause these effects; the screen is never kept awake.")
     IosSectionLabel("Clock")
     IosGroup {
-        IosSegmented(if (options.appearance(a).themePreset == 1) listOf("HUD", "Minimal", "Bold") else listOf("Rounded", "Light", "Bold"), options.clockStyle, Modifier.padding(12.dp)) { change(options.copy(clockStyle = it)) }
+        Box(Modifier.padding(12.dp)) { LockClockStylePicker(options, options.appearance(a).themePreset == 1, ::change) }
         LockSlider("Size", options.clockSize, "${options.clockSize.roundToInt()} pt", 72f..132f) { change(options.copy(clockSize = it)) }
         Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
             listOf("Pearl" to 0xfff5f8ff, "Ice" to 0xffb9eaff, "Blush" to 0xffffcee3, "Gold" to 0xffffe0a6, "Neon" to 0xff63f5f7, "Graphite" to 0xff101b2b).forEach { (name, color) ->
@@ -80,11 +84,14 @@ fun LockScreenSettingsPage(a: Appearance, onAppearance: (Appearance) -> Unit, on
                 }
             }
         }
-        if (options.appearance(a).themePreset != 1) IosToggleRow("Glass clock", options.glassClock) { change(options.copy(glassClock = it)) }
+        if (options.appearance(a).themePreset != 1) {
+            IosToggleRow("Glass clock", options.glassClock) { change(options.copy(glassClock = it)) }
+            LockSlider("Height", options.clockHeight, "${(options.clockHeight * 100).roundToInt()}%", 1f..2.4f) { change(options.copy(clockHeight = it)) }
+        }
         IosDivider()
         IosToggleRow("Show date", options.showDate) { change(options.copy(showDate = it)) }
     }
-    LockFootnote("The clock follows Android's 12/24-hour setting and fits the available width, including larger accessibility text.")
+    LockFootnote("The clock follows Android's 12/24-hour setting and fits the available width. Customize Lock Screen lets you tap the clock, choose its font and color, or drag its lower-right handle to make it taller. Tall iOS clocks move accessories toward the bottom.")
     IosSectionLabel("Wallpaper")
     IosGroup {
         IosRow("Use Home wallpaper", if (options.wallpaper == -1) "Selected" else "Choose") { change(options.copy(wallpaper = -1)) }

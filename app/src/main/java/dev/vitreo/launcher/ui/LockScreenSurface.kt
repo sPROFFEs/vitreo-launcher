@@ -27,11 +27,15 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.*
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.*
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import androidx.core.content.ContextCompat
@@ -46,11 +50,14 @@ import dev.vitreo.launcher.graphics.*
 import kotlinx.coroutines.*
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.roundToInt
 
 /** Also used by the editor: one layout, the same type sizing, materials and privacy in both modes. */
 @Composable
 fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message: String?,
-    onUnlock: () -> Unit, onSystemLock: () -> Unit, onCamera: () -> Unit, onEmergency: () -> Unit) {
+    onUnlock: () -> Unit, onSystemLock: () -> Unit, onCamera: () -> Unit, onEmergency: () -> Unit,
+    onEditClock: (() -> Unit)? = null, onClockHeight: ((Float) -> Unit)? = null,
+    editorHeader: (@Composable () -> Unit)? = null) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var interactive by remember { mutableStateOf(context.getSystemService(PowerManager::class.java).isInteractive) }
@@ -79,6 +86,8 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
         onDispose { context.unregisterReceiver(receiver); lifecycle.removeObserver(observer) }
     }
     val options = home.lockScreen.sanitized()
+    val currentClockHeight by rememberUpdatedState(options.clockHeight)
+    val changeClockHeight by rememberUpdatedState(onClockHeight)
     val appearance = options.appearance(home).copy(reducedEffects = home.reducedEffects || saving || !interactive || !resumed)
     val cyber = appearance.themePreset == 1
     val active = resumed && interactive
@@ -133,20 +142,47 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = .40f), Color.Transparent, Color.Black.copy(alpha = .42f)))))
                 if (cyber && options.immersive && active && !appearance.reducedEffects) CyberAmbient()
                 Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)), horizontalAlignment = Alignment.CenterHorizontally) {
-                    LockScreenStatusBar(preview, onSystemLock, Modifier.graphicsLayer { alpha = arrival.value })
-                    Column(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 22.dp).graphicsLayer {
+                    if (editorHeader != null) editorHeader() else LockScreenStatusBar(preview, onSystemLock, Modifier.graphicsLayer { alpha = arrival.value })
+                    BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 22.dp).graphicsLayer {
                         translationY = (-drag.value * .65f + (1f - arrival.value) * 16f) * metrics.density
                         alpha = arrival.value * (1f - drag.value / 360f).coerceIn(.2f, 1f)
-                    }.verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) {
+                    }) {
+                      val tall = !cyber && options.clockHeight > 1.05f
+                      var clockPixels by remember { mutableIntStateOf(0) }
+                      var accessoryPixels by remember { mutableIntStateOf(0) }
+                      val availableGap = with(metrics) { (maxHeight.toPx() - clockPixels - accessoryPixels).coerceAtLeast(0f).toDp() }
+                      val accessoryGap by animateDpAsState(if (tall && clockPixels > 0 && accessoryPixels > 0) availableGap else 0.dp,
+                          if (appearance.reducedEffects) tween(0) else tween(240), label = "Lock accessories position")
+                      Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = maxHeight),
+                          horizontalAlignment = Alignment.CenterHorizontally) {
+                       Column(Modifier.onSizeChanged { clockPixels = it.height }, horizontalAlignment = Alignment.CenterHorizontally) {
                         Spacer(Modifier.height(22.dp))
-                        if (options.showDate) Text(SimpleDateFormat("EEEE, MMMM d", Locale.ENGLISH).format(Date(now)),
+                        if (options.showDate) Text(SimpleDateFormat(if (cyber) "EEEE, MMMM d" else "EEE MMM d", Locale.ENGLISH).format(Date(now)),
                             color = Color(options.clockColor), fontSize = 19.sp, fontWeight = FontWeight.Medium,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                        LockClock(now, appearance, Modifier.fillMaxWidth().padding(vertical = 2.dp))
+                        Box(Modifier.fillMaxWidth().then(if (onEditClock != null) Modifier
+                            .border(1.dp, Color.White.copy(alpha = .5f), RoundedCornerShape(18.dp))
+                            .clickable(onClickLabel = "Edit clock font and color", onClick = onEditClock).testTag("lock_edit_clock") else Modifier)) {
+                            LockClock(now, appearance, Modifier.fillMaxWidth().padding(vertical = 2.dp))
+                            if (onClockHeight != null && !cyber) Box(Modifier.align(Alignment.BottomEnd).size(44.dp)
+                                .pointerInput(Unit) {
+                                    var value = options.clockHeight
+                                    detectVerticalDragGestures(onDragStart = { value = currentClockHeight }, onVerticalDrag = { change, delta ->
+                                        change.consume()
+                                        value = (value + delta / (104f * metrics.density)).coerceIn(1f, 2.4f)
+                                        changeClockHeight?.invoke(value)
+                                    })
+                                }.testTag("lock_clock_resize"), contentAlignment = Alignment.Center) {
+                                Icon(Icons.Outlined.OpenInFull, "Drag to change clock height", tint = Color.White, modifier = Modifier.size(21.dp))
+                            }
+                        }
+                       }
+                       Spacer(Modifier.height(accessoryGap))
+                       Column(Modifier.onSizeChanged { accessoryPixels = it.height }, horizontalAlignment = Alignment.CenterHorizontally) {
                         if (options.showBattery || options.showAlarm) {
                             Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)) {
                                 if (options.showBattery) LockAccessory(if (charging) Icons.Outlined.BatteryChargingFull else Icons.Outlined.BatteryFull,
-                                    "$battery%", "${if (charging) "Charging, " else ""}$battery percent battery", Modifier.weight(1f), battery, charging)
+                                    "$battery%", "${if (charging) "Charging, " else ""}$battery percent battery", Modifier.weight(1f), battery, charging, saving)
                                 if (options.showAlarm) LockAccessory(Icons.Outlined.Alarm,
                                     alarm?.let { DateFormat.getTimeFormat(context).format(Date(it)) } ?: "No alarm",
                                     alarm?.let { "Next alarm ${DateFormat.getTimeFormat(context).format(Date(it))}" } ?: "No alarm set", Modifier.weight(1f))
@@ -166,7 +202,10 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                         }
                         if (cyber) Text("IDENTITY VERIFICATION // ANDROID", color = CyberColors.Cyan.copy(alpha = .7f),
                             fontFamily = CyberFont, fontSize = 12.sp, modifier = Modifier.padding(top = 22.dp))
+                       }
+                      }
                     }
+                    if (onEditClock != null) Spacer(Modifier.height(96.dp)) else {
                     val notice = localMessage
                     if (notice != null) Text(notice, color = Color.White, fontSize = 13.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp).testTag("lock_message"))
@@ -202,10 +241,21 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                         }
                         Box(Modifier.padding(bottom = 9.dp).size(126.dp, 5.dp).clip(CircleShape).background(Color.White.copy(alpha = .85f)))
                     }
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+internal fun lockClockFont(cyber: Boolean, style: Int): FontFamily = remember(cyber, style) {
+        if (style == 3) FontFamily.Serif
+        else if (style == 4) FontFamily.Monospace
+        else if (style == 5) FontFamily(androidx.compose.ui.text.font.Typeface(android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.NORMAL)))
+        else if (cyber && style != 1) CyberFont
+        else if (!cyber && style == 0) FontFamily(androidx.compose.ui.text.font.Typeface(android.graphics.Typeface.create("sans-serif-rounded", android.graphics.Typeface.NORMAL)))
+        else FontFamily.SansSerif
 }
 
 @Composable
@@ -214,11 +264,7 @@ internal fun LockClock(now: Long, a: Appearance, modifier: Modifier) {
     val cyber = a.themePreset == 1
     val time = DateFormat.getBestDateTimePattern(Locale.getDefault(), if (DateFormat.is24HourFormat(LocalContext.current)) "Hm" else "hm")
         .let { SimpleDateFormat(it.replace("a", "").trim(), Locale.getDefault()).format(Date(now)) }
-    val font = remember(cyber, options.clockStyle) {
-        if (cyber && options.clockStyle != 1) CyberFont
-        else if (!cyber && options.clockStyle == 0) FontFamily(androidx.compose.ui.text.font.Typeface(android.graphics.Typeface.create("sans-serif-rounded", android.graphics.Typeface.NORMAL)))
-        else FontFamily.SansSerif
-    }
+    val font = lockClockFont(cyber, options.clockStyle)
     val clockColor by animateColorAsState(Color(options.clockColor),
         if (LocalGlass.current.appearance.reducedEffects) tween(0) else tween(180), label = "Lock clock color")
     val weight = when (options.clockStyle) { 1 -> FontWeight.Light; 2 -> FontWeight.Bold; else -> FontWeight.SemiBold }
@@ -238,19 +284,49 @@ internal fun LockClock(now: Long, a: Appearance, modifier: Modifier) {
             }
         }
         val shadow = Shadow(Color.Black.copy(alpha = .3f), Offset(0f, 3f), 18f)
-        val style = if (options.glassClock && !cyber && !a.opaquePanels)
-            typography(size).copy(brush = Brush.linearGradient(listOf(Color.White.copy(alpha = .96f), clockColor.copy(alpha = .92f), Color.White.copy(alpha = .94f))), shadow = shadow)
+        val glass = options.glassClock && !cyber && !a.opaquePanels
+        val style = if (glass)
+            typography(size).copy(brush = Brush.linearGradient(listOf(clockColor.copy(alpha = .75f), clockColor.copy(alpha = .28f), clockColor.copy(alpha = .62f))), shadow = shadow)
             else typography(size).copy(color = clockColor, shadow = shadow)
-        BasicText(time, style = style, maxLines = 1, softWrap = false, modifier = Modifier.fillMaxWidth().testTag("lock_clock"))
+        BasicText(time, style = style, maxLines = 1, softWrap = false, modifier = Modifier.fillMaxWidth()
+            .layout { measurable, constraints ->
+                val child = measurable.measure(constraints)
+                val stretch = if (cyber) 1f else options.clockHeight
+                val height = (child.height * stretch).roundToInt()
+                layout(child.width, height) { child.placeRelativeWithLayer(0, (height - child.height) / 2) { scaleY = stretch } }
+            }.then(if (glass) Modifier.drawWithCache {
+                val outline = measurer.measure(time, typography(size), maxLines = 1, softWrap = false,
+                    constraints = androidx.compose.ui.unit.Constraints.fixedWidth(this.size.width.roundToInt()))
+                onDrawWithContent {
+                    drawContent()
+                    drawText(outline, color = clockColor.copy(alpha = .65f), drawStyle = Stroke(.55.dp.toPx()))
+                }
+            } else Modifier).testTag("lock_clock"))
     }
 }
 
 @Composable
 private fun LockAccessory(icon: androidx.compose.ui.graphics.vector.ImageVector, value: String, label: String, modifier: Modifier,
-    batteryLevel: Int? = null, charging: Boolean = false) {
+    batteryLevel: Int? = null, charging: Boolean = false, saving: Boolean = false) {
+    if (!LocalCyber.current) {
+        Row(modifier.heightIn(min = 64.dp).clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = .045f))
+            .clearAndSetSemantics { contentDescription = label }.padding(12.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
+            if (batteryLevel != null) Box(Modifier.size(34.dp), contentAlignment = Alignment.Center) {
+                Canvas(Modifier.fillMaxSize()) {
+                    drawArc(Color.White.copy(alpha = .18f), -90f, 360f, false, style = Stroke(2.dp.toPx()))
+                    drawArc(if (saving) Color(0xffffd60a) else if (charging) Color(0xff30d158) else Color.White,
+                        -90f, 360f * batteryLevel.coerceIn(0, 100) / 100, false, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
+                }
+                StatusBattery(batteryLevel, charging, Modifier.size(20.dp, 10.dp), percentage = false, tint = Color.White, powerSave = saving)
+            } else ControlSymbol(icon, null, Modifier.size(25.dp), Color.White)
+            Text(value, color = Color.White, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        return
+    }
     GlassPanel(modifier.heightIn(min = 64.dp).clearAndSetSemantics { contentDescription = label }, radius = 22f, tint = .15f) {
         Row(Modifier.align(Alignment.Center).padding(13.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (batteryLevel != null) StatusBattery(batteryLevel, charging, percentage = false, tint = Color.White)
+            if (batteryLevel != null) StatusBattery(batteryLevel, charging, percentage = false, tint = Color.White, powerSave = saving)
             else ControlSymbol(icon, null, Modifier.size(23.dp), tint = Color.White)
             Text(value, color = Color.White, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
@@ -259,6 +335,13 @@ private fun LockAccessory(icon: androidx.compose.ui.graphics.vector.ImageVector,
 
 @Composable
 private fun LockShortcut(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tag: String, onClick: () -> Unit) {
+    if (!LocalCyber.current) {
+        IconButton(onClick = onClick, modifier = Modifier.size(54.dp).clip(CircleShape)
+            .background(Color.Black.copy(alpha = .25f)).border(.7.dp, Color.White.copy(alpha = .24f), CircleShape).testTag(tag)) {
+            Icon(if (tag == "lock_camera") StatusSymbols.camera else StatusSymbols.flashlight, label, Modifier.size(25.dp), tint = Color.White)
+        }
+        return
+    }
     GlassPanel(Modifier.size(54.dp), radius = 27f, interactive = true) {
         IconButton(onClick = onClick, modifier = Modifier.fillMaxSize().testTag(tag)) {
             ControlSymbol(icon, label, Modifier.size(25.dp), tint = Color.White)

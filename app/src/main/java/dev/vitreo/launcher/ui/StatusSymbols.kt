@@ -28,15 +28,20 @@ import androidx.compose.ui.text.font.FontWeight
 internal object StatusSymbols {
     private fun glyph(name: String, data: String, filled: Boolean, angular: Boolean = false) =
         ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f).apply {
+            addGroup(name = "Proportions", scaleY = if (name == "Vitreo.Status.Wifi") .9f else 1f, pivotY = 12f)
             addPath(PathParser().parsePathString(data).toNodes(), pathFillType = PathFillType.EvenOdd,
                 fill = if (filled) SolidColor(Color.White) else null,
                 stroke = if (filled) null else SolidColor(Color.White), strokeLineWidth = 2.2f,
                 strokeLineCap = if (angular) StrokeCap.Square else StrokeCap.Round,
                 strokeLineJoin = if (angular) StrokeJoin.Miter else StrokeJoin.Round)
+            clearGroup()
         }.build()
-    val wifi = glyph("Vitreo.Status.Wifi", "M2.5 8.5 Q12 1 21.5 8.5 M6 12 Q12 7.2 18 12 M9.3 15.5 Q12 13.2 14.7 15.5 M11.9 19 L12.1 19", false)
+    // Two filled bands and the rounded sector below, rather than three stroked arcs + a dot.
+    val wifi = glyph("Vitreo.Status.Wifi", "M1.2 7.4 Q12 -1.4 22.8 7.4 Q23.2 7.8 22.8 8.2 L21.2 9.8 Q20.8 10.2 20.4 9.8 Q12 3 3.6 9.8 Q3.2 10.2 2.8 9.8 L1.2 8.2 Q0.8 7.8 1.2 7.4 Z M5.2 11.7 Q12 6.2 18.8 11.7 Q19.2 12.1 18.8 12.5 L17.2 14.1 Q16.8 14.5 16.4 14.1 Q12 10.6 7.6 14.1 Q7.2 14.5 6.8 14.1 L5.2 12.5 Q4.8 12.1 5.2 11.7 Z M9.1 16 Q12 13.7 14.9 16 Q15.3 16.4 14.9 16.8 L12.7 19.1 Q12 19.8 11.3 19.1 L9.1 16.8 Q8.7 16.4 9.1 16 Z", true)
     val cyberWifi = glyph("Vitreo.Status.CyberWifi", "M2 8 L7 4 L17 4 L22 8 M6 12 L9 9 L15 9 L18 12 M10 16 L12 14 L14 16 M12 20 L12 20.5", false, true)
-    val lock = glyph("Vitreo.Status.Lock", "M8 10 L8 7 A4 4 0 0 1 16 7 L16 10 L18 10 L18 7 A6 6 0 0 0 6 7 L6 10 Z M6 10 L18 10 Q20 10 20 12 L20 20 Q20 22 18 22 L6 22 Q4 22 4 20 L4 12 Q4 10 6 10 Z M12 13 A1.2 1.2 0 1 0 12 15.4 A1.2 1.2 0 1 0 12 13 Z", true)
+    val lock = glyph("Vitreo.Status.Lock", "M6.5 10 L6.5 7 A5.5 5.5 0 0 1 17.5 7 L17.5 10 L15 10 L15 7 A3 3 0 0 0 9 7 L9 10 Z M6 10 L18 10 Q20 10 20 12 L20 21 Q20 23 18 23 L6 23 Q4 23 4 21 L4 12 Q4 10 6 10 Z", true)
+    val camera = glyph("Vitreo.Lock.Camera", "M4 6 L7 6 L8.5 3.5 L15.5 3.5 L17 6 L20 6 Q22 6 22 8 L22 19 Q22 21 20 21 L4 21 Q2 21 2 19 L2 8 Q2 6 4 6 Z M16.5 13.5 A4.5 4.5 0 1 0 7.5 13.5 A4.5 4.5 0 1 0 16.5 13.5 Z M14.8 13.5 A2.8 2.8 0 1 0 9.2 13.5 A2.8 2.8 0 1 0 14.8 13.5 Z", true)
+    val flashlight = glyph("Vitreo.Lock.Flashlight", "M7 1 L17 1 Q18 1 18 2 L18 4 L6 4 L6 2 Q6 1 7 1 Z M6 5.5 L18 5.5 L15 10 L15 21 Q15 23 13 23 L11 23 Q9 23 9 21 L9 10 Z M11 12 L11 16 Q12 18 13 16 L13 12 Z", true)
     val cyberLock = glyph("Vitreo.Status.CyberLock", "M7 10 L7 6 L10 3 L14 3 L17 6 L17 10 M5 10 L19 10 L21 12 L21 21 L3 21 L3 12 Z M12 14 L12 18", false, true)
 }
 
@@ -62,13 +67,13 @@ internal fun statusBandHeight() = with(LocalDensity.current) {
 
 @Composable
 internal fun StatusBattery(level: Int, charging: Boolean, modifier: Modifier = Modifier,
-    percentage: Boolean = true, tint: Color = LocalGlassContentColor.current) {
+    percentage: Boolean = true, tint: Color = LocalGlassContentColor.current, powerSave: Boolean = false) {
     val cyber = LocalCyber.current
     val value = level.coerceIn(0, 100)
     if (cyber && percentage) {
         Row(modifier, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(value.toString(), color = CyberColors.Cyan, fontFamily = CyberFont, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-            StatusBattery(value, charging, percentage = false, tint = tint)
+            StatusBattery(value, charging, percentage = false, tint = tint, powerSave = powerSave)
         }
         return
     }
@@ -76,17 +81,19 @@ internal fun StatusBattery(level: Int, charging: Boolean, modifier: Modifier = M
         typeface = Typeface.create(if (cyber) "monospace" else "sans-serif", Typeface.BOLD)
         textAlign = Paint.Align.CENTER
     } }
-    Canvas(modifier.size(30.dp, 15.dp).semantics {
+    Canvas(modifier.size(27.dp, 13.dp).semantics {
         contentDescription = "Battery $value percent${if (charging) ", charging" else ""}"
     }) {
-        val unit = size.height / 15f
+        val unit = size.height / 13f
         val bodyWidth = size.width - 3f * unit
-        val radius = if (cyber) CornerRadius.Zero else CornerRadius(3.4f * unit)
+        val radius = if (cyber) CornerRadius.Zero else CornerRadius(3.6f * unit)
         val ink = if (cyber) CyberColors.Cyan else tint
-        val fill = when { value <= 20 && !charging -> if (cyber) CyberColors.Red else Color(0xffff453a)
+        val fill = when { powerSave && !charging -> if (cyber) CyberColors.Yellow else Color(0xffffd60a)
+            value <= 20 && !charging -> if (cyber) CyberColors.Red else Color(0xffff453a)
             charging -> if (cyber) CyberColors.Yellow else Color(0xff30d158)
             else -> ink }
-        drawRoundRect(ink.copy(alpha = .5f), size = Size(bodyWidth, size.height), cornerRadius = radius, style = Stroke(unit))
+        drawRoundRect(ink.copy(alpha = .5f), topLeft = Offset(.65f * unit, .65f * unit),
+            size = Size(bodyWidth - 1.3f * unit, size.height - 1.3f * unit), cornerRadius = radius, style = Stroke(1.3f * unit))
         val innerWidth = (bodyWidth - 4f * unit).coerceAtLeast(0f)
         if (cyber) {
             val gap = unit

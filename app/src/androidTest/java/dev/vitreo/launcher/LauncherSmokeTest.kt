@@ -164,12 +164,37 @@ class LauncherSmokeTest {
             compose.onNodeWithTag("lock_wallpaper_choices").performScrollTo()
             compose.onNodeWithText("Neural Crimson").performScrollTo().performClick()
             assertEquals(8, model.ui.value.layout.appearance.lockScreen.wallpaper)
+            val beforeEditor = model.ui.value.layout.appearance.lockScreen
+            compose.onNodeWithText("Customize Lock Screen").performScrollTo().performClick()
+            compose.onNodeWithTag("lock_editor").assertIsDisplayed()
+            compose.onNodeWithTag("lock_edit_clock").performClick()
+            fun editorNode(tag: String) = compose.onNode(hasTestTag(tag) and hasAnyAncestor(hasTestTag("lock_editor")))
+            editorNode("lock_clock_style:3").performScrollTo().performClick()
+            editorNode("lock_editor_height").performSemanticsAction(SemanticsActions.SetProgress) { it(1.8f) }
+            assertEquals(beforeEditor, model.ui.value.layout.appearance.lockScreen) // Draft is isolated until Done.
+            captureEvidence("lock-editor", "lock_editor")
+            compose.onNodeWithTag("lock_editor_tab:1").performClick()
+            val shortClock = editorNode("lock_clock").fetchSemanticsNode().boundsInRoot.height
+            compose.onNodeWithTag("lock_clock_resize").performTouchInput { swipe(center, center + Offset(0f, 100f), 500) }
+            assertTrue("The resize handle changes the rendered height", editorNode("lock_clock").fetchSemanticsNode().boundsInRoot.height > shortClock)
+            compose.onNodeWithTag("lock_editor_tab:1").performClick()
+            editorNode("lock_editor_height").performSemanticsAction(SemanticsActions.SetProgress) { it(1.8f) }
+            compose.onNodeWithTag("lock_editor_save").performClick()
+            assertEquals(3, model.ui.value.layout.appearance.lockScreen.clockStyle)
+            assertEquals(1.8f, model.ui.value.layout.appearance.lockScreen.clockHeight, .01f)
+            compose.onNodeWithText("Customize Lock Screen").performClick()
+            compose.onNodeWithTag("lock_edit_clock").performClick()
+            editorNode("lock_clock_style:2").performScrollTo().performClick()
+            compose.onNodeWithTag("lock_editor_cancel").performClick()
+            assertEquals(3, model.ui.value.layout.appearance.lockScreen.clockStyle)
+            assertTrue(!dev.vitreo.launcher.lock.LockScreenRuntime.enabled.value)
             returnHome()
             listOf("lock-ios" to 1, "lock-cyber" to 2, "lock-large-clock" to 1).forEach { (name, theme) ->
                 compose.runOnUiThread {
                     dev.vitreo.launcher.lock.LockScreenActivity.preview(context, original.copy(lockScreen =
                         dev.vitreo.launcher.core.LockScreenSettings(theme = theme, clockSize = if (name == "lock-large-clock") 132f else 104f,
-                            clockStyle = if (name == "lock-large-clock") 2 else 0, wallpaper = if (theme == 2) 8 else -1)))
+                            clockStyle = if (name == "lock-large-clock") 2 else 0, clockHeight = if (name == "lock-large-clock") 2.1f else 1f,
+                            wallpaper = if (theme == 2) 8 else -1)))
                 }
                 compose.waitUntil(15_000) { compose.onAllNodesWithTag("lock_screen").fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty() }
                 compose.waitUntil(15_000) { compose.onAllNodesWithTag("lock_wallpaper").fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty() }
@@ -436,8 +461,14 @@ class LauncherSmokeTest {
             compose.onNodeWithTag("notification_center").assertIsDisplayed()
             compose.onNodeWithText("Native fixture alert").assertIsDisplayed()
             captureEvidence("notification-center")
+            compose.runOnUiThread { model.appearance(model.ui.value.layout.appearance.copy(themePreset = 1)) }
+            captureEvidence("cyber-notification-center")
             compose.onNodeWithTag("clear_notifications").performClick()
             compose.waitUntil(5_000) { dev.vitreo.launcher.data.SystemBridge.state.value.notices.none { it.title == "Native fixture alert" } }
+            returnHome()
+            captureEvidence("cyber-status-bar")
+            openControlsFromEdge()
+            captureEvidence("cyber-control-center")
             returnHome()
             compose.runOnUiThread { model.appearance(original.copy(notificationCenter = false, mediaIntegration = false, homeStatusBar = false)) }
             compose.waitUntil(5_000) { dev.vitreo.launcher.data.SystemBridge.state.value.notices.isEmpty() && !dev.vitreo.launcher.data.SystemBridge.state.value.media.available }

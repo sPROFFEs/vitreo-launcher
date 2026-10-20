@@ -93,3 +93,9 @@ switching users. Android's native fallback must stay usable in every case.
 - [GrapheneOS activity-start controller](https://github.com/GrapheneOS/platform_frameworks_base/blob/17/services/core/java/com/android/server/wm/BackgroundActivityStartController.java): default HOME exemption.
 - [GrapheneOS security features](https://grapheneos.org/features): authentication, duress and secondary biometric PIN.
 - [Apple Lock Screen customization](https://support.apple.com/guide/iphone/iph4d0e6c351/ios): visual reference for clock, wallpaper and accessories; no UIKit or Apple assets are used by this feature.
+
+### Full-screen customization
+
+Open **Settings → Lock Screen → Customize Lock Screen** while the device is unlocked. Tap the outlined clock or choose Clock to select Rounded, Light, Bold, Serif, Mono or Condensed, a color and Glass / Solid lettering. Drag the lower-right clock handle or use the accessible Height slider (100–240%); the width stays fitted and tall iOS clocks move accessories down. Wallpaper offers built-in thumbnails, Follow Home and dimming; Widgets controls the battery, alarm and private notification indicator. Done applies the draft; Cancel or Back discards it. Editing never enables the lock surface or dismisses Android authentication.
+
+Visual references: [Apple Lock Screen customization](https://support.apple.com/guide/iphone/iph4d0e6c351/ios), [Apple status icons](https://support.apple.com/guide/iphone/iphef7bb57dc/ios), and [iOS 26 clock resizing](https://www.idownloadblog.com/2025/06/24/how-to-change-lock-screen-clock-size-iphone-ipad/). Glyphs are original geometry; clock fonts are available Android/bundled fonts. Photo depth segmentation, Apple fonts and native Face ID are not replicated.

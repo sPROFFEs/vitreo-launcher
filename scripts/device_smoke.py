@@ -176,7 +176,7 @@ def main() -> None:
         adb("push", str(fixtures[0]), "/data/local/tmp/vitreo-uninstall-fixture.apk")
         application_count = run_instrumentation()
         native_screens = ["category-light", "category-dark", "settings-dark", "wallpaper-fit", "app-menu", "app-menu-more", "alphabetical-library", "installed-icon", "large-icons", "home-widget-small", "home-widget-medium",
-            "cyber-settings", "cyber-home", "cyber-menu", "cyber-library", "cyber-category", "recents-return", "animated-dock", "today-customized", "control-center", "control-center-edit", "control-center-media", "control-center-connectivity", "cyber-immersive", "control-picker", "theme-icon-picker", "theme-icon-applied", "theme-icon-cyber", "home-status-bar", "control-center-session", "notification-center", "lock-ios", "lock-cyber", "lock-large-clock"]
+            "cyber-settings", "cyber-home", "cyber-menu", "cyber-library", "cyber-category", "recents-return", "animated-dock", "today-customized", "control-center", "control-center-edit", "control-center-media", "control-center-connectivity", "cyber-immersive", "control-picker", "theme-icon-picker", "theme-icon-applied", "theme-icon-cyber", "home-status-bar", "control-center-session", "notification-center", "lock-ios", "lock-cyber", "lock-large-clock", "lock-editor", "cyber-notification-center", "cyber-status-bar", "cyber-control-center"]
         if args.api >= 33:
             native_screens += [f"glass-{material}-{effect}" for material in ("clear", "regular") for effect in ("flat", "refracted")]
         apks = list((ROOT / "app/build/outputs/apk/preview").glob("*.apk"))

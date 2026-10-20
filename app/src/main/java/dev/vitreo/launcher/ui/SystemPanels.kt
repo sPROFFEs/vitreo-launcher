@@ -13,6 +13,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
+import android.os.PowerManager
 import android.text.format.DateFormat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.*
@@ -43,7 +44,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private data class StatusSnapshot(val battery: Int = -1, val charging: Boolean = false,
+private data class StatusSnapshot(val battery: Int = -1, val charging: Boolean = false, val saving: Boolean = false,
     val wifi: Boolean = false, val cellular: Boolean = false, val connected: Boolean = false)
 
 @Composable
@@ -54,7 +55,8 @@ private fun rememberStatusSnapshot(): StatusSnapshot {
         val level = battery?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
         val scale = battery?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100
         mutableStateOf(StatusSnapshot(battery = if (level >= 0 && scale > 0) level * 100 / scale else -1,
-            charging = (battery?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0) != 0))
+            charging = (battery?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0) != 0,
+            saving = context.getSystemService(PowerManager::class.java).isPowerSaveMode))
     }
     DisposableEffect(context) {
         val connectivity = context.getSystemService(ConnectivityManager::class.java)
@@ -66,6 +68,8 @@ private fun rememberStatusSnapshot(): StatusSnapshot {
         }
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(c: Context?, intent: Intent?) {
+                state = state.copy(saving = context.getSystemService(PowerManager::class.java).isPowerSaveMode)
+                if (intent?.action != Intent.ACTION_BATTERY_CHANGED) return
                 val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
                 val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100
                 state = state.copy(battery = if (level >= 0 && scale > 0) level * 100 / scale else -1,
@@ -76,7 +80,9 @@ private fun rememberStatusSnapshot(): StatusSnapshot {
             override fun onCapabilitiesChanged(n: Network, caps: NetworkCapabilities) { android.os.Handler(context.mainLooper).post { network() } }
             override fun onLost(n: Network) { android.os.Handler(context.mainLooper).post { network() } }
         }
-        ContextCompat.registerReceiver(context, receiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED)
+        ContextCompat.registerReceiver(context, receiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED).apply {
+            addAction(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
+        }, ContextCompat.RECEIVER_NOT_EXPORTED)
         val registered = runCatching { connectivity.registerDefaultNetworkCallback(callback); network(); true }.getOrDefault(false)
         onDispose { context.unregisterReceiver(receiver); if (registered) connectivity.unregisterNetworkCallback(callback) }
     }
@@ -101,7 +107,7 @@ internal fun HomeStatusBar(now: Long, modifier: Modifier = Modifier, onNotices: 
             // Connectivity, not an invented signal-strength reading: Android does not expose
             // cellular bars without telephony permissions. M identifies a mobile transport.
             NetworkIndicator(state, ink)
-            if (state.battery >= 0) StatusBattery(state.battery, state.charging, Modifier.testTag("home_battery"), tint = ink)
+            if (state.battery >= 0) StatusBattery(state.battery, state.charging, Modifier.testTag("home_battery"), tint = ink, powerSave = state.saving)
         }
     }
 }
@@ -116,7 +122,7 @@ private fun NetworkIndicator(state: StatusSnapshot, ink: Color) {
 @Composable
 internal fun SystemBatteryIndicator(tint: Color = LocalGlassContentColor.current) {
     val state = rememberStatusSnapshot()
-    if (state.battery >= 0) StatusBattery(state.battery, state.charging, tint = tint)
+    if (state.battery >= 0) StatusBattery(state.battery, state.charging, tint = tint, powerSave = state.saving)
 }
 
 @Composable
@@ -135,7 +141,7 @@ internal fun LockScreenStatusBar(preview: Boolean, onClose: () -> Unit, modifier
             Row(Modifier.testTag("lock_status_icons").semantics { contentDescription = "${if (state.connected) "Connected" else "Offline"}. Battery ${state.battery} percent" },
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 NetworkIndicator(state, ink)
-                if (state.battery >= 0) StatusBattery(state.battery, state.charging, tint = ink)
+                if (state.battery >= 0) StatusBattery(state.battery, state.charging, tint = ink, powerSave = state.saving)
             }
         }
         Box(Modifier.fillMaxWidth().height(32.dp), contentAlignment = Alignment.Center) {

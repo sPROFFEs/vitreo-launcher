@@ -2,6 +2,9 @@
 
 ## 0.6.1
 
+- Full-screen Lock Screen editor with isolated drafts, Cancel / Done, six font designs, live colors, Glass / Solid lettering, wallpaper thumbnails, dim and accessory switches. Tap the clock or drag its corner to change vertical height; tall iOS clocks move accessories below. Settings remain behind Android authentication.
+- Refined iOS status geometry against visual references: two filled Wi-Fi bands and lower sector, compact rounded battery, solid lock and camera/flashlight controls. Power Saver uses a yellow battery. Cyberpunk retains its angular HUD symbols.
+
 - Prepare the optional lock screen immediately at screen-off, removing the fixed 120 ms delay. A single immediate recovery handles quick off/on cycles within 600 ms while Android remains securely locked; existing authentication/camera sessions are retained.
 - Position network/battery in the physical status band and one centered lock below the camera cutout. Remove duplicate padding and lock buttons; previews now show the actual status layout.
 - Original rounded iOS status glyphs with an integrated battery percentage; Cyberpunk uses angular cyan/red geometry and a segmented HUD battery across Lock, Home, Notification Center and Control Center. Live charging and connectivity remain system data.
