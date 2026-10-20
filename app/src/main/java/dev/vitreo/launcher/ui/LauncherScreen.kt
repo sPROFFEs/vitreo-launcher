@@ -366,6 +366,18 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     LaunchedEffect(sheet, actionTarget) {
         if (sheet != Sheet.Search && sheet != Sheet.LibrarySearch || actionTarget != null) { focusManager.clearFocus(); keyboard?.hide() }
     }
+    val imeInsets = WindowInsets.ime
+    val imeRaised by remember(imeInsets, density) { derivedStateOf { imeInsets.getBottom(density) > 0 } }
+    val windowFocused = LocalWindowInfo.current.isWindowFocused
+    LaunchedEffect(modalPresent, imeRaised, windowFocused) {
+        if (!modalPresent && imeRaised && windowFocused) {
+            // Android can finish an in-flight IME show after the search's hide was cancelled.
+            // Wait for real inset delivery, then dismiss it on bare Home. Do not intercept
+            // keyboards belonging to another activity or any of our editable panels.
+            focusManager.clearFocus(force = true)
+            localView.windowInsetsController?.hide(android.view.WindowInsets.Type.ime())
+        }
+    }
     LaunchedEffect(homeSerial) { sheet = null; pageHistory.clear(); savedPages.removeState("settings"); actionTarget = null; choiceSheet = null; actionReturn = null; model.discardPhoto(); editing = false; todayEditing = false; drag = null; widgetDrag = null; focusManager.clearFocus(); keyboard?.hide(); pager.scrollToPage(1) }
     var previousHomePages by remember { mutableIntStateOf(homePages) }
     LaunchedEffect(pager.currentPage, homePages, editing) {

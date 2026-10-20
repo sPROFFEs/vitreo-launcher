@@ -1214,6 +1214,21 @@ class LauncherSmokeTest {
         val app = model.ui.value.apps.first { it.packageName == "com.android.settings" }
         compose.onNodeWithTag("search_field").performTextInput(app.label)
         compose.onNodeWithTag("alphabetical_entry:${app.id}").assertIsDisplayed()
+        // Close while Android may still be processing the field's asynchronous IME show.
+        // The keyboard must not appear over Home after the panel has gone away.
+        returnHome()
+        compose.waitUntil(5_000) {
+            compose.activity.window.decorView.rootWindowInsets
+                ?.isVisible(android.view.WindowInsets.Type.ime()) == false
+        }
+        // A late-show guard on Home must still allow an intentional new editing session.
+        compose.onNodeWithTag("library_button").performClick()
+        compose.onNodeWithTag("search_field").performTextInput(app.label)
+        compose.waitUntil(5_000) {
+            compose.activity.window.decorView.rootWindowInsets
+                ?.isVisible(android.view.WindowInsets.Type.ime()) == true
+        }
+        compose.onNodeWithTag("search_entry:${app.id}").assertIsDisplayed()
     }
 
     @Test fun categoryPullCanCancelAndThenDismiss() {

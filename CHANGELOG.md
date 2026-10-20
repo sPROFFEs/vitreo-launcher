@@ -3,6 +3,7 @@
 ## 0.6.0
 
 - Fixed wallpaper dimming in Cyberpunk Classic and Immersive / Neon city. Both now use the same exposure slider as iOS for photos and all presets, without an extra fixed dark layer. Home, Android Home synchronization, lock previews and appearance previews share the renderer.
+- Home dismisses a late Android keyboard-show completion after closing Search, without suppressing keyboards in editable panels. Native coverage closes alphabetical search during IME startup and verifies a fresh search can still show its keyboard.
 
 - Optional lock-screen surface for iOS and Cyberpunk, off by default. Requires default Home and an existing secure Android lock; designed around Pixel / GrapheneOS public APIs without Google Play services.
 - Real Android keyguard authentication: incorrect credentials and cancellation keep the device locked. No app-managed PIN, biometric database, overlay, accessibility or persistent foreground service.
