@@ -10,11 +10,20 @@ class StateCodecTest {
     private val c = "com.example.three/.Main"
     @Test fun immersiveAndWideControlsSurviveBackupWithClassicAsMigrationDefault() {
         val state = LauncherState(appearance = Appearance(themePreset = 1, cyberImmersive = true, palette = 5,
+            cyberStatusHeight = 36f, cyberStatusOpacity = .9f,
             controlShortcuts = listOf("timer", "camera"), controlWide = setOf("timer"))).sanitized()
         assertEquals(state, StateCodec.decode(StateCodec.encode(state)))
         assertFalse(StateCodec.decode("""{"schema":1,"home":[],"dock":[],"appearance":{"themePreset":1}}""").appearance.cyberImmersive)
         assertEquals(setOf("timer"), Appearance(controlShortcuts = listOf("timer"), controlWide = setOf("timer", "camera", "bad")).sanitized().controlWide)
         assertEquals(WALLPAPER_NAMES.lastIndex, Appearance(palette = 999).sanitized().palette)
+        val legacy = StateCodec.decode("""{"schema":1,"home":[],"dock":[],"appearance":{"themePreset":1}}""").appearance
+        assertEquals(22f, legacy.cyberStatusHeight); assertEquals(.72f, legacy.cyberStatusOpacity)
+        assertEquals(16f, Appearance(cyberStatusHeight = -1f).sanitized().cyberStatusHeight)
+        assertEquals(40f, Appearance(cyberStatusHeight = 999f).sanitized().cyberStatusHeight)
+        assertEquals(22f, Appearance(cyberStatusHeight = Float.NaN).sanitized().cyberStatusHeight)
+        assertEquals(.2f, Appearance(cyberStatusOpacity = -1f).sanitized().cyberStatusOpacity)
+        assertEquals(1f, Appearance(cyberStatusOpacity = 9f).sanitized().cyberStatusOpacity)
+        assertEquals(.72f, Appearance(cyberStatusOpacity = Float.POSITIVE_INFINITY).sanitized().cyberStatusOpacity)
     }
     @Test fun builtInOverridesAreAllowlistedPortableAndFollowAliasChanges() {
         val icon = IconOverride(THEME_ICON_PACK, "photos")

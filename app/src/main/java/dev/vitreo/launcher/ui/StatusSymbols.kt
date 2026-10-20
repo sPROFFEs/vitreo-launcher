@@ -61,8 +61,9 @@ internal fun StatusLock(modifier: Modifier = Modifier, description: String? = nu
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun statusBandHeight() = with(LocalDensity.current) {
-    maxOf(28.dp, WindowInsets.statusBarsIgnoringVisibility.getTop(this).toDp(), WindowInsets.displayCutout.getTop(this).toDp())
+internal fun statusBandHeight(appearance: dev.vitreo.launcher.core.Appearance? = null) = with(LocalDensity.current) {
+    val minimum = if (appearance?.themePreset == 1) maxOf(28f, appearance.cyberStatusHeight).dp else 28.dp
+    maxOf(minimum, WindowInsets.statusBarsIgnoringVisibility.getTop(this).toDp(), WindowInsets.displayCutout.getTop(this).toDp())
 }
 
 @Composable

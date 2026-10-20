@@ -90,6 +90,10 @@ Network/battery occupy that band, with the centered lock below the display cutou
 Original rounded status glyphs and an inset battery percentage serve iOS; angular
 glyphs, a segmented battery and HUD colors serve Cyberpunk across Lock, Home,
 Notification Center and Control Center. No signal strength is invented.
+**Themes & Icons → Status bar appearance** adjusts Cyberpunk rail thickness
+(16–40 dp) and opacity (20–100%) with a live preview and Reset. These choices
+also apply to the Cyberpunk lock surface, persist in backups, and never shrink
+the physical camera / status inset or change iOS chrome.
 
 The release matrix is Android API 31 and 35. These are emulator tests, **not
 physical GrapheneOS certification**. Before relying on the custom surface on a

@@ -16,6 +16,7 @@ import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -55,6 +56,18 @@ import kotlinx.coroutines.withContext
 import java.util.Date
 import kotlin.math.roundToInt
 
+private val CyberControlShape = CutCornerShape(topEnd = 6.dp, bottomStart = 6.dp)
+
+/** Cyberpunk uses one angular silhouette, including its pressed state and small actions. */
+@Composable
+private fun ControlIconButton(onClick: () -> Unit, modifier: Modifier = Modifier,
+    enabled: Boolean = true, content: @Composable () -> Unit) {
+    if (!LocalCyber.current) IconButton(onClick = onClick, modifier = modifier, enabled = enabled, content = content)
+    else Box(modifier.minimumInteractiveComponentSize().size(48.dp).clip(CyberControlShape)
+        .background(CyberColors.Cyan.copy(alpha = if (enabled) .065f else .025f))
+        .clickable(enabled = enabled, role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) { content() }
+}
+
 private data class ControlShortcut(val title: String, val icon: ImageVector)
 private fun shortcut(id: String) = when (id) {
     "flashlight" -> ControlShortcut("Flashlight", Icons.Outlined.FlashlightOn)
@@ -72,9 +85,9 @@ private fun shortcut(id: String) = when (id) {
 }
 
 @Composable
-private fun RoundControl(title: String, icon: ImageVector, modifier: Modifier = Modifier, active: Boolean = false,
+private fun PanelControl(title: String, icon: ImageVector, modifier: Modifier = Modifier, active: Boolean = false,
     enabled: Boolean = true, color: Color = Color(0xff0a84ff), wide: Boolean = false, onClick: () -> Unit) {
-    val shape = if (wide) RoundedCornerShape(26.dp) else CircleShape
+    val shape = if (LocalCyber.current) CyberShape else if (wide) RoundedCornerShape(26.dp) else CircleShape
     GlassPanel(modifier.clip(shape).testTag("control:$title").semantics {
         contentDescription = title
         stateDescription = if (!enabled) "Unavailable" else if (active) "On" else "Open"
@@ -208,14 +221,14 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
         val double = unit * 2 + gap
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().height(54.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { editing = !editing }, modifier = Modifier.testTag("edit_controls")) {
+                ControlIconButton(onClick = { editing = !editing }, modifier = Modifier.testTag("edit_controls")) {
                     ControlSymbol(if (editing) Icons.Outlined.Check else Icons.Outlined.Add, if (editing) "Done" else "Edit controls", tint = Color.White)
                 }
                 Spacer(Modifier.weight(1f))
-                IconButton(onClick = { onSystem(Settings.ACTION_BATTERY_SAVER_SETTINGS) }) {
+                ControlIconButton(onClick = { onSystem(Settings.ACTION_BATTERY_SAVER_SETTINGS) }) {
                     ControlSymbol(Icons.Outlined.PowerSettingsNew, "Android power settings", Modifier.size(23.dp), tint = Color.White)
                 }
-                IconButton(onClick = onClose) { ControlSymbol(Icons.Outlined.Close, "Close", Modifier.size(21.dp), tint = Color.White.copy(alpha = .7f)) }
+                ControlIconButton(onClick = onClose) { ControlSymbol(Icons.Outlined.Close, "Close", Modifier.size(21.dp), tint = Color.White.copy(alpha = .7f)) }
             }
             Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = rail, top = 5.dp, bottom = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (device.wifi == true) StatusWifi(Modifier.size(19.dp), "Wi-Fi enabled", Color.White)
@@ -238,14 +251,14 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
                                 Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
                                     Column(Modifier.width(double), verticalArrangement = Arrangement.spacedBy(gap)) {
                                         Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
-                                            RoundControl("Rotation", Icons.Outlined.ScreenRotation, Modifier.size(unit)) { onSystem(Settings.ACTION_DISPLAY_SETTINGS) }
-                                            RoundControl(if (LocalCyber.current) "HUD Effects" else "Dark Mode", if (LocalCyber.current) Icons.Outlined.Tune else Icons.Outlined.DarkMode,
+                                            PanelControl("Rotation", Icons.Outlined.ScreenRotation, Modifier.size(unit)) { onSystem(Settings.ACTION_DISPLAY_SETTINGS) }
+                                            PanelControl(if (LocalCyber.current) "HUD Effects" else "Dark Mode", if (LocalCyber.current) Icons.Outlined.Tune else Icons.Outlined.DarkMode,
                                                 Modifier.size(unit), active = if (LocalCyber.current) appearance.cyberEffects else dark) {
                                                 onAppearance(if (appearance.themePreset == 1) appearance.copy(cyberEffects = !appearance.cyberEffects)
                                                     else appearance.copy(interfaceStyle = if (dark) 1 else 2))
                                             }
                                         }
-                                        RoundControl("Focus", Icons.Outlined.Bedtime, Modifier.width(double).height(unit), wide = true) { onSystem("android.settings.ZEN_MODE_SETTINGS") }
+                                        PanelControl("Focus", Icons.Outlined.Bedtime, Modifier.width(double).height(unit), wide = true) { onSystem("android.settings.ZEN_MODE_SETTINGS") }
                                     }
                                     Box(Modifier.width(unit)) { ControlSlider("Home brightness", Icons.Outlined.BrightnessHigh,
                                         if (brightness < 0) device.systemBrightness else brightness, height = double,
@@ -265,7 +278,7 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
                                             val item = shortcut(id)
                                             val wide = id in appearance.controlWide
                                             Box(Modifier.width(if (wide) double else unit).height(unit)) {
-                                                RoundControl(item.title, item.icon, Modifier.fillMaxSize().then(if (!editing) Modifier else Modifier.pointerInput(id) {
+                                                PanelControl(item.title, item.icon, Modifier.fillMaxSize().then(if (!editing) Modifier else Modifier.pointerInput(id) {
                                                     var distance = 0f
                                                     detectDragGesturesAfterLongPress(onDragStart = { distance = 0f }) { change, delta ->
                                                         change.consume(); distance += delta.x + delta.y
@@ -280,13 +293,13 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
                                                 }), active = id == "flashlight" && device.torchOn, wide = wide,
                                                     enabled = editing || id != "flashlight" || device.torchAvailable) { if (!editing) activate(id) }
                                                 if (editing) {
-                                                    IconButton(onClick = { onAppearance(appearance.copy(controlShortcuts = appearance.controlShortcuts - id)) },
+                                                    ControlIconButton(onClick = { onAppearance(appearance.copy(controlShortcuts = appearance.controlShortcuts - id)) },
                                                         modifier = Modifier.align(Alignment.TopStart).offset((-6).dp, (-6).dp).size(30.dp)) {
-                                                        Box(Modifier.size(20.dp).background(Color(0xffd4d6da), CircleShape), contentAlignment = Alignment.Center) {
+                                                        Box(Modifier.size(20.dp).background(Color(0xffd4d6da), if (LocalCyber.current) CyberControlShape else CircleShape), contentAlignment = Alignment.Center) {
                                                             Icon(Icons.Outlined.Remove, "Remove ${item.title}", Modifier.size(14.dp), tint = Color(0xff303137))
                                                         }
                                                     }
-                                                    IconButton(onClick = { onAppearance(appearance.copy(controlWide = if (wide) appearance.controlWide - id else appearance.controlWide + id)) },
+                                                    ControlIconButton(onClick = { onAppearance(appearance.copy(controlWide = if (wide) appearance.controlWide - id else appearance.controlWide + id)) },
                                                         modifier = Modifier.align(Alignment.BottomEnd).offset(4.dp, 4.dp).size(30.dp).testTag("resize_control:$id")) {
                                                         Icon(if (wide) Icons.Outlined.CloseFullscreen else Icons.Outlined.OpenInFull, "Resize ${item.title}", Modifier.size(19.dp), tint = Color.White)
                                                     }
@@ -318,7 +331,7 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
                                     if (!bridge.access) runCatching { context.startActivity(SystemBridge.accessIntent(context)) }
                                         .onFailure { onSystem(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS) }
                                 }, modifier = Modifier.testTag("connect_media")) { Text("Connect player", color = Color.White) }
-                                RoundControl("Open music app", Icons.Outlined.MusicNote, Modifier.fillMaxWidth().height(unit), wide = true) { onUtility("music") }
+                                PanelControl("Open music app", Icons.Outlined.MusicNote, Modifier.fillMaxWidth().height(unit), wide = true) { onUtility("music") }
                             }
                             2 -> {
                                 Text("Connectivity", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
@@ -328,7 +341,7 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
                                     Triple("Hotspot", Icons.Outlined.WifiTethering, "android.settings.TETHER_SETTINGS"),
                                     Triple("NFC", Icons.Outlined.Nfc, Settings.ACTION_NFC_SETTINGS),
                                     Triple("Screen Cast", Icons.Outlined.Cast, Settings.ACTION_CAST_SETTINGS)).forEach { (title, icon, action) ->
-                                    RoundControl(title, icon, Modifier.fillMaxWidth().height(unit), wide = true,
+                                    PanelControl(title, icon, Modifier.fillMaxWidth().height(unit), wide = true,
                                         active = when (title) { "Airplane" -> device.airplane == true; "Internet" -> device.wifi == true; "Bluetooth" -> device.bluetooth == true; else -> false }) { onSystem(action) }
                                 }
                                 Text("Network controls open Android settings. Their state is read from the device.", color = Color.White.copy(alpha = .65f), fontSize = 12.sp)
@@ -338,7 +351,7 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
                 }
                 Column(Modifier.width(rail).fillMaxHeight(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                     listOf(Icons.Outlined.FavoriteBorder, Icons.Outlined.MusicNote, Icons.Outlined.Wifi).forEachIndexed { index, icon ->
-                        IconButton(onClick = { editing = false; pageTo(index) }, modifier = Modifier.width(rail).height(44.dp).testTag("control_page:$index")) {
+                        ControlIconButton(onClick = { editing = false; pageTo(index) }, modifier = Modifier.width(rail).height(44.dp).testTag("control_page:$index")) {
                             ControlSymbol(icon, listOf("Favorites page", "Media page", "Connectivity page")[index], Modifier.size(if (pager.currentPage == index) 19.dp else 15.dp),
                                 tint = Color.White.copy(alpha = if (pager.currentPage == index) 1f else .38f))
                         }
@@ -380,7 +393,7 @@ private fun ConnectivityTile(modifier: Modifier, airplane: Boolean?, wifi: Boole
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 NetworkButton("Bluetooth", Icons.Outlined.Bluetooth, Modifier.weight(1f), bluetooth) { onSystem(Settings.ACTION_BLUETOOTH_SETTINGS) }
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    IconButton(onClick = onExpand) { ControlSymbol(Icons.Outlined.MoreHoriz, "Expand connectivity", tint = Color.White) }
+                    ControlIconButton(onClick = onExpand) { ControlSymbol(Icons.Outlined.MoreHoriz, "Expand connectivity", tint = Color.White) }
                 }
             }
         }
@@ -395,12 +408,12 @@ private fun MediaTile(modifier: Modifier, media: NowPlaying, legacyActive: Boole
     GlassPanel(modifier, radius = 30f, tint = .16f) {
         Column(Modifier.fillMaxSize().padding(if (expanded) 22.dp else 12.dp), verticalArrangement = Arrangement.SpaceBetween) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(if (expanded) 100.dp else 35.dp).background(Color.White.copy(alpha = .1f), RoundedCornerShape(9.dp)).clickable { openPlayer() }, contentAlignment = Alignment.Center) {
-                    if (media.artwork != null) Image(media.artwork.asImageBitmap(), "Album artwork", Modifier.fillMaxSize().clip(RoundedCornerShape(9.dp)), contentScale = ContentScale.Crop)
+                Box(Modifier.size(if (expanded) 100.dp else 35.dp).clip(if (LocalCyber.current) CyberControlShape else RoundedCornerShape(9.dp)).background(Color.White.copy(alpha = .1f)).clickable { openPlayer() }, contentAlignment = Alignment.Center) {
+                    if (media.artwork != null) Image(media.artwork.asImageBitmap(), "Album artwork", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                     else ControlSymbol(Icons.Outlined.MusicNote, "Open music app", Modifier.size(if (expanded) 44.dp else 22.dp), tint = Color.White.copy(alpha = .7f))
                 }
                 Spacer(Modifier.weight(1f))
-                IconButton(onClick = if (expanded) { { openPlayer() } } else onExpand, modifier = Modifier.size(32.dp)) {
+                ControlIconButton(onClick = if (expanded) { { openPlayer() } } else onExpand, modifier = Modifier.size(32.dp)) {
                     ControlSymbol(Icons.Outlined.Podcasts, if (expanded) "Open player" else "Expand media", Modifier.size(20.dp), tint = Color.White)
                 }
             }
@@ -427,7 +440,7 @@ private fun MediaTile(modifier: Modifier, media: NowPlaying, legacyActive: Boole
                         KeyEvent.KEYCODE_MEDIA_NEXT -> media.supports(PlaybackState.ACTION_SKIP_TO_NEXT)
                         else -> media.supports(PlaybackState.ACTION_PLAY_PAUSE) || media.supports(if (active) PlaybackState.ACTION_PAUSE else PlaybackState.ACTION_PLAY)
                     }
-                    IconButton(onClick = { onMedia(code) }, enabled = supported, modifier = Modifier.size(if (expanded) 56.dp else 34.dp).testTag("media_command:$code")) {
+                    ControlIconButton(onClick = { onMedia(code) }, enabled = supported, modifier = Modifier.size(if (expanded) 56.dp else 34.dp).testTag("media_command:$code")) {
                         ControlSymbol(icon, label, Modifier.size(if (expanded) 36.dp else 25.dp), tint = Color.White.copy(alpha = if (supported) 1f else .3f))
                     }
                 }
@@ -444,7 +457,13 @@ private fun NetworkButton(title: String, icon: ImageVector, modifier: Modifier, 
         stateDescription = when (active) { true -> "On"; false -> "Off"; else -> "Android settings" }
     },
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Box(Modifier.size(38.dp).background(if (active == true) activeColor else Color.White.copy(alpha = .12f), CircleShape), contentAlignment = Alignment.Center) {
+        val cyber = LocalCyber.current
+        val shape = if (cyber) CyberControlShape else CircleShape
+        val background = if (cyber) { if (active == true) CyberColors.Cyan.copy(alpha = .22f) else CyberColors.Panel }
+            else if (active == true) activeColor else Color.White.copy(alpha = .12f)
+        Box(Modifier.size(38.dp).clip(shape).background(background)
+            .then(if (cyber) Modifier.border(.7.dp, if (active == true) CyberColors.Cyan else CyberColors.Red.copy(alpha = .55f), shape) else Modifier),
+            contentAlignment = Alignment.Center) {
             ControlSymbol(icon, null, Modifier.size(22.dp), tint = Color.White)
         }
 
@@ -466,11 +485,11 @@ private fun ControlShortcutEditor(appearance: Appearance, onChange: (Appearance)
                             }
                         }
                         if (position >= 0) {
-                            IconButton(onClick = { onChange(appearance.copy(controlShortcuts = appearance.controlShortcuts.toMutableList().apply {
+                            ControlIconButton(onClick = { onChange(appearance.copy(controlShortcuts = appearance.controlShortcuts.toMutableList().apply {
                                 add(position - 1, removeAt(position)) })) }, enabled = position > 0, modifier = Modifier.size(34.dp)) {
                                 ControlSymbol(Icons.Outlined.KeyboardArrowUp, "Move ${shortcut(id).title} up", Modifier.size(20.dp), tint = Color.White)
                             }
-                            IconButton(onClick = { onChange(appearance.copy(controlShortcuts = appearance.controlShortcuts.toMutableList().apply {
+                            ControlIconButton(onClick = { onChange(appearance.copy(controlShortcuts = appearance.controlShortcuts.toMutableList().apply {
                                 add(position + 1, removeAt(position)) })) }, enabled = position < appearance.controlShortcuts.lastIndex, modifier = Modifier.size(34.dp)) {
                                 ControlSymbol(Icons.Outlined.KeyboardArrowDown, "Move ${shortcut(id).title} down", Modifier.size(20.dp), tint = Color.White)
                             }

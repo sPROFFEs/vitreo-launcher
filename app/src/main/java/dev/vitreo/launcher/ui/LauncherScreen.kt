@@ -320,7 +320,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val lightChrome = opaqueScreen && sheet != Sheet.Wallpaper && MaterialTheme.colorScheme.background.luminance() > .5f ||
         sheet == null && lightWallpaper
     val integratedBar = appearance.homeStatusBar && !opaqueScreen
-    val customBarHeight = statusBandHeight()
+    val customBarHeight = statusBandHeight(appearance)
     LaunchedEffect(ui.ready, appearance.notificationCenter, appearance.mediaIntegration) {
         if (ui.ready) SystemBridge.configure(context, appearance.notificationCenter, appearance.mediaIntegration)
     }

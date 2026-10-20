@@ -28,6 +28,7 @@ import dev.vitreo.launcher.core.THEME_ICON_PACK
 import dev.vitreo.launcher.core.THEME_ICON_KINDS
 import dev.vitreo.launcher.core.WALLPAPER_NAMES
 import dev.vitreo.launcher.graphics.WallpaperStore
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -80,6 +81,30 @@ fun ThemeSettings(ui: LauncherViewModel.UiState, onAppearance: (Appearance) -> U
             PackChoice("Immersive · Neon city", a.cyberImmersive, "cyber_immersive") { onAppearance(a.copy(cyberImmersive = true)) }
         }
         Text("Immersive adds rain, drifting light, a scanning HUD and animated panel edges. Classic keeps the original restrained appearance. Both keep your layout and wallpaper.",
+            Modifier.padding(17.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        IosSectionLabel("Status bar appearance")
+        IosGroup {
+            Column(Modifier.fillMaxWidth().padding(17.dp).testTag("cyber_status_controls")) {
+                Box(Modifier.fillMaxWidth().height(72.dp).clip(CyberShape)
+                    .background(Brush.linearGradient(listOf(Color(0xff56798d), CyberColors.Background)))
+                    .testTag("cyber_status_preview"), contentAlignment = Alignment.Center) {
+                    HomeStatusBar(LocalHomeClock.current, Modifier.height(statusBandHeight(a)), null, null)
+                }
+                Row(Modifier.padding(top = 16.dp)) {
+                    Text("Rail thickness", Modifier.weight(1f)); Text("${a.cyberStatusHeight.roundToInt()} dp")
+                }
+                IosSlider(a.cyberStatusHeight, { onAppearance(a.copy(cyberStatusHeight = it)) },
+                    Modifier.testTag("cyber_status_height"), valueRange = 16f..40f)
+                Row {
+                    Text("Opacity", Modifier.weight(1f)); Text("${(a.cyberStatusOpacity * 100).roundToInt()}%")
+                }
+                IosSlider(a.cyberStatusOpacity, { onAppearance(a.copy(cyberStatusOpacity = it)) },
+                    Modifier.testTag("cyber_status_opacity"), valueRange = .2f..1f)
+                TextButton(onClick = { onAppearance(a.copy(cyberStatusHeight = 22f, cyberStatusOpacity = .72f)) },
+                    modifier = Modifier.testTag("cyber_status_reset").align(Alignment.End)) { Text("Reset status bar") }
+            }
+        }
+        Text("Applies to Cyberpunk Home, Lock Screen and Notification Center. Camera / system insets remain reserved, even with a thin rail. Enable the Home bar separately in Status Bar & Notifications. iOS keeps its own appearance.",
             Modifier.padding(17.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         IosSectionLabel("Cyberpunk wallpapers")
         val context = LocalContext.current

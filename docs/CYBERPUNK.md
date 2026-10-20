@@ -77,3 +77,23 @@ See [MOTION.md](MOTION.md) and [TESTING.md](TESTING.md). Emulator verification d
 not establish 60/120 Hz performance on the Pixel 8 Pro or S21 FE. This is an
 independent inspired theme with original HUD geometry, not an official game asset
 pack or a replacement for Android SystemUI.
+
+## Adapt the status bar to your phone
+
+In **Settings → Themes & Icons → Status bar appearance**, choose the HUD rail's
+thickness (16–40 dp) and opacity (20–100%). A live preview and Reset button make
+comparison easy. The settings apply to Cyberpunk Home, Lock and Notification Center
+and survive backups. Home's custom bar is still enabled separately in Status Bar
+& Notifications. Camera / native status insets are a minimum, so a thin rail does
+not move the content beneath a punch hole. Classic remains static; the scanning
+accent uses the existing optional Immersive ambience and pauses with Reduce Motion
+or Battery Saver. The iOS style is independent.
+
+A fingerprint-read HUD animation is recorded as a follow-up in
+[Lock Screen](LOCK_SCREEN.md#cyberpunk-fingerprint-animation--requested-follow-up).
+The native keyguard does not expose sensor-read events to this integration.
+
+Control Center uses square / cut-corner controls throughout Cyberpunk, including
+network buttons, media actions and edit buttons. HUD borders and the outer clip
+share an angular silhouette; no circular mask cuts through the red panel outline.
+iOS retains its rounded controls.

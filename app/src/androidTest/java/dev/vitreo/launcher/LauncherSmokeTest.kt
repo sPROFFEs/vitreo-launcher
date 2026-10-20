@@ -625,6 +625,21 @@ class LauncherSmokeTest {
             openSettings()
             compose.onNodeWithText("Themes & Icons").performClick()
             compose.onNodeWithTag("cyber_immersive").performScrollTo().performClick()
+            fun setStatusRail(height: Float, opacity: Float) {
+                compose.onNodeWithTag("cyber_status_height").performScrollTo().performSemanticsAction(SemanticsActions.SetProgress) { it(height) }
+                compose.onNodeWithTag("cyber_status_opacity").performScrollTo().performSemanticsAction(SemanticsActions.SetProgress) { it(opacity) }
+            }
+            setStatusRail(40f, .9f)
+            assertEquals(40f, model.ui.value.layout.appearance.cyberStatusHeight)
+            assertEquals(.9f, model.ui.value.layout.appearance.cyberStatusOpacity, .01f)
+            val statusPreview = compose.onNode(hasTestTag("home_status_bar") and hasAnyAncestor(hasTestTag("cyber_status_preview")))
+            statusPreview.assertIsDisplayed()
+            assertTrue("Preview reserves the chosen height as well as the device's camera inset",
+                statusPreview.fetchSemanticsNode().boundsInRoot.height >= 40f * compose.activity.resources.displayMetrics.density)
+            compose.onNodeWithTag("cyber_status_reset").performScrollTo().performClick()
+            assertEquals(22f, model.ui.value.layout.appearance.cyberStatusHeight)
+            assertEquals(.72f, model.ui.value.layout.appearance.cyberStatusOpacity)
+            setStatusRail(36f, .9f)
             for (index in listOf(2, 3, 4, 0)) {
                 val oldFrame = model.wallpaper.value
                 val oldBackground = model.background.value
@@ -639,6 +654,8 @@ class LauncherSmokeTest {
             compose.activityRule.scenario.recreate()
             awaitReady()
             assertTrue(model.ui.value.layout.appearance.cyberImmersive)
+            assertEquals(36f, model.ui.value.layout.appearance.cyberStatusHeight)
+            assertEquals(.9f, model.ui.value.layout.appearance.cyberStatusOpacity, .01f)
             assertEquals(4, model.ui.value.layout.appearance.palette)
             assertEquals(placed, model.ui.value.layout.placedApps())
             compose.runOnUiThread { model.appearance(model.ui.value.layout.appearance.copy(reducedEffects = true)) }

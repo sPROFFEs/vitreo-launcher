@@ -17,11 +17,11 @@ internal fun Modifier.cyberStatusChrome(powerSave: Boolean): Modifier {
     val phase = LocalCyberPhase.current
     val moving = appearance.cyberImmersive && appearance.cyberEffects && !appearance.reducedEffects && !powerSave
     return drawWithContent {
-        val height = minOf(size.height, 22.dp.toPx())
+        val height = minOf(size.height, appearance.cyberStatusHeight.dp.toPx())
         val top = (size.height - height) / 2f
         val bottom = top + height
-        drawRect(Brush.horizontalGradient(listOf(CyberColors.Background.copy(alpha = .72f),
-            CyberColors.Panel.copy(alpha = .38f), CyberColors.Background.copy(alpha = .72f))),
+        drawRect(Brush.horizontalGradient(listOf(CyberColors.Background.copy(alpha = appearance.cyberStatusOpacity),
+            CyberColors.Panel.copy(alpha = appearance.cyberStatusOpacity * .53f), CyberColors.Background.copy(alpha = appearance.cyberStatusOpacity))),
             topLeft = Offset(0f, top), size = Size(size.width, height))
         drawLine(CyberColors.Cyan.copy(alpha = .26f), Offset(12.dp.toPx(), bottom),
             Offset(size.width - 12.dp.toPx(), bottom), .5.dp.toPx())

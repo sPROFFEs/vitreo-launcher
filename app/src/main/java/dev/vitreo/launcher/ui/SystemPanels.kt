@@ -128,7 +128,7 @@ internal fun SystemBatteryIndicator(tint: Color = LocalGlassContentColor.current
 @Composable
 internal fun LockScreenStatusBar(preview: Boolean, onClose: () -> Unit, modifier: Modifier = Modifier) {
     val state = rememberStatusSnapshot()
-    val band = statusBandHeight()
+    val band = statusBandHeight(LocalGlass.current.appearance)
     val ink = if (LocalCyber.current) CyberColors.Text else Color.White
     Column(modifier.fillMaxWidth().testTag("lock_header")) {
         Row(Modifier.fillMaxWidth().height(band).cyberStatusChrome(state.saving).padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -166,7 +166,7 @@ internal fun NotificationCenter(onClose: () -> Unit, onAccess: () -> Unit, onErr
     Column(Modifier.fillMaxSize().windowInsetsPadding(if (showStatusBar) WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
         else WindowInsets.safeDrawing).testTag("notification_center")) {
         if (showStatusBar) CompositionLocalProvider(LocalGlassContentColor provides Color.White) {
-            HomeStatusBar(now, Modifier.height(statusBandHeight()), null, null)
+            HomeStatusBar(now, Modifier.height(statusBandHeight(LocalGlass.current.appearance)), null, null)
         }
         Column(Modifier.fillMaxWidth().weight(1f).padding(horizontal = 20.dp)) {
             Row(Modifier.fillMaxWidth().height(52.dp), verticalAlignment = Alignment.CenterVertically) {

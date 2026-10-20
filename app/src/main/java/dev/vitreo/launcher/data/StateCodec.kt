@@ -45,6 +45,8 @@ object StateCodec {
                 put("themePreset", s.appearance.themePreset)
                 put("cyberEffects", s.appearance.cyberEffects)
                 put("cyberImmersive", s.appearance.cyberImmersive)
+                put("cyberStatusHeight", s.appearance.cyberStatusHeight.toDouble())
+                put("cyberStatusOpacity", s.appearance.cyberStatusOpacity.toDouble())
                 put("controlWide", JSONArray(s.appearance.controlWide.toList()))
                 put("syncWallpaper", s.appearance.syncWallpaper)
                 put("controlCenter", s.appearance.controlCenter)
@@ -108,6 +110,8 @@ object StateCodec {
                 themePreset = a.optInt("themePreset", 0),
                 cyberEffects = a.optBoolean("cyberEffects", true),
                 cyberImmersive = a.optBoolean("cyberImmersive", false),
+                cyberStatusHeight = a.optDouble("cyberStatusHeight", 22.0).toFloat(),
+                cyberStatusOpacity = a.optDouble("cyberStatusOpacity", .72).toFloat(),
                 controlWide = a.optJSONArray("controlWide")?.let { strings(it, 32).toSet() } ?: emptySet(),
                 syncWallpaper = a.optBoolean("syncWallpaper", true),
                 controlCenter = a.optBoolean("controlCenter", true),

@@ -4,7 +4,8 @@
 
 - Optional Fingerprint shortcut in Lock Screen settings, hidden by default. Hands control to Android / GrapheneOS's native keyguard; only the OS decides whether fingerprint, a secondary factor or credentials are permitted. Preview never authenticates.
 - Move the unlock gesture into the central clock / accessories area, away from Android's bottom navigation gesture. Remove the misleading bottom pill and retain an accessible PIN / password button.
-- Slim Cyberpunk status rail across Home, Lock and Notification Center, preserving camera insets. Subtle scanning light reuses Immersive ambience; Classic, Battery Saver and Reduce Motion keep it still.
+- Slim Cyberpunk status rail across Home, Lock and Notification Center, preserving camera insets. Themes & Icons adds live-preview thickness (16–40 dp), opacity (20–100%) and Reset controls; choices persist in backups. Subtle scanning light reuses Immersive ambience; Classic, Battery Saver and Reduce Motion keep it still.
+- Cyberpunk Control Center uses consistent angular tiles, network controls and small action buttons. Remove circular clipping around HUD outlines; iOS retains its rounded controls.
 - Native coverage checks both shortcut settings, central gesture placement, cancellation and the native handoff without dismissing keyguard.
 
 ## 0.6.1

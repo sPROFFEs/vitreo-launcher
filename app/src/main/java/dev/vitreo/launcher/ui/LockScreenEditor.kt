@@ -72,7 +72,7 @@ internal fun LockScreenEditor(appearance: Appearance, onCancel: () -> Unit, onSa
                     onEditClock = { panel = 1 }, onClockHeight = { draft = draft.copy(clockHeight = it) },
                     editorHeader = {
                         Column(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
-                            Row(Modifier.fillMaxWidth().height(maxOf(44.dp, statusBandHeight())).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.fillMaxWidth().height(maxOf(44.dp, statusBandHeight(LocalGlass.current.appearance))).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                                 TextButton(onClick = onCancel, modifier = Modifier.testTag("lock_editor_cancel")) { Text("Cancel", color = Color.White) }
                                 Spacer(Modifier.weight(1f))
                                 TextButton(onClick = { onSave(draft.sanitized()) }, modifier = Modifier.testTag("lock_editor_save")) { Text("Done", color = if (cyber) CyberColors.Cyan else Color.White, fontWeight = FontWeight.Bold) }

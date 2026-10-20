@@ -117,6 +117,11 @@ iOS remains the default; changing theme keeps your layout.
 the maintainer's supplied images. All five Cyberpunk images are available for Home
 and the independently configurable lock screen, without downloading anything.
 
+**Themes & Icons → Status bar appearance** adjusts Cyberpunk rail thickness
+(16–40 dp) and opacity, with a live preview and Reset. It applies to Home, Lock
+and Notification Center while preserving the device's camera insets. Cyberpunk
+Control Center uses angular buttons throughout.
+
 **Settings → Wallpaper → Dim wallpaper** controls brightness in both Classic and
 Immersive / Neon city, for photos and included wallpapers. There is no extra fixed
 dark layer in Cyberpunk; the setting also applies to Android Home synchronization.
