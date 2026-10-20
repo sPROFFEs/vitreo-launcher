@@ -161,7 +161,7 @@ class LauncherSmokeTest {
             compose.onNodeWithText("iOS", substring = false).performClick()
             assertEquals(1, model.ui.value.layout.appearance.lockScreen.theme)
             compose.onNodeWithTag("lock_enable").assertIsOff()
-            compose.onNodeWithText("Use Home wallpaper").performScrollTo()
+            compose.onNodeWithTag("lock_wallpaper_choices").performScrollTo()
             compose.onNodeWithText("Neural Crimson").performScrollTo().performClick()
             assertEquals(8, model.ui.value.layout.appearance.lockScreen.wallpaper)
             returnHome()

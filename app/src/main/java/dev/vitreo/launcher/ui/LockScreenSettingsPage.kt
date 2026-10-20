@@ -89,7 +89,7 @@ fun LockScreenSettingsPage(a: Appearance, onAppearance: (Appearance) -> Unit, on
     IosGroup {
         IosRow("Use Home wallpaper", if (options.wallpaper == -1) "Selected" else "Choose") { change(options.copy(wallpaper = -1)) }
         IosDivider()
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.fillMaxWidth().testTag("lock_wallpaper_choices").horizontalScroll(rememberScrollState()).padding(14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             WALLPAPER_NAMES.forEachIndexed { i, title ->
                 OutlinedButton(onClick = { change(options.copy(wallpaper = i)) }, modifier = Modifier.semantics { selected = options.wallpaper == i }) { Text(title) }
             }
