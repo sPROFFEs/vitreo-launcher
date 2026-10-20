@@ -113,6 +113,10 @@ select one separately to keep full control of your current photo. Ambient effect
 stop when Home is obscured or loses focus, and respect Reduce Motion/Battery Saver.
 iOS remains the default; changing theme keeps your layout.
 
+**Neural Pearl**, **Neural Carbon** and **Neural Crimson** are also bundled, from
+the maintainer's supplied images. All five Cyberpunk images are available for Home
+and the independently configurable lock screen, without downloading anything.
+
 **Settings → Wallpaper → Dim wallpaper** controls brightness in both Classic and
 Immersive / Neon city, for photos and included wallpapers. There is no extra fixed
 dark layer in Cyberpunk; the setting also applies to Android Home synchronization.
@@ -164,6 +168,11 @@ is no persistent service to force the custom surface to appear. Activation stays
 on the device and is excluded from backups. See [setup, limitations and Pixel /
 GrapheneOS testing](docs/LOCK_SCREEN.md). Physical GrapheneOS biometric behavior
 requires device testing; emulator results are not a substitute.
+
+Quick power cycles prepare immediately and allow one immediate recovery within
+600 ms of screen-off, provided Android has already locked. The header adapts to
+the device's status/camera insets. Rounded iOS and angular Cyberpunk status glyphs
+are shared with the optional Home/Notification Center bars and Control Center.
 
 ## Development
 

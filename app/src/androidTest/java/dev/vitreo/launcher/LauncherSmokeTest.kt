@@ -161,16 +161,25 @@ class LauncherSmokeTest {
             compose.onNodeWithText("iOS", substring = false).performClick()
             assertEquals(1, model.ui.value.layout.appearance.lockScreen.theme)
             compose.onNodeWithTag("lock_enable").assertIsOff()
+            compose.onNodeWithText("Use Home wallpaper").performScrollTo()
+            compose.onNodeWithText("Neural Crimson").performScrollTo().performClick()
+            assertEquals(8, model.ui.value.layout.appearance.lockScreen.wallpaper)
             returnHome()
             listOf("lock-ios" to 1, "lock-cyber" to 2, "lock-large-clock" to 1).forEach { (name, theme) ->
                 compose.runOnUiThread {
                     dev.vitreo.launcher.lock.LockScreenActivity.preview(context, original.copy(lockScreen =
                         dev.vitreo.launcher.core.LockScreenSettings(theme = theme, clockSize = if (name == "lock-large-clock") 132f else 104f,
-                            clockStyle = if (name == "lock-large-clock") 2 else 0, wallpaper = if (theme == 2) 5 else -1)))
+                            clockStyle = if (name == "lock-large-clock") 2 else 0, wallpaper = if (theme == 2) 8 else -1)))
                 }
                 compose.waitUntil(15_000) { compose.onAllNodesWithTag("lock_screen").fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty() }
                 compose.waitUntil(15_000) { compose.onAllNodesWithTag("lock_wallpaper").fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty() }
                 compose.onNodeWithTag("lock_clock").assertIsDisplayed()
+                val header = compose.onNodeWithTag("lock_header").fetchSemanticsNode().boundsInRoot
+                val status = compose.onNodeWithTag("lock_status_icons").fetchSemanticsNode().boundsInRoot
+                val lock = compose.onNodeWithTag("lock_glyph", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+                assertEquals("The status header starts at the physical top edge", 0f, header.top, 1f)
+                assertTrue("Network and battery stay in the upper band", status.bottom <= lock.top)
+                assertTrue("The lock stays below the camera/status band", lock.top > header.top)
                 if (theme == 2) compose.onNodeWithText("IDENTITY VERIFICATION // ANDROID").assertIsDisplayed()
                 else compose.onNodeWithText("IDENTITY VERIFICATION // ANDROID").assertDoesNotExist()
                 val layouts = mutableListOf<TextLayoutResult>()
@@ -571,10 +580,13 @@ class LauncherSmokeTest {
             openSettings()
             compose.onNodeWithText("Themes & Icons").performClick()
             compose.onNodeWithTag("cyber_immersive").performScrollTo().performClick()
-            val oldFrame = model.wallpaper.value
-            val oldBackground = model.background.value
-            compose.onNodeWithTag("cyber_wallpaper:0").performScrollTo().performClick()
-            compose.waitUntil(10_000) { model.wallpaper.value !== oldFrame && model.background.value !== oldBackground }
+            for (index in listOf(2, 3, 4, 0)) {
+                val oldFrame = model.wallpaper.value
+                val oldBackground = model.background.value
+                compose.onNodeWithTag("cyber_wallpaper:$index").performScrollTo().performClick()
+                compose.waitUntil(10_000) { model.wallpaper.value !== oldFrame && model.background.value !== oldBackground }
+                assertEquals(index + 4, model.ui.value.layout.appearance.palette)
+            }
             compose.onNodeWithText("Done").performClick()
             returnHome()
             compose.onNodeWithTag("cyber_ambient", useUnmergedTree = true).assertExists()

@@ -78,7 +78,7 @@ object CoreScenarios {
         scenario("page count rejects invalid input") { check(runCatching { pageCount(-1, 4) }.isFailure); check(runCatching { pageCount(1, 0) }.isFailure) }
         scenario("appearance clamps unsafe numbers") {
             val a = Appearance(Float.NaN, refraction = Float.POSITIVE_INFINITY, frost = -2f, palette = 999).sanitized()
-            check(a.iconSize == 60f && a.refraction.isFinite() && a.frost == 0f && a.palette == 5)
+            check(a.iconSize == 60f && a.refraction.isFinite() && a.frost == 0f && a.palette == WALLPAPER_NAMES.lastIndex)
         }
         scenario("dock wins duplicate conflicts") {
             val s = state().copy(dock = listOf(app(0), app(0), app(1), app(2), app(3), app(4))).sanitized()

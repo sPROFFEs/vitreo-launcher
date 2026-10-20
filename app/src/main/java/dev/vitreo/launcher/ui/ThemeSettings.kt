@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -25,6 +26,8 @@ import dev.vitreo.launcher.core.Appearance
 import dev.vitreo.launcher.core.IconOverride
 import dev.vitreo.launcher.core.THEME_ICON_PACK
 import dev.vitreo.launcher.core.THEME_ICON_KINDS
+import dev.vitreo.launcher.core.WALLPAPER_NAMES
+import dev.vitreo.launcher.graphics.WallpaperStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -79,12 +82,25 @@ fun ThemeSettings(ui: LauncherViewModel.UiState, onAppearance: (Appearance) -> U
         Text("Immersive adds rain, drifting light, a scanning HUD and animated panel edges. Classic keeps the original restrained appearance. Both keep your layout and wallpaper.",
             Modifier.padding(17.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         IosSectionLabel("Cyberpunk wallpapers")
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            listOf("Neon Rider" to R.drawable.wallpaper_neon_rider, "Digital Dusk" to R.drawable.wallpaper_digital_dusk).forEachIndexed { index, (title, resource) ->
-                Column(Modifier.weight(1f).testTag("cyber_wallpaper:$index").clickable { onAppearance(a.copy(palette = index + 4, usePhoto = false)) }) {
-                    Image(painterResource(resource), title, Modifier.fillMaxWidth().aspectRatio(.62f).clip(CyberShape), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
-                    Text(title, Modifier.padding(vertical = 8.dp), fontSize = 14.sp)
+        val context = LocalContext.current
+        val wallpapers by produceState<Map<Int, Bitmap>>(emptyMap(), context) {
+            value = withContext(Dispatchers.Default) {
+                val store = WallpaperStore(context)
+                WALLPAPER_NAMES.indices.drop(4).associateWith(store::thumbnail)
+            }
+        }
+        WALLPAPER_NAMES.indices.drop(4).chunked(2).forEach { ids ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ids.forEach { id ->
+                    val title = WALLPAPER_NAMES[id]
+                    Column(Modifier.weight(1f).testTag("cyber_wallpaper:${id - 4}").clickable { onAppearance(a.copy(palette = id, usePhoto = false)) }) {
+                        Box(Modifier.fillMaxWidth().aspectRatio(.62f).clip(CyberShape).background(CyberColors.Background)) {
+                            wallpapers[id]?.let { Image(it.asImageBitmap(), title, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop) }
+                        }
+                        Text(title, Modifier.padding(vertical = 8.dp), fontSize = 14.sp)
+                    }
                 }
+                if (ids.size == 1) Spacer(Modifier.weight(1f))
             }
         }
         IosSectionLabel("HUD effects")

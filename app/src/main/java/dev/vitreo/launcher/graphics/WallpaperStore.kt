@@ -66,10 +66,20 @@ class WallpaperStore(private val context: Context) {
         } catch (e: Exception) { atomic.failWrite(stream); throw e }
     }
 
+    /** Small gallery copy; the full source remains available for Home/Lock rendering. */
+    fun thumbnail(palette: Int): Bitmap {
+        val source = procedural(palette)
+        val factor = min(1f, 640f / max(source.width, source.height))
+        val preview = Bitmap.createScaledBitmap(source, max(1, (source.width * factor).roundToInt()),
+            max(1, (source.height * factor).roundToInt()), true)
+        if (preview !== source) source.recycle() // This fresh decode has never been exposed to Compose.
+        return preview
+    }
+
     fun procedural(palette: Int): Bitmap {
-        if (palette == 4 || palette == 5) return requireNotNull(BitmapFactory.decodeResource(context.resources,
-            if (palette == 4) R.drawable.wallpaper_neon_rider else R.drawable.wallpaper_digital_dusk,
-            BitmapFactory.Options().apply { inScaled = false; inSampleSize = 1 }))
+        builtinResource(palette)?.let { resource -> return requireNotNull(BitmapFactory.decodeResource(context.resources,
+            resource,
+            BitmapFactory.Options().apply { inScaled = false; inSampleSize = 1 })) }
         val b = Bitmap.createBitmap(720, 1600, Bitmap.Config.ARGB_8888)
         val colors = when (palette.coerceIn(0, 3)) {
             1 -> intArrayOf(0xff2c246f.toInt(), 0xff9476d7.toInt(), 0xffedacbb.toInt())
@@ -123,6 +133,14 @@ class WallpaperStore(private val context: Context) {
     }
 
     companion object {
+        fun builtinResource(palette: Int): Int? = when (palette) {
+            4 -> R.drawable.wallpaper_neon_rider
+            5 -> R.drawable.wallpaper_digital_dusk
+            6 -> R.drawable.wallpaper_neural_pearl
+            7 -> R.drawable.wallpaper_neural_carbon
+            8 -> R.drawable.wallpaper_neural_crimson
+            else -> null
+        }
         /** The editor and committed wallpaper use the same placement and soft extended backdrop. */
         fun drawPhoto(canvas: Canvas, source: WallpaperFrame, width: Float, height: Float, transform: PhotoTransform) {
             val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)

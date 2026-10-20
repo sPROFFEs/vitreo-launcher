@@ -755,6 +755,9 @@ https://raw.githubusercontent.com/google/fonts/47d54ca1ebb14fd864695f1d39dc734f3
 https://raw.githubusercontent.com/google/fonts/47d54ca1ebb14fd864695f1d39dc734f39017c33/ofl/rajdhani/Rajdhani-SemiBold.ttf
 
 Original stock wallpapers (Vitreo 0.5.3): Neon Rider and Digital Dusk.
+Additional wallpapers (Vitreo 0.6.1): Neural Pearl, Neural Carbon and Neural Crimson.
+Provided by the project maintainer for inclusion, copied unchanged from the supplied PNGs.
+Source filenames and hashes: docs/artwork/CYBERPUNK_WALLPAPERS.md and docs/artwork/wallpapers.sha256.
 AI-generated with imagegen for this project, distributed under Vitreo's MIT license.
 Prompts and provenance: docs/artwork/CYBERPUNK_WALLPAPERS.md in the source repository.
 No MotionBGS videos, official Cyberpunk game art or IconScout animations are bundled.

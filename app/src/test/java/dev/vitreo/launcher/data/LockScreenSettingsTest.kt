@@ -24,7 +24,7 @@ class LockScreenSettingsTest {
         val options = LockScreenSettings(theme = 99, clockSize = Float.NaN, clockStyle = -1,
             clockColor = 0x00123456, wallpaper = 999, dim = Float.POSITIVE_INFINITY).sanitized()
         assertEquals(2, options.theme); assertEquals(104f, options.clockSize); assertEquals(0, options.clockStyle)
-        assertEquals(0xff123456.toInt(), options.clockColor); assertEquals(5, options.wallpaper); assertEquals(.18f, options.dim)
+        assertEquals(0xff123456.toInt(), options.clockColor); assertEquals(WALLPAPER_NAMES.lastIndex, options.wallpaper); assertEquals(.18f, options.dim)
         assertEquals(72f, LockScreenSettings(clockSize = -3f).sanitized().clockSize)
         assertEquals(132f, LockScreenSettings(clockSize = 999f).sanitized().clockSize)
     }
@@ -34,6 +34,14 @@ class LockScreenSettingsTest {
         assertEquals(1, follow.themePreset); assertTrue(follow.usePhoto); assertEquals(4, follow.palette)
         val ios = LockScreenSettings(theme = 1, wallpaper = 2).appearance(home)
         assertEquals(0, ios.themePreset); assertFalse(ios.usePhoto); assertEquals(2, ios.palette); assertTrue(ios.reducedEffects)
+        for (id in 6..8) {
+            val state = LauncherState(appearance = home.copy(palette = id, usePhoto = false,
+                lockScreen = LockScreenSettings(theme = 2, wallpaper = id)))
+            val restored = StateCodec.decode(StateCodec.encode(state))
+            assertEquals(id, restored.appearance.palette)
+            assertEquals(id, restored.appearance.lockScreen.wallpaper)
+            assertEquals(id, restored.appearance.lockScreen.appearance(home).palette)
+        }
     }
     @Test fun swipeRequiresDistanceOrDeliberateUpwardVelocity() {
         assertFalse(LockScreenGesture.commits(47f, 2000f))

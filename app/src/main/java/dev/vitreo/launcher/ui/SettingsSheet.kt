@@ -35,6 +35,7 @@ import dev.vitreo.launcher.core.Appearance
 import dev.vitreo.launcher.core.HomeEntry
 import dev.vitreo.launcher.core.MIN_ICON_SIZE
 import dev.vitreo.launcher.core.MAX_ICON_SIZE
+import dev.vitreo.launcher.core.WALLPAPER_NAMES
 import dev.vitreo.launcher.graphics.WallpaperStore
 import dev.vitreo.launcher.graphics.HomeBackground
 import dev.vitreo.launcher.graphics.GlassDiagnostics
@@ -312,9 +313,9 @@ private fun HomeAppearancePreview(ui: LauncherViewModel.UiState) {
 private fun WallpaperCollection(a: Appearance, onAppearance: (Appearance) -> Unit) {
     val context = LocalContext.current
     val previews by produceState<List<android.graphics.Bitmap>>(emptyList()) {
-        value = withContext(Dispatchers.Default) { val store = WallpaperStore(context); (0..5).map { store.procedural(it) } }
+        value = withContext(Dispatchers.Default) { val store = WallpaperStore(context); WALLPAPER_NAMES.indices.map { store.thumbnail(it) } }
     }
-    listOf("Blue", "Orchid", "Aurora", "Midnight", "Neon Rider", "Digital Dusk").chunked(2).forEachIndexed { row, names ->
+    WALLPAPER_NAMES.chunked(2).forEachIndexed { row, names ->
         Row(Modifier.fillMaxWidth().padding(bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             names.forEachIndexed { column, title ->
                 val index = row * 2 + column
@@ -326,6 +327,7 @@ private fun WallpaperCollection(a: Appearance, onAppearance: (Appearance) -> Uni
                     if (!a.usePhoto && a.palette == index) LauncherSymbol(Icons.Outlined.CheckCircle, "Selected", Modifier.align(Alignment.TopEnd).padding(12.dp), tint = Color.White)
                 }
             }
+            if (names.size == 1) Spacer(Modifier.weight(1f))
         }
     }
 }

@@ -10,18 +10,21 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.os.UserManager
+import android.os.SystemClock
 import android.media.AudioManager
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import dev.vitreo.launcher.core.Appearance
+import dev.vitreo.launcher.core.LockScreenWakeWindow
+import java.lang.ref.WeakReference
 import dev.vitreo.launcher.data.StateStore
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /** No persistent service, overlay, device admin, boot receiver or authentication of our own.
- * HOME's background-start exemption is used only while the display is already off and the real
- * keyguard is locked. If Android stops this process, its native lock screen is the fallback. */
+ * Prepare immediately at screen-off; a single immediate wake recovery covers quick power cycles.
+ * The real keyguard must already be secure and locked. Native keyguard remains the fallback. */
 object LockScreenRuntime {
     private const val PREFS = "lock-screen-local"
     private val handler = Handler(Looper.getMainLooper())
@@ -31,6 +34,8 @@ object LockScreenRuntime {
     val appearance = style.asStateFlow()
     private var receiver: BroadcastReceiver? = null
     private var cycle = 0
+    private val wakeWindow = LockScreenWakeWindow()
+    private var surface: WeakReference<LockScreenActivity>? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     fun initialize(context: Context) {
@@ -59,6 +64,7 @@ object LockScreenRuntime {
     fun setEnabled(context: Context, value: Boolean): String? {
         if (value) unavailableReason(context)?.let { return it }
         cycle++ // Invalidate any pending initialization or screen-off preparation.
+        wakeWindow.cancel()
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("enabled", value) }
         if (value) register(context.applicationContext) else {
             receiver?.let { runCatching { context.applicationContext.unregisterReceiver(it) } }
@@ -74,27 +80,39 @@ object LockScreenRuntime {
         receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 when (intent.action) {
-                    Intent.ACTION_SCREEN_OFF -> prepare(context, ++cycle, 0)
-                    Intent.ACTION_USER_PRESENT -> cycle++
+                    Intent.ACTION_SCREEN_OFF -> {
+                        wakeWindow.screenOff(SystemClock.elapsedRealtime())
+                        prepare(context, ++cycle, 0)
+                    }
+                    Intent.ACTION_SCREEN_ON -> if (wakeWindow.consumeWake(SystemClock.elapsedRealtime()))
+                        prepare(context, cycle, 0, waking = true)
+                    Intent.ACTION_USER_PRESENT -> { cycle++; wakeWindow.cancel() }
                 }
             }
         }.also { ContextCompat.registerReceiver(context, it, IntentFilter().apply {
-            addAction(Intent.ACTION_SCREEN_OFF); addAction(Intent.ACTION_USER_PRESENT)
+            addAction(Intent.ACTION_SCREEN_OFF); addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_USER_PRESENT)
         }, ContextCompat.RECEIVER_NOT_EXPORTED) }
     }
 
-    private fun prepare(context: Context, token: Int, attempt: Int) {
-        handler.postDelayed({
-            if (!active.value || cycle != token ||
-                context.getSystemService(PowerManager::class.java)?.isInteractive != false) return@postDelayed
-            if (unavailableReason(context) != null ||
-                context.getSystemService(UserManager::class.java)?.isUserForeground != true ||
-                context.getSystemService(AudioManager::class.java)?.mode != AudioManager.MODE_NORMAL) return@postDelayed
-            val keyguard = context.getSystemService(KeyguardManager::class.java)
-            if (keyguard?.isKeyguardLocked == true && keyguard.isDeviceLocked) {
-                runCatching { context.startActivity(Intent(context, LockScreenActivity::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)) }
-            } else if (attempt < 12) prepare(context, token, attempt + 1)
-        }, if (attempt == 0) 120L else 140L)
+    internal fun prepared(activity: LockScreenActivity) { surface = WeakReference(activity) }
+    internal fun removed(activity: LockScreenActivity) { if (surface?.get() === activity) surface = null }
+    internal fun canPresent(context: Context): Boolean = active.value && unavailableReason(context) == null &&
+        context.getSystemService(UserManager::class.java)?.isUserForeground == true &&
+        context.getSystemService(AudioManager::class.java)?.mode == AudioManager.MODE_NORMAL
+
+    private fun prepare(context: Context, token: Int, attempt: Int, waking: Boolean = false) {
+        if (cycle != token || !canPresent(context)) return
+        val interactive = context.getSystemService(PowerManager::class.java)?.isInteractive != false
+        if (interactive && !waking) return
+        // Never cover an existing custom surface, authentication session or secure camera return.
+        if (surface?.get()?.let { !it.isFinishing && !it.isDestroyed } == true) return
+        val keyguard = context.getSystemService(KeyguardManager::class.java)
+        if (keyguard?.isKeyguardLocked == true && keyguard.isDeviceLocked) {
+            runCatching { context.startActivity(Intent(context, LockScreenActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION or Intent.FLAG_ACTIVITY_NO_USER_ACTION)) }
+        } else if (!waking && !interactive && attempt < 24) {
+            // Frequent checks only during the first frames; then back off while the display is off.
+            handler.postDelayed({ prepare(context, token, attempt + 1) }, if (attempt < 8) 16L else 100L)
+        }
     }
 }

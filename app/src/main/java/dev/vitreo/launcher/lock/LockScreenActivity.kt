@@ -36,7 +36,7 @@ class LockScreenActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         preview = intent.getBooleanExtra(PREVIEW, false)
-        if (!preview && (!LockScreenRuntime.enabled.value || LockScreenRuntime.unavailableReason(this) != null ||
+        if (!preview && (!LockScreenRuntime.canPresent(this) ||
                 keyguard?.isDeviceLocked != true || !keyguard.isKeyguardLocked)) {
             finishAndRemoveTask(); return
         }
@@ -49,6 +49,7 @@ class LockScreenActivity : ComponentActivity() {
             systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
         if (!preview) {
+            LockScreenRuntime.prepared(this)
             presentReceiver = object : BroadcastReceiver() {
                 override fun onReceive(context: Context, intent: Intent) {
                     if (intent.action == Intent.ACTION_USER_PRESENT && keyguard?.isDeviceLocked == false) finishAndRemoveTask()
@@ -120,6 +121,7 @@ class LockScreenActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        LockScreenRuntime.removed(this)
         presentReceiver?.let { unregisterReceiver(it) }
         super.onDestroy()
     }

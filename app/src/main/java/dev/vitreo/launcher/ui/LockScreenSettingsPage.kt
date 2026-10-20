@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
 import dev.vitreo.launcher.core.Appearance
 import dev.vitreo.launcher.core.LockScreenSettings
+import dev.vitreo.launcher.core.WALLPAPER_NAMES
 import dev.vitreo.launcher.graphics.HomeBackground
 import dev.vitreo.launcher.graphics.WallpaperFrame
 import dev.vitreo.launcher.graphics.WallpaperStore
@@ -70,7 +71,7 @@ fun LockScreenSettingsPage(a: Appearance, onAppearance: (Appearance) -> Unit, on
         IosSegmented(if (options.appearance(a).themePreset == 1) listOf("HUD", "Minimal", "Bold") else listOf("Rounded", "Light", "Bold"), options.clockStyle, Modifier.padding(12.dp)) { change(options.copy(clockStyle = it)) }
         LockSlider("Size", options.clockSize, "${options.clockSize.roundToInt()} pt", 72f..132f) { change(options.copy(clockSize = it)) }
         Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-            listOf("Pearl" to 0xfff5f8ff, "Ice" to 0xffb9eaff, "Blush" to 0xffffcee3, "Gold" to 0xffffe0a6, "Neon" to 0xff63f5f7).forEach { (name, color) ->
+            listOf("Pearl" to 0xfff5f8ff, "Ice" to 0xffb9eaff, "Blush" to 0xffffcee3, "Gold" to 0xffffe0a6, "Neon" to 0xff63f5f7, "Graphite" to 0xff101b2b).forEach { (name, color) ->
                 val selected = options.clockColor == color.toInt()
                 Box(Modifier.size(42.dp).clip(CircleShape).background(Color(color)).semantics {
                     contentDescription = "$name clock"; this.selected = selected
@@ -89,7 +90,7 @@ fun LockScreenSettingsPage(a: Appearance, onAppearance: (Appearance) -> Unit, on
         IosRow("Use Home wallpaper", if (options.wallpaper == -1) "Selected" else "Choose") { change(options.copy(wallpaper = -1)) }
         IosDivider()
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            listOf("Blue", "Purple", "Warm", "Night", "Neon Rider", "Digital Dusk").forEachIndexed { i, title ->
+            WALLPAPER_NAMES.forEachIndexed { i, title ->
                 OutlinedButton(onClick = { change(options.copy(wallpaper = i)) }, modifier = Modifier.semantics { selected = options.wallpaper == i }) { Text(title) }
             }
         }

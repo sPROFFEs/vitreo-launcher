@@ -6,6 +6,7 @@ import android.graphics.Color
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.vitreo.launcher.core.Appearance
+import dev.vitreo.launcher.core.WALLPAPER_NAMES
 import dev.vitreo.launcher.graphics.HomeBackground
 import dev.vitreo.launcher.graphics.WallpaperFrame
 import org.junit.Assert.*
@@ -27,7 +28,7 @@ class HomeBackgroundDeviceTest {
     @Test fun cyberpunkClassicAndNeonCityRespectDimForPhotosAndEveryPreset() {
         val source = Bitmap.createBitmap(80, 160, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.WHITE) }
         val frame = WallpaperFrame(source, source, 1f)
-        for (immersive in listOf(false, true)) for (photo in listOf(false, true)) for (palette in 0..5) {
+        for (immersive in listOf(false, true)) for (photo in listOf(false, true)) for (palette in WALLPAPER_NAMES.indices) {
             val pixels = listOf(0f, .3f, .6f).map { dim ->
                 val appearance = Appearance(themePreset = 1, cyberImmersive = immersive, usePhoto = photo, palette = palette, wallpaperDim = dim)
                 val bitmap = HomeBackground.render(frame, appearance, 400, 800, 1f)

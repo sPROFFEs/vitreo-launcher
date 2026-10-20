@@ -36,15 +36,19 @@ emergency calling and medical-information controls.
 ## Integration boundaries
 
 The default Home exemption permits background activity starts in AOSP and the
-GrapheneOS framework. Vitreo listens for screen-off only while locally enabled,
-then briefly waits for a locked, secure keyguard with the display still off.
+GrapheneOS framework. Vitreo listens while locally enabled and first prepares
+immediately at screen-off, checking briefly for a locked, secure keyguard.
 Presentation is restricted to the foreground Android user and skipped while
-Android reports a call / communication audio mode. There is no screen-on launch that could cover an incoming-call activity, no
-accessibility interception, overlay, boot receiver or persistent service.
+Android reports a call / communication audio mode. A single immediate screen-on
+recovery is permitted only within 600 ms of an observed screen-off, only while the
+real keyguard is already locked, and only when no custom surface is prepared.
+There are no delayed retries after wake, accessibility interception, overlay,
+boot receiver or persistent service. Existing authentication and secure-camera
+sessions keep their prepared surface instead of being restarted.
 
 The native screen remains available after restart / before first unlock, if
 Android stops Vitreo's process, if the default launcher changes, when the user
-wakes too quickly to prepare it, or when the configured lock delay has not elapsed.
+wakes before Android has locked, or when the configured lock delay has not elapsed.
 This is a deliberate fallback; enabling this feature does not guarantee it appears
 over every wake or other app that is allowed over keyguard.
 
@@ -67,7 +71,15 @@ wallpaper selection and distance/velocity gesture thresholds. Native UI tests
 exercise the editor, disabled-by-default previews and both themes. The final,
 isolated emulator phase sets a disposable PIN and default Home, checks incorrect
 and correct Android PIN entry, cancellation, previous-app return and disabling
-without dismissing keyguard. It restores credentials, role and lock timing.
+without dismissing keyguard. Quick-cycle checks wake as soon as Android is secured,
+without waiting for Vitreo's activity to be prepared. It restores credentials, role
+and lock timing. Unit tests enforce the single-use 600 ms recovery boundary.
+
+The header uses the platform's status-bar inset even while that bar is hidden.
+Network/battery occupy that band, with the centered lock below the display cutout.
+Original rounded status glyphs and an inset battery percentage serve iOS; angular
+glyphs, a segmented battery and HUD colors serve Cyberpunk across Lock, Home,
+Notification Center and Control Center. No signal strength is invented.
 
 The release matrix is Android API 31 and 35. These are emulator tests, **not
 physical GrapheneOS certification**. Before relying on the custom surface on a

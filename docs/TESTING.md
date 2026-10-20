@@ -150,7 +150,7 @@ APK collection independently checks the compiled listener contract.
 ## Optional lock surface (0.6.0)
 
 Wallpaper regression checks measure actual rendered pixels at 0%, 30% and 60%
-dim for both Cyberpunk experiences, photos and all six palette selections. Check
+dim for both Cyberpunk experiences, photos and all nine palette selections. Check
 the slider visually on Classic and Immersive / Neon city; their wallpaper should
 respond immediately, retain the setting across theme changes and match Android
 Home when synchronization is enabled. iOS uses the unchanged exposure path.

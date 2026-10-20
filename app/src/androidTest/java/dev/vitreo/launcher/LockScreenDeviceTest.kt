@@ -123,7 +123,7 @@ class LockScreenDeviceTest {
         }
         return result
     }
-    private fun prepareAndWake(fromPreview: Boolean = false) {
+    private fun prepareAndWake(fromPreview: Boolean = false, quick: Boolean = false) {
         instrumentation.runOnMainSync {
             LockScreenRuntime.configure(Appearance(reducedEffects = true))
             assertNull(LockScreenRuntime.setEnabled(context, true))
@@ -134,9 +134,10 @@ class LockScreenDeviceTest {
             await("preview focused") { lockActivity()?.let { it.preview && it.hasWindowFocus() } == true }
         }
         shell("input keyevent KEYCODE_SLEEP")
-        await("real keyguard locked with custom activity prepared while asleep") { keyguard.isDeviceLocked && lockActivity()?.preview == false }
+        if (quick) await("Android has secured the quick power cycle") { keyguard.isDeviceLocked }
+        else await("real keyguard locked with custom activity prepared while asleep") { keyguard.isDeviceLocked && lockActivity()?.preview == false }
         shell("input keyevent KEYCODE_WAKEUP")
-        await("custom lock has input focus") { lockActivity()?.hasWindowFocus() == true }
+        await("custom lock has input focus") { lockActivity()?.let { !it.preview && it.hasWindowFocus() } == true }
         compose.onNodeWithTag("lock_screen").assertIsDisplayed()
         compose.onNodeWithTag("lock_close").assertContentDescriptionEquals("Use system lock screen")
         assertTrue(keyguard.isKeyguardLocked)
@@ -148,7 +149,7 @@ class LockScreenDeviceTest {
         }
     }
     @Test fun upwardGestureRequiresRealAndroidPinAndReturnsToPreviousApp() {
-        prepareAndWake()
+        prepareAndWake(quick = true)
         val density = context.resources.displayMetrics.density
         compose.onNodeWithTag("lock_swipe").performTouchInput {
             val start = Offset(center.x * .5f, center.y)
@@ -173,7 +174,7 @@ class LockScreenDeviceTest {
         }
     }
     @Test fun cancellingAuthenticationAndDisablingPreserveNativeKeyguard() {
-        prepareAndWake(fromPreview = true)
+        prepareAndWake(fromPreview = true, quick = true)
         compose.onNodeWithTag("lock_unlock").performClick()
         awaitSystemAuth()
         shell("input keyevent KEYCODE_BACK")

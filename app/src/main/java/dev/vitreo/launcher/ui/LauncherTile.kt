@@ -133,7 +133,9 @@ fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, l
                 Icon(Icons.Outlined.Remove, "Remove $label", Modifier.size(17.dp), tint = Color(0xff303238))
             }
         }
-        if (labels) Text(label, Modifier.fillMaxWidth().padding(top = 6.dp, start = 1.dp, end = 1.dp),
+        if (labels) Text(label, Modifier.fillMaxWidth().padding(top = 6.dp, start = 1.dp, end = 1.dp)
+            .then(if (cyber) Modifier.background(CyberColors.Background.copy(alpha = .86f), androidx.compose.foundation.shape.CutCornerShape(3.dp))
+                .padding(horizontal = 3.dp, vertical = 1.dp) else Modifier),
             maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
             style = TextStyle(fontSize = 12.sp, color = contentColor, fontFamily = if (cyber) CyberFont else null,
                 shadow = if (contentColor == Color.White) Shadow(Color.Black.copy(alpha = .6f), blurRadius = 6f) else null))

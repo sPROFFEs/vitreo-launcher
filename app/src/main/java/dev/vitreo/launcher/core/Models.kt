@@ -62,7 +62,7 @@ data class Appearance(
         iconSize = if (iconSize.isFinite()) iconSize.coerceIn(MIN_ICON_SIZE, MAX_ICON_SIZE) else 60f,
         refraction = if (refraction.isFinite()) refraction.coerceIn(0f, 1f) else .65f,
         frost = if (frost.isFinite()) frost.coerceIn(0f, 1f) else .38f,
-        palette = palette.coerceIn(0, 5),
+        palette = palette.coerceIn(0, WALLPAPER_NAMES.lastIndex),
         iconStyle = iconStyle.coerceIn(0, 3),
         interfaceStyle = interfaceStyle.coerceIn(0, 2),
         tintColor = tintColor or 0xff000000.toInt(),

@@ -46,7 +46,7 @@ class IconArtworkTests(unittest.TestCase):
 
     def test_original_stock_wallpapers_match_provenance_and_bundled_credits(self):
         records = (ROOT / "docs/artwork/wallpapers.sha256").read_text().splitlines()
-        self.assertEqual(len(records), 2)
+        self.assertEqual(len(records), 5)
         for record in records:
             digest, filename = record.split(maxsplit=1)
             data = (ROOT / filename).read_bytes()

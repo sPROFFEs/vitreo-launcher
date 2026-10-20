@@ -1,5 +1,14 @@
 # Cambios
 
+## 0.6.1
+
+- Prepare the optional lock screen immediately at screen-off, removing the fixed 120 ms delay. A single immediate recovery handles quick off/on cycles within 600 ms while Android remains securely locked; existing authentication/camera sessions are retained.
+- Position network/battery in the physical status band and one centered lock below the camera cutout. Remove duplicate padding and lock buttons; previews now show the actual status layout.
+- Original rounded iOS status glyphs with an integrated battery percentage; Cyberpunk uses angular cyan/red geometry and a segmented HUD battery across Lock, Home, Notification Center and Control Center. Live charging and connectivity remain system data.
+- Bundle the maintainer's Neural Pearl, Neural Carbon and Neural Crimson PNGs unchanged, selectable for Home and Lock. Preserve existing wallpaper IDs and backup compatibility.
+- Gallery thumbnails use bounded copies; HUD labels and status chrome remain readable over light wallpapers. Graphite clock lettering is available for bright backgrounds.
+- Native quick-cycle authentication and top-edge layout checks; recovery timing and all new wallpaper IDs covered by regression tests.
+
 ## 0.6.0
 
 - Fixed wallpaper dimming in Cyberpunk Classic and Immersive / Neon city. Both now use the same exposure slider as iOS for photos and all presets, without an extra fixed dark layer. Home, Android Home synchronization, lock previews and appearance previews share the renderer.

@@ -18,7 +18,7 @@ data class LockScreenSettings(
     fun sanitized() = copy(theme = theme.coerceIn(0, 2),
         clockSize = if (clockSize.isFinite()) clockSize.coerceIn(72f, 132f) else 104f,
         clockStyle = clockStyle.coerceIn(0, 2), clockColor = clockColor or 0xff000000.toInt(),
-        wallpaper = wallpaper.coerceIn(-1, 5), dim = if (dim.isFinite()) dim.coerceIn(0f, .65f) else .18f)
+        wallpaper = wallpaper.coerceIn(-1, WALLPAPER_NAMES.lastIndex), dim = if (dim.isFinite()) dim.coerceIn(0f, .65f) else .18f)
 
     fun appearance(home: Appearance): Appearance = home.copy(
         themePreset = when (theme) { 1 -> 0; 2 -> 1; else -> home.themePreset },

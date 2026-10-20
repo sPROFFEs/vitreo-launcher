@@ -1,4 +1,19 @@
-# Original Cyberpunk wallpapers
+# Cyberpunk wallpaper provenance
+
+## Maintainer-supplied additions (0.6.1)
+
+The maintainer supplied these three portrait PNGs for inclusion. They are bundled
+byte for byte, without image edits, and are available in Themes & Icons, Wallpaper
+and the independent Lock Screen wallpaper selector. Existing palette IDs are unchanged;
+the new entries append IDs 6–8. All five bundled images are pinned in `wallpapers.sha256`.
+
+| Wallpaper | Supplied filename | APK resource |
+| --- | --- | --- |
+| Neural Pearl | `file_0000000033ec8211bc10eb93c9913f5a.png` | `wallpaper_neural_pearl.png` |
+| Neural Carbon | `file_0000000027388243ba0bddbbcd19051a.png` | `wallpaper_neural_carbon.png` |
+| Neural Crimson | `file_0000000065fc81f4a9a6e2d72adb58f0.png` | `wallpaper_neural_crimson.png` |
+
+## Generated originals (0.5.3)
 
 Created for Vitreo 0.5.3 on 2026-10-18 with the built-in imagegen tool. Both images are original AI-generated illustrations, not downloaded MotionBGS videos, official Cyberpunk 2077 artwork, or IconScout animations. Project permission: these generated assets may be used and redistributed with Vitreo under its MIT license. No exclusivity or third-party trademark endorsement is claimed.
 

@@ -218,11 +218,10 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
                 IconButton(onClick = onClose) { ControlSymbol(Icons.Outlined.Close, "Close", Modifier.size(21.dp), tint = Color.White.copy(alpha = .7f)) }
             }
             Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = rail, top = 5.dp, bottom = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (device.wifi == true) ControlSymbol(Icons.Outlined.Wifi, "Wi-Fi enabled", Modifier.size(19.dp), tint = Color.White)
+                if (device.wifi == true) StatusWifi(Modifier.size(19.dp), "Wi-Fi enabled", Color.White)
                 else if (device.airplane == true) ControlSymbol(Icons.Outlined.AirplanemodeActive, "Airplane mode", Modifier.size(19.dp), tint = Color.White)
                 Spacer(Modifier.weight(1f))
-                if (device.battery >= 0) Text("${device.battery}%", color = Color.White, fontSize = 13.sp)
-                ControlSymbol(Icons.Outlined.BatteryStd, null, Modifier.padding(start = 4.dp).size(19.dp), tint = Color.White)
+                SystemBatteryIndicator(tint = Color.White)
             }
             Row(Modifier.weight(1f)) {
                 VerticalPager(pager, Modifier.weight(1f).testTag("control_pages"), userScrollEnabled = !editing,

@@ -112,5 +112,8 @@ si ya autorizaste esa integración en ajustes.
 
 No añade permisos, servicio persistente, acceso a accesibilidad, superposición,
 administrador del dispositivo, receptor de arranque ni dependencia de Google.
-Solo prepara la superficie con el display apagado y el bloqueo seguro activo;
-si el proceso deja de estar disponible, Android muestra su pantalla nativa.
+Prepara la superficie inmediatamente al apagar el display con el bloqueo seguro
+activo. En ciclos rápidos puede recuperarla una vez al encender, dentro de 600 ms
+del apagado observado, comprobando que Android siga bloqueado. No hay reintentos
+tardíos con la pantalla encendida. Si el proceso deja de estar disponible o Android
+aún no ha bloqueado, se mantiene la pantalla nativa.

@@ -14,7 +14,7 @@ class StateCodecTest {
         assertEquals(state, StateCodec.decode(StateCodec.encode(state)))
         assertFalse(StateCodec.decode("""{"schema":1,"home":[],"dock":[],"appearance":{"themePreset":1}}""").appearance.cyberImmersive)
         assertEquals(setOf("timer"), Appearance(controlShortcuts = listOf("timer"), controlWide = setOf("timer", "camera", "bad")).sanitized().controlWide)
-        assertEquals(5, Appearance(palette = 999).sanitized().palette)
+        assertEquals(WALLPAPER_NAMES.lastIndex, Appearance(palette = 999).sanitized().palette)
     }
     @Test fun builtInOverridesAreAllowlistedPortableAndFollowAliasChanges() {
         val icon = IconOverride(THEME_ICON_PACK, "photos")

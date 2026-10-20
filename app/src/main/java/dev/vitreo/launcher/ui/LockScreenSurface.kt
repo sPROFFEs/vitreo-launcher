@@ -132,17 +132,9 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                 }.testTag("lock_wallpaper"), contentScale = ContentScale.Crop) }
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = .40f), Color.Transparent, Color.Black.copy(alpha = .42f)))))
                 if (cyber && options.immersive && active && !appearance.reducedEffects) CyberAmbient()
-                Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).graphicsLayer { alpha = arrival.value }, verticalAlignment = Alignment.CenterVertically) {
-                        if (preview) Text("Preview", color = Color.White.copy(alpha = .85f), fontSize = 13.sp, modifier = Modifier.weight(1f))
-                        else CompositionLocalProvider(LocalGlassContentColor provides Color.White) {
-                            HomeStatusBar(now, Modifier.weight(1f).height(48.dp), null, null, locked = true)
-                        }
-                        IconButton(onClick = onSystemLock, modifier = Modifier.testTag("lock_close")) {
-                            LauncherSymbol(if (preview) Icons.Outlined.Close else Icons.Outlined.Lock, if (preview) "Close preview" else "Use system lock screen", tint = Color.White)
-                        }
-                    }
-                    Column(Modifier.weight(1f).fillMaxWidth().graphicsLayer {
+                Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)), horizontalAlignment = Alignment.CenterHorizontally) {
+                    LockScreenStatusBar(preview, onSystemLock, Modifier.graphicsLayer { alpha = arrival.value })
+                    Column(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 22.dp).graphicsLayer {
                         translationY = (-drag.value * .65f + (1f - arrival.value) * 16f) * metrics.density
                         alpha = arrival.value * (1f - drag.value / 360f).coerceIn(.2f, 1f)
                     }.verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -154,7 +146,7 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                         if (options.showBattery || options.showAlarm) {
                             Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)) {
                                 if (options.showBattery) LockAccessory(if (charging) Icons.Outlined.BatteryChargingFull else Icons.Outlined.BatteryFull,
-                                    "$battery%", "${if (charging) "Charging, " else ""}$battery percent battery", Modifier.weight(1f))
+                                    "$battery%", "${if (charging) "Charging, " else ""}$battery percent battery", Modifier.weight(1f), battery, charging)
                                 if (options.showAlarm) LockAccessory(Icons.Outlined.Alarm,
                                     alarm?.let { DateFormat.getTimeFormat(context).format(Date(it)) } ?: "No alarm",
                                     alarm?.let { "Next alarm ${DateFormat.getTimeFormat(context).format(Date(it))}" } ?: "No alarm set", Modifier.weight(1f))
@@ -177,8 +169,8 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                     }
                     val notice = localMessage
                     if (notice != null) Text(notice, color = Color.White, fontSize = 13.sp,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(vertical = 8.dp).testTag("lock_message"))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp).testTag("lock_message"))
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         LockShortcut(if (device.torchOn) Icons.Outlined.FlashlightOff else Icons.Outlined.FlashlightOn,
                             if (device.torchOn) "Turn flashlight off" else "Turn flashlight on", "lock_flashlight") {
                             if (preview) localMessage = "Flashlight is available on the real lock screen."
@@ -187,7 +179,7 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                         TextButton(onClick = onEmergency, modifier = Modifier.weight(1f).padding(horizontal = 6.dp)) { Text(if (preview) "Emergency preview" else "System / Emergency", color = Color.White.copy(alpha = .85f), fontSize = 13.sp) }
                         LockShortcut(Icons.Outlined.PhotoCamera, "Secure camera", "lock_camera", onCamera)
                     }
-                    Column(Modifier.fillMaxWidth().padding(top = 12.dp).pointerInput(busy, appearance.reducedEffects) {
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(top = 12.dp).pointerInput(busy, appearance.reducedEffects) {
                         val velocity = VelocityTracker()
                         var distance = 0f
                         detectVerticalDragGestures(onDragStart = {
@@ -198,7 +190,7 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                                 velocity.addPosition(change.uptimeMillis, change.position)
                                 scope.launch { drag.snapTo(distance) }
                             }
-                        }, onDragCancel = { scope.launch { drag.animateTo(0f, spring(dampingRatio = 1f, stiffness = 500f)) } },
+                        }, onDragCancel = { scope.launch { drag.animateTo(0f, if (appearance.reducedEffects) tween(0) else spring(dampingRatio = 1f, stiffness = 500f)) } },
                             onDragEnd = {
                                 val commit = !busy && LockScreenGesture.commits(distance, -velocity.calculateVelocity().y / metrics.density)
                                 if (commit) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onCurrentUnlock() }
@@ -254,10 +246,12 @@ internal fun LockClock(now: Long, a: Appearance, modifier: Modifier) {
 }
 
 @Composable
-private fun LockAccessory(icon: androidx.compose.ui.graphics.vector.ImageVector, value: String, label: String, modifier: Modifier) {
+private fun LockAccessory(icon: androidx.compose.ui.graphics.vector.ImageVector, value: String, label: String, modifier: Modifier,
+    batteryLevel: Int? = null, charging: Boolean = false) {
     GlassPanel(modifier.heightIn(min = 64.dp).clearAndSetSemantics { contentDescription = label }, radius = 22f, tint = .15f) {
         Row(Modifier.align(Alignment.Center).padding(13.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            LauncherSymbol(icon, null, Modifier.size(23.dp), tint = Color.White)
+            if (batteryLevel != null) StatusBattery(batteryLevel, charging, percentage = false, tint = Color.White)
+            else ControlSymbol(icon, null, Modifier.size(23.dp), tint = Color.White)
             Text(value, color = Color.White, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
@@ -267,7 +261,7 @@ private fun LockAccessory(icon: androidx.compose.ui.graphics.vector.ImageVector,
 private fun LockShortcut(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tag: String, onClick: () -> Unit) {
     GlassPanel(Modifier.size(54.dp), radius = 27f, interactive = true) {
         IconButton(onClick = onClick, modifier = Modifier.fillMaxSize().testTag(tag)) {
-            LauncherSymbol(icon, label, Modifier.size(25.dp), tint = Color.White)
+            ControlSymbol(icon, label, Modifier.size(25.dp), tint = Color.White)
         }
     }
 }

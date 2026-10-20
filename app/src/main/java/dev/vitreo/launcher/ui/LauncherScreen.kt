@@ -320,7 +320,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val lightChrome = opaqueScreen && sheet != Sheet.Wallpaper && MaterialTheme.colorScheme.background.luminance() > .5f ||
         sheet == null && lightWallpaper
     val integratedBar = appearance.homeStatusBar && !opaqueScreen
-    val customBarHeight = maxOf(52.dp, with(density) { WindowInsets.displayCutout.getTop(density).toDp() + 8.dp })
+    val customBarHeight = statusBandHeight()
     LaunchedEffect(ui.ready, appearance.notificationCenter, appearance.mediaIntegration) {
         if (ui.ready) SystemBridge.configure(context, appearance.notificationCenter, appearance.mediaIntegration)
     }
@@ -691,7 +691,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
             }
             if (integratedBar && sheet != Sheet.Controls && sheet != Sheet.Notifications) {
                 HomeStatusBar(now,
-                Modifier.height(customBarHeight).padding(top = with(density) { WindowInsets.displayCutout.getTop(density).toDp() / 2 }),
+                Modifier.height(customBarHeight).windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)),
                 onNotices = if (appearance.notificationCenter && !modalPresent) ({ sheet = Sheet.Notifications }) else null,
                 onControls = if (appearance.controlCenter && !modalPresent) ({ sheet = Sheet.Controls }) else null)
             }
@@ -769,7 +769,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                             NotificationCenter(::closeSurface, {
                                 runCatching { context.startActivity(SystemBridge.accessIntent(context)) }
                                     .onFailure { system(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS) }
-                            }, model::message)
+                            }, model::message, showStatusBar = appearance.homeStatusBar)
                         }
                         Sheet.Licenses -> LicensesSheet(::closeSurface)
                         is Sheet.IconPicker -> IconPickerSheet(model, ui, current.app, ::closeSurface)
