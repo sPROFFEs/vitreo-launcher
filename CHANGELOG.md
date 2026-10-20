@@ -1,5 +1,12 @@
 # Cambios
 
+## 0.6.2
+
+- Optional Fingerprint shortcut in Lock Screen settings, hidden by default. Hands control to Android / GrapheneOS's native keyguard; only the OS decides whether fingerprint, a secondary factor or credentials are permitted. Preview never authenticates.
+- Move the unlock gesture into the central clock / accessories area, away from Android's bottom navigation gesture. Remove the misleading bottom pill and retain an accessible PIN / password button.
+- Slim Cyberpunk status rail across Home, Lock and Notification Center, preserving camera insets. Subtle scanning light reuses Immersive ambience; Classic, Battery Saver and Reduce Motion keep it still.
+- Native coverage checks both shortcut settings, central gesture placement, cancellation and the native handoff without dismissing keyguard.
+
 ## 0.6.1
 
 - Build the glass clock rim from filled glyph silhouettes so stretched bold fonts have no internal contour seams. Verify the editor’s visible height readout before taking its capture.

@@ -156,6 +156,11 @@ class LauncherSmokeTest {
             openSettings()
             compose.onNodeWithText("Lock Screen").performScrollTo().performClick()
             compose.onNodeWithTag("lock_enable").assertIsOff()
+            compose.onNodeWithTag("lock_fingerprint_option").performScrollTo().assertIsOff().performClick()
+            assertTrue(model.ui.value.layout.appearance.lockScreen.showSystemUnlock)
+            compose.onNodeWithTag("lock_enable").assertIsOff()
+            compose.onNodeWithTag("lock_fingerprint_option").performClick().assertIsOff()
+            assertTrue(!model.ui.value.layout.appearance.lockScreen.showSystemUnlock)
             compose.onNodeWithText("Cyberpunk", substring = false).performScrollTo().performClick()
             assertEquals(2, model.ui.value.layout.appearance.lockScreen.theme)
             compose.onNodeWithText("iOS", substring = false).performClick()
@@ -196,7 +201,7 @@ class LauncherSmokeTest {
                     dev.vitreo.launcher.lock.LockScreenActivity.preview(context, original.copy(lockScreen =
                         dev.vitreo.launcher.core.LockScreenSettings(theme = theme, clockSize = if (name == "lock-large-clock") 132f else 104f,
                             clockStyle = if (name == "lock-large-clock") 2 else 0, clockHeight = if (name == "lock-large-clock") 2.1f else 1f,
-                            wallpaper = if (theme == 2) 8 else -1)))
+                            wallpaper = if (theme == 2) 8 else -1, showSystemUnlock = name != "lock-ios")))
                 }
                 compose.waitUntil(15_000) { compose.onAllNodesWithTag("lock_screen").fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty() }
                 compose.waitUntil(15_000) { compose.onAllNodesWithTag("lock_wallpaper").fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty() }
@@ -216,6 +221,13 @@ class LauncherSmokeTest {
                 File(directory, "$name.png").outputStream().use { assertTrue(image.compress(Bitmap.CompressFormat.PNG, 100, it)) }
                 assertTrue("$name clock must fit: " + layouts.joinToString { "size=${it.size}, constraints=${it.layoutInput.constraints}, font=${it.layoutInput.style.fontSize}, lineHeight=${it.layoutInput.style.lineHeight}, widthOverflow=${it.didOverflowWidth}, heightOverflow=${it.didOverflowHeight}" },
                     layouts.isNotEmpty() && layouts.none { it.didOverflowWidth || it.didOverflowHeight })
+                if (name == "lock-ios") compose.onNodeWithTag("lock_system_unlock").assertDoesNotExist()
+                else {
+                    compose.onNodeWithTag("lock_system_unlock").performClick()
+                    compose.onNodeWithTag("lock_screen").assertIsDisplayed()
+                    compose.onNodeWithTag("lock_message").assertTextEquals("Preview only. Android handles real authentication.")
+                    assertTrue(!context.getSystemService(android.app.KeyguardManager::class.java).isDeviceLocked)
+                }
                 compose.onNodeWithTag("lock_unlock").performClick()
                 compose.onNodeWithTag("lock_message").assertTextEquals("Preview only. Android handles real authentication.")
                 assertTrue(!dev.vitreo.launcher.lock.LockScreenRuntime.enabled.value)

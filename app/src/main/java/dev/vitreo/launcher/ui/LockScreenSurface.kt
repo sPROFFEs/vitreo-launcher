@@ -57,7 +57,7 @@ import kotlin.math.roundToInt
 fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message: String?,
     onUnlock: () -> Unit, onSystemLock: () -> Unit, onCamera: () -> Unit, onEmergency: () -> Unit,
     onEditClock: (() -> Unit)? = null, onClockHeight: ((Float) -> Unit)? = null,
-    editorHeader: (@Composable () -> Unit)? = null) {
+    editorHeader: (@Composable () -> Unit)? = null, onSystemUnlock: (() -> Unit)? = null) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var interactive by remember { mutableStateOf(context.getSystemService(PowerManager::class.java).isInteractive) }
@@ -118,6 +118,30 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
     val drag = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
     val onCurrentUnlock by rememberUpdatedState(onUnlock)
+    val unlockGesture = if (onEditClock != null) Modifier else Modifier.pointerInput(busy, appearance.reducedEffects) {
+        val velocity = VelocityTracker()
+        var distance = 0f
+        val settle = { scope.launch { drag.animateTo(0f,
+            if (appearance.reducedEffects) tween(0) else spring(dampingRatio = 1f, stiffness = 500f)) } }
+        detectVerticalDragGestures(
+            onDragStart = { distance = 0f; velocity.resetTracking(); scope.launch { drag.stop() } },
+            onVerticalDrag = { change, delta ->
+                if (!busy) {
+                    change.consume()
+                    distance = (distance - delta / metrics.density).coerceIn(0f, 300f)
+                    velocity.addPosition(change.uptimeMillis, change.position)
+                    scope.launch { drag.snapTo(distance) }
+                }
+            },
+            onDragCancel = { settle() },
+            onDragEnd = {
+                if (!busy && LockScreenGesture.commits(distance, -velocity.calculateVelocity().y / metrics.density)) {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onCurrentUnlock()
+                }
+                settle()
+            })
+    }
     val controller = remember(context) { ControlCenterController(context) }
     var cameraId by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(active, preview) {
@@ -145,17 +169,17 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                 if (cyber && options.immersive && active && !appearance.reducedEffects) CyberAmbient()
                 Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)), horizontalAlignment = Alignment.CenterHorizontally) {
                     if (editorHeader != null) editorHeader() else LockScreenStatusBar(preview, onSystemLock, Modifier.graphicsLayer { alpha = arrival.value })
-                    BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 22.dp).graphicsLayer {
-                        translationY = (-drag.value * .65f + (1f - arrival.value) * 16f) * metrics.density
-                        alpha = arrival.value * (1f - drag.value / 360f).coerceIn(.2f, 1f)
-                    }) {
+                    BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().then(unlockGesture).testTag("lock_swipe").padding(horizontal = 22.dp)) {
                       val tall = !cyber && options.clockHeight > 1.05f
                       var clockPixels by remember { mutableIntStateOf(0) }
                       var accessoryPixels by remember { mutableIntStateOf(0) }
                       val availableGap = with(metrics) { (maxHeight.toPx() - clockPixels - accessoryPixels).coerceAtLeast(0f).toDp() }
                       val accessoryGap by animateDpAsState(if (tall && clockPixels > 0 && accessoryPixels > 0) availableGap else 0.dp,
                           if (appearance.reducedEffects) tween(0) else tween(240), label = "Lock accessories position")
-                      Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = maxHeight),
+                      Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState(), enabled = onEditClock != null).heightIn(min = maxHeight).graphicsLayer {
+                          translationY = (-drag.value * .65f + (1f - arrival.value) * 16f) * metrics.density
+                          alpha = arrival.value * (1f - drag.value / 360f).coerceIn(.2f, 1f)
+                      },
                           horizontalAlignment = Alignment.CenterHorizontally) {
                        Column(Modifier.onSizeChanged { clockPixels = it.height }, horizontalAlignment = Alignment.CenterHorizontally) {
                         Spacer(Modifier.height(22.dp))
@@ -208,10 +232,22 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                       }
                     }
                     if (onEditClock != null) Spacer(Modifier.height(96.dp)) else {
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Outlined.KeyboardArrowUp, null, tint = Color.White.copy(alpha = .75f), modifier = Modifier.size(22.dp))
+                        Text(if (cyber) "SWIPE ABOVE // AUTHENTICATE" else "Swipe up in the clock area", color = Color.White.copy(alpha = .8f), fontSize = 13.sp)
+                        if (options.showSystemUnlock && onSystemUnlock != null) {
+                            val fingerprint = remember(context) { context.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_FINGERPRINT) }
+                            TextButton(onClick = onSystemUnlock, enabled = !busy, modifier = Modifier.testTag("lock_system_unlock")) {
+                                Icon(if (fingerprint) Icons.Outlined.Fingerprint else Icons.Outlined.Lock, null,
+                                    Modifier.size(24.dp), tint = if (cyber) CyberColors.Cyan else Color.White)
+                                Text("System unlock", Modifier.padding(start = 8.dp), color = Color.White)
+                            }
+                        }
+                    }
                     val notice = localMessage
                     if (notice != null) Text(notice, color = Color.White, fontSize = 13.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp).testTag("lock_message"))
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp).testTag("lock_shortcuts"), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         LockShortcut(if (device.torchOn) Icons.Outlined.FlashlightOff else Icons.Outlined.FlashlightOn,
                             if (device.torchOn) "Turn flashlight off" else "Turn flashlight on", "lock_flashlight") {
                             if (preview) localMessage = "Flashlight is available on the real lock screen."
@@ -220,28 +256,11 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                         TextButton(onClick = onEmergency, modifier = Modifier.weight(1f).padding(horizontal = 6.dp)) { Text(if (preview) "Emergency preview" else "System / Emergency", color = Color.White.copy(alpha = .85f), fontSize = 13.sp) }
                         LockShortcut(Icons.Outlined.PhotoCamera, "Secure camera", "lock_camera", onCamera)
                     }
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(top = 12.dp).pointerInput(busy, appearance.reducedEffects) {
-                        val velocity = VelocityTracker()
-                        var distance = 0f
-                        detectVerticalDragGestures(onDragStart = {
-                            distance = 0f; velocity.resetTracking(); scope.launch { drag.stop() }
-                        }, onVerticalDrag = { change, delta ->
-                            if (!busy) {
-                                change.consume(); distance = (distance - delta / metrics.density).coerceIn(0f, 300f)
-                                velocity.addPosition(change.uptimeMillis, change.position)
-                                scope.launch { drag.snapTo(distance) }
-                            }
-                        }, onDragCancel = { scope.launch { drag.animateTo(0f, if (appearance.reducedEffects) tween(0) else spring(dampingRatio = 1f, stiffness = 500f)) } },
-                            onDragEnd = {
-                                val commit = !busy && LockScreenGesture.commits(distance, -velocity.calculateVelocity().y / metrics.density)
-                                if (commit) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onCurrentUnlock() }
-                                scope.launch { drag.animateTo(0f, if (appearance.reducedEffects) tween(0) else spring(dampingRatio = 1f, stiffness = 500f)) }
-                            })
-                    }.testTag("lock_swipe"), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(top = 8.dp, bottom = 14.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally) {
                         TextButton(onClick = onUnlock, enabled = !busy, modifier = Modifier.testTag("lock_unlock")) {
-                            Text(if (busy) "Continue on Android…" else if (cyber) "SWIPE UP // AUTHENTICATE" else "Swipe up to unlock", color = Color.White, fontSize = 14.sp)
+                            Text(if (busy) "Continue on Android…" else "Use PIN or password", color = Color.White, fontSize = 14.sp)
                         }
-                        Box(Modifier.padding(bottom = 9.dp).size(126.dp, 5.dp).clip(CircleShape).background(Color.White.copy(alpha = .85f)))
                     }
                     }
                 }

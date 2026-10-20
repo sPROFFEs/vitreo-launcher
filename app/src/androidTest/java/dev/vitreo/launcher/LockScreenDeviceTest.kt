@@ -123,9 +123,10 @@ class LockScreenDeviceTest {
         }
         return result
     }
-    private fun prepareAndWake(fromPreview: Boolean = false, quick: Boolean = false) {
+    private fun prepareAndWake(fromPreview: Boolean = false, quick: Boolean = false, systemUnlock: Boolean = false) {
         instrumentation.runOnMainSync {
-            LockScreenRuntime.configure(Appearance(reducedEffects = true))
+            LockScreenRuntime.configure(Appearance(reducedEffects = true, lockScreen =
+                dev.vitreo.launcher.core.LockScreenSettings(showSystemUnlock = systemUnlock)))
             assertNull(LockScreenRuntime.setEnabled(context, true))
         }
         shell("am start -W -n dev.vitreo.fixture.uninstall/.MainActivity")
@@ -150,6 +151,12 @@ class LockScreenDeviceTest {
     }
     @Test fun upwardGestureRequiresRealAndroidPinAndReturnsToPreviousApp() {
         prepareAndWake(quick = true)
+        compose.onNodeWithTag("lock_system_unlock").assertDoesNotExist()
+        val gesture = compose.onNodeWithTag("lock_swipe").fetchSemanticsNode().boundsInRoot
+        val header = compose.onNodeWithTag("lock_header").fetchSemanticsNode().boundsInRoot
+        val shortcuts = compose.onNodeWithTag("lock_shortcuts").fetchSemanticsNode().boundsInRoot
+        assertTrue("Gesture starts below system status / camera band", gesture.top >= header.bottom)
+        assertTrue("Gesture ends above bottom controls and Android navigation", gesture.bottom < shortcuts.top)
         val density = context.resources.displayMetrics.density
         compose.onNodeWithTag("lock_swipe").performTouchInput {
             val start = Offset(center.x * .5f, center.y)
@@ -174,7 +181,18 @@ class LockScreenDeviceTest {
         }
     }
     @Test fun cancellingAuthenticationAndDisablingPreserveNativeKeyguard() {
-        prepareAndWake(fromPreview = true, quick = true)
+        prepareAndWake(fromPreview = true, quick = true, systemUnlock = true)
+        compose.onNodeWithTag("lock_system_unlock").assertIsDisplayed()
+        instrumentation.runOnMainSync { LockScreenRuntime.configure(Appearance(reducedEffects = true)) }
+        compose.onNodeWithTag("lock_system_unlock").assertDoesNotExist()
+        instrumentation.runOnMainSync { LockScreenRuntime.configure(Appearance(reducedEffects = true, lockScreen =
+            dev.vitreo.launcher.core.LockScreenSettings(showSystemUnlock = true))) }
+        compose.onNodeWithTag("lock_system_unlock").performClick()
+        await("shortcut reveals native keyguard without authentication") {
+            lockActivity() == null && keyguard.isDeviceLocked && keyguard.isKeyguardLocked &&
+                instrumentation.uiAutomation.windows.any { it.isFocused && it.root?.packageName?.toString() == "com.android.systemui" }
+        }
+        prepareAndWake(quick = true)
         compose.onNodeWithTag("lock_unlock").performClick()
         awaitSystemAuth()
         shell("input keyevent KEYCODE_BACK")

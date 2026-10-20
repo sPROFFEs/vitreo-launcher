@@ -11,9 +11,9 @@ Open **Settings → Lock Screen**. Use Full-screen preview before enabling Custo
 lock screen. Preview never changes the lock state or turns the feature on.
 
 - Style: follow Home, iOS-inspired, or Cyberpunk independently of Home.
-- Clock: Rounded, Light or Bold, size 72–132 pt, five colors, optional glass
+- Clock: six fonts, size 72–132 pt, six colors, optional glass
   lettering and date. It follows Android's 12/24-hour preference, fits its width
-  and scrolls with its accessories when accessibility text or landscape requires it.
+  with vertical resizing. The editor can scroll; unlocking uses the central area rather than the system navigation edge.
 - Wallpaper: follow Home's photo/crop or choose a separate built-in collection
   item, with independent dimming. No system lock wallpaper is overwritten.
 - Accessories: actual battery/charging state and Android's next scheduled alarm.
@@ -25,13 +25,23 @@ lock screen. Preview never changes the lock state or turns the feature on.
   Status Bar & Notifications. No sender, app name, message, artwork or action is
   displayed; secret-visibility alerts do not trigger the indicator. Full notification interaction stays behind Android authentication.
 
-Swipe up from the bottom gesture area or tap **Swipe up to unlock**. Android
+Swipe up in the central clock / accessories area or tap **Use PIN or password**.
+The bottom navigation edge is reserved for Android gestures. Android
 presents whatever authentication its current policy permits. Cancelling leaves
 it locked. After successful authentication the separate surface task is removed,
 allowing the previously open app to resume. Camera uses only the secure-camera
 intent; unavailable camera/torch produces an explicit message. **System / Emergency**,
 the top lock button and Back hand control to the native keyguard, including its
 emergency calling and medical-information controls.
+
+**Fingerprint shortcut** in Settings → Lock Screen is independent of activation
+and hidden by default, including for existing backups. When enabled it shows
+**System unlock**: a fingerprint symbol on devices reporting fingerprint hardware,
+or a lock otherwise. Tapping it removes Vitreo's surface without dismissing the
+secure keyguard. Android / GrapheneOS then displays its real fingerprint or
+credential interface according to enrollment, strong-auth and two-factor policy.
+Preview only shows an explanation and never opens authentication. Hiding the
+shortcut leaves central swipe, PIN / password and the system fallback available.
 
 ## Integration boundaries
 
@@ -99,3 +109,25 @@ switching users. Android's native fallback must stay usable in every case.
 Open **Settings → Lock Screen → Customize Lock Screen** while the device is unlocked. Tap the outlined clock or choose Clock to select Rounded, Light, Bold, Serif, Mono or Condensed, a color and Glass / Solid lettering. Drag the lower-right clock handle or use the accessible Height slider (100–240%); the width stays fitted and tall iOS clocks move accessories down. Wallpaper offers built-in thumbnails, Follow Home and dimming; Widgets controls the battery, alarm and private notification indicator. Done applies the draft; Cancel or Back discards it. Editing never enables the lock surface or dismisses Android authentication.
 
 Visual references: [Apple Lock Screen customization](https://support.apple.com/guide/iphone/iph4d0e6c351/ios), [Apple status icons](https://support.apple.com/guide/iphone/iphef7bb57dc/ios), and [iOS 26 clock resizing](https://www.idownloadblog.com/2025/06/24/how-to-change-lock-screen-clock-size-iphone-ipad/). Glyphs are original geometry; clock fonts are available Android/bundled fonts. Photo depth segmentation, Apple fonts and native Face ID are not replicated.
+
+## Cyberpunk fingerprint animation — requested follow-up
+
+Investigate a short, optional cyan / red HUD response tied to a **real** biometric
+event. This is a recorded idea, not a shipped scan indicator. The ordinary public
+keyguard dismissal API reports success, cancellation or error, without identifying
+which factor was used or exposing native sensor-acquisition events. BiometricPrompt
+callbacks apply to the prompt an app owns; adding that prompt would authenticate
+Vitreo separately rather than replace the secure device unlock. Consequently the
+current shortcut hands the screen fully to SystemUI, whose fingerprint animation
+Vitreo cannot skin. A future handoff effect may acknowledge the user's tap, but
+must not label it as a fingerprint read or authentication success. Respect Reduce
+Motion, Battery Saver and the Classic / Immersive setting.
+
+References: [Android KeyguardManager](https://developer.android.com/reference/android/app/KeyguardManager),
+[BiometricPrompt callbacks](https://developer.android.com/reference/android/hardware/biometrics/BiometricPrompt.AuthenticationCallback),
+[GrapheneOS two-factor fingerprint unlock](https://grapheneos.org/features#two-factor-fingerprint-unlock).
+
+Android's native status bar is hidden only while Vitreo's optional Home status bar
+is active, and on its full-screen lock surface. Other apps retain their own system
+bars. Android permits transient edge reveal; a normal launcher cannot globally
+disable SystemUI. See [Android immersive mode](https://developer.android.com/develop/ui/views/layout/immersive).

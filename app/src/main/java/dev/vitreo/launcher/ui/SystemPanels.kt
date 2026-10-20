@@ -94,11 +94,11 @@ internal fun HomeStatusBar(now: Long, modifier: Modifier = Modifier, onNotices: 
     val context = LocalContext.current
     val state = rememberStatusSnapshot()
     val ink = LocalGlassContentColor.current
-    Row(modifier.fillMaxWidth().then(if (LocalCyber.current) Modifier.background(CyberColors.Background.copy(alpha = .9f)) else Modifier)
+    Row(modifier.fillMaxWidth().cyberStatusChrome(state.saving)
         .testTag("home_status_bar").padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.weight(1f).fillMaxHeight().then(if (onNotices != null) Modifier.clickable(onClick = onNotices) else Modifier), contentAlignment = Alignment.CenterStart) {
             if (locked) StatusLock(Modifier.size(17.dp), "Device locked", ink)
-            else Text(SimpleDateFormat(if (DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm", Locale.getDefault()).format(Date(now)), color = ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+            else Text(SimpleDateFormat(if (DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm", Locale.getDefault()).format(Date(now)), color = ink, fontSize = if (LocalCyber.current) 14.sp else 15.sp, fontWeight = FontWeight.SemiBold,
                 fontFamily = if (LocalCyber.current) CyberFont else androidx.compose.ui.text.font.FontFamily.SansSerif)
         }
         Row(Modifier.fillMaxHeight().then(if (onControls != null) Modifier.clickable(onClick = onControls) else Modifier)
@@ -130,8 +130,8 @@ internal fun LockScreenStatusBar(preview: Boolean, onClose: () -> Unit, modifier
     val state = rememberStatusSnapshot()
     val band = statusBandHeight()
     val ink = if (LocalCyber.current) CyberColors.Text else Color.White
-    Column(modifier.fillMaxWidth().then(if (LocalCyber.current) Modifier.background(CyberColors.Background.copy(alpha = .9f)) else Modifier).testTag("lock_header")) {
-        Row(Modifier.fillMaxWidth().height(band).padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
+    Column(modifier.fillMaxWidth().testTag("lock_header")) {
+        Row(Modifier.fillMaxWidth().height(band).cyberStatusChrome(state.saving).padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
             if (preview) TextButton(onClick = onClose, modifier = Modifier.testTag("lock_close").semantics { contentDescription = "Close preview" }, contentPadding = PaddingValues(0.dp)) {
                 ControlSymbol(Icons.Outlined.Close, null, Modifier.size(14.dp), ink)
                 Text("Preview", color = ink, fontSize = 12.sp, modifier = Modifier.padding(start = 6.dp))
@@ -145,6 +145,8 @@ internal fun LockScreenStatusBar(preview: Boolean, onClose: () -> Unit, modifier
             }
         }
         Box(Modifier.fillMaxWidth().height(32.dp), contentAlignment = Alignment.Center) {
+            if (LocalCyber.current) Box(Modifier.size(32.dp, 26.dp).background(CyberColors.Background.copy(alpha = .6f),
+                androidx.compose.foundation.shape.RoundedCornerShape(5.dp)))
             if (preview) StatusLock(Modifier.size(16.dp, 21.dp).testTag("lock_glyph"), tint = ink)
             else IconButton(onClick = onClose, modifier = Modifier.size(44.dp, 32.dp).testTag("lock_close")) {
                 StatusLock(Modifier.size(16.dp, 21.dp).testTag("lock_glyph"), "Use system lock screen", ink)

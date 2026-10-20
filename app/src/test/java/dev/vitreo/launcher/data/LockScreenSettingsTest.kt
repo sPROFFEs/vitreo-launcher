@@ -7,7 +7,7 @@ import org.junit.Test
 
 class LockScreenSettingsTest {
     @Test fun backupRoundTripKeepsAppearanceButNeverContainsActivation() {
-        val options = LockScreenSettings(theme = 2, clockSize = 126f, clockStyle = 5, clockHeight = 2.1f, clockColor = 0xffb9eaff.toInt(),
+        val options = LockScreenSettings(showSystemUnlock = true, theme = 2, clockSize = 126f, clockStyle = 5, clockHeight = 2.1f, clockColor = 0xffb9eaff.toInt(),
             glassClock = false, showDate = false, showBattery = false, showAlarm = false, notificationCount = true,
             wallpaper = 5, dim = .48f, immersive = true)
         val text = StateCodec.encode(LauncherState(appearance = Appearance(lockScreen = options)))
@@ -33,6 +33,8 @@ class LockScreenSettingsTest {
         assertEquals(5, LockScreenSettings(clockStyle = 99).sanitized().clockStyle)
         val legacy = LockScreenCodec.encode(LockScreenSettings()).apply { remove("clockHeight") }
         assertEquals(1f, LockScreenCodec.decode(legacy).clockHeight)
+        assertFalse(LockScreenCodec.decode(legacy.apply { remove("showSystemUnlock") }).showSystemUnlock)
+        assertFalse(LockScreenCodec.decode(null).showSystemUnlock)
     }
     @Test fun themeAndWallpaperFollowHomeOrOverrideIndependently() {
         val home = Appearance(themePreset = 1, usePhoto = true, palette = 4, reducedEffects = true)

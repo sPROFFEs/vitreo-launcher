@@ -71,6 +71,7 @@ class LockScreenActivity : ComponentActivity() {
                 failure ?: if (preview && previewHint) "Preview only. Android handles real authentication." else null,
                 onUnlock = { if (preview) previewHint = true else unlock() },
                 onSystemLock = { finishAndRemoveTask() },
+                onSystemUnlock = { if (preview) previewHint = true else finishAndRemoveTask() },
                 onCamera = { if (preview) previewHint = true else openSecureCamera() },
                 onEmergency = { if (preview) previewHint = true else openEmergency() })
         }

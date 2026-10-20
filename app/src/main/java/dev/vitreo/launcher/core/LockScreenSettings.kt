@@ -15,6 +15,7 @@ data class LockScreenSettings(
     val wallpaper: Int = -1, // Follow Home or a built-in collection item
     val dim: Float = .18f,
     val immersive: Boolean = false,
+    val showSystemUnlock: Boolean = false, // Optional shortcut to the real keyguard; never app authentication.
 ) {
     fun sanitized() = copy(theme = theme.coerceIn(0, 2),
         clockSize = if (clockSize.isFinite()) clockSize.coerceIn(72f, 132f) else 104f,

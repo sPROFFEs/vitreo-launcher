@@ -11,6 +11,7 @@ object LockScreenCodec {
         put("showBattery", a.showBattery); put("showAlarm", a.showAlarm)
         put("notificationCount", a.notificationCount); put("wallpaper", a.wallpaper)
         put("dim", a.dim.toDouble()); put("immersive", a.immersive)
+        put("showSystemUnlock", a.showSystemUnlock)
     } }
     fun decode(a: JSONObject?): LockScreenSettings {
         if (a == null) return LockScreenSettings()
@@ -20,6 +21,7 @@ object LockScreenCodec {
             glassClock = a.optBoolean("glassClock", true), showDate = a.optBoolean("showDate", true),
             showBattery = a.optBoolean("showBattery", true), showAlarm = a.optBoolean("showAlarm", true),
             notificationCount = a.optBoolean("notificationCount", false), wallpaper = a.optInt("wallpaper", -1),
-            dim = a.optDouble("dim", .18).toFloat(), immersive = a.optBoolean("immersive", false)).sanitized()
+            dim = a.optDouble("dim", .18).toFloat(), immersive = a.optBoolean("immersive", false),
+            showSystemUnlock = a.optBoolean("showSystemUnlock", false)).sanitized()
     }
 }

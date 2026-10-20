@@ -55,8 +55,13 @@ fun LockScreenSettingsPage(a: Appearance, onAppearance: (Appearance) -> Unit, on
         }
         IosDivider()
         IosRow("Full-screen preview", onClick = { LockScreenActivity.preview(context, a) })
+        IosDivider()
+        IosToggleRow("Fingerprint shortcut", options.showSystemUnlock, modifier = Modifier.testTag("lock_fingerprint_option")) {
+            change(options.copy(showSystemUnlock = it))
+        }
     }
     LockFootnote(error ?: "Optional and off by default. Android / GrapheneOS keeps your PIN, password, fingerprint and security features. Vitreo never reads or stores your credentials.")
+    LockFootnote("Fingerprint shortcut is optional and hidden by default. It opens the real Android lock screen, where GrapheneOS decides whether fingerprint or a PIN is available. Hiding it keeps swipe and PIN unlock available.")
     if (error != null) IosGroup {
         IosRow("Choose default launcher", onClick = onSetHome); IosDivider()
         IosRow("Android security settings", onClick = { runCatching { context.startActivity(Intent(Settings.ACTION_SECURITY_SETTINGS)) } })
@@ -112,7 +117,7 @@ fun LockScreenSettingsPage(a: Appearance, onAppearance: (Appearance) -> Unit, on
     }
     LockFootnote("The indicator uses the notification access already enabled in Status Bar & Notifications. Names, message text, artwork and actions remain hidden until you unlock. Third-party widgets are kept on Home and Today to protect private content.")
     IosSectionLabel("Pixel & GrapheneOS")
-    LockFootnote("Use Vitreo as your default Home and keep a secure Android lock enabled. The surface is prepared when you turn the display off after Android locks. Swipe up or tap Unlock to use Android authentication. The lock button, Back and Emergency always give you a route to the system screen.")
+    LockFootnote("Use Vitreo as your default Home and keep a secure Android lock enabled. The surface is prepared when you turn the display off after Android locks. Swipe up in the central clock / widget area or tap Use PIN or password to use Android authentication. The bottom edge stays free for Android gestures. The lock button, Back and Emergency always give you a route to the system screen.")
     LockFootnote("After a restart, if Android stops Vitreo, during delayed locking, or while another app needs the lock screen, Android's native screen remains available. No Google Play services, overlay, accessibility or device-admin access is needed. Activation stays on this device and is never enabled by importing a backup.")
     Spacer(Modifier.height(24.dp))
 }

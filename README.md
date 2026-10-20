@@ -159,9 +159,12 @@ thumbnails, dimming and accessory switches. Cyberpunk has Classic and optional I
 It is **off by default** and requires Vitreo to be the default Home and an Android
 PIN, password or pattern to be configured.
 
-This is a visual surface over Android's secure keyguard. Swipe up or tap Unlock
-to request **Android / GrapheneOS authentication**; Vitreo never handles credentials.
-System / Emergency and Back return to Android's screen. Secure camera uses the
+This is a visual surface over Android's secure keyguard. Swipe up in the central
+clock / accessories area or tap **Use PIN or password** to request **Android / GrapheneOS authentication**; Vitreo never handles credentials.
+**Fingerprint shortcut** is optional and hidden by default. Enable it to show
+**System unlock**, which reveals Android's real keyguard and fingerprint UI when
+its policy permits it; it does not start a second app-authentication session.
+System / Emergency and Back also return to Android's screen. Secure camera uses the
 secure-camera intent. Notification contents and third-party widgets are not
 exposed on this surface. No Google Play services or additional permissions are needed.
 
