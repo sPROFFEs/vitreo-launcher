@@ -87,7 +87,8 @@ class PublishTests(unittest.TestCase):
         self.info = {"versionName":"0.1.0", "versionCode":100, "commit":self.commit, "buildType":"release",
             "applicationId":"dev.vitreo.launcher", "apk":"vitreo-0.1.0-release.apk", "apkSha256":"b"*64, "signingCertificateSha256":"c"*64}
         self.info["deviceTests"] = [{"api": api, "commit": self.commit, "status": "passed",
-            "debugTestsPassed": 3, "optimizedPreviewStarted": True} for api in (31, 35)]
+            "debugTestsPassed": 5, "optimizedPreviewStarted": True,
+            "debugTestPhases": {"application": 1, "systemHome": 2, "systemLock": 2}} for api in (31, 35)]
         for name in (self.info["apk"], "signing-certificate.txt"):
             (self.dist/name).write_text("fake fixture, not an APK")
         self.info["apkSha256"] = hashlib.sha256((self.dist/self.info["apk"]).read_bytes()).hexdigest()

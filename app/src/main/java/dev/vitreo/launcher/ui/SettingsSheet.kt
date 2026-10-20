@@ -20,8 +20,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionOnScreen
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
@@ -34,6 +36,7 @@ import dev.vitreo.launcher.core.HomeEntry
 import dev.vitreo.launcher.core.MIN_ICON_SIZE
 import dev.vitreo.launcher.core.MAX_ICON_SIZE
 import dev.vitreo.launcher.graphics.WallpaperStore
+import dev.vitreo.launcher.graphics.HomeBackground
 import dev.vitreo.launcher.graphics.GlassDiagnostics
 import dev.vitreo.launcher.graphics.Viewport
 import kotlinx.coroutines.Dispatchers
@@ -42,7 +45,7 @@ import kotlin.math.roundToInt
 
 private enum class SettingsPage(val title: String) {
     Root("Settings"), Home("Home Screen"), Wallpaper("Wallpaper"), Glass("Motion & Glass"),
-    Backup("Layout & Backup"), About("About Vitreo"), Themes("Themes & Icons"), Controls("Control Center")
+    Backup("Layout & Backup"), About("About Vitreo"), Themes("Themes & Icons"), Controls("Control Center"), Lock("Lock Screen")
 }
 
 @Composable
@@ -99,6 +102,7 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                             IosRow("Themes & Icons", if (a.themePreset == 1) "Cyberpunk" else "iOS") { page = SettingsPage.Themes }; IosDivider()
                             IosRow("Home Screen", "Icons & appearance") { page = SettingsPage.Home }; IosDivider()
                             IosRow("Wallpaper", if (a.usePhoto) "Photo" else "Collection") { page = SettingsPage.Wallpaper }; IosDivider()
+                            IosRow("Lock Screen", "Optional") { page = SettingsPage.Lock }; IosDivider()
                             IosRow("Motion & Glass") { page = SettingsPage.Glass }; IosDivider()
                             IosRow("Control Center", if (a.controlCenter) "On" else "Off") { page = SettingsPage.Controls }; IosDivider()
                             IosRow("Status Bar & Notifications") { page = SettingsPage.Controls }; IosDivider()
@@ -149,6 +153,7 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                         }
                         SettingsFootnote("Press and hold an app to rearrange Home, create folders or move apps to the dock.")
                     }
+                    SettingsPage.Lock -> LockScreenSettingsPage(a, onAppearance, onSetHome)
                     SettingsPage.Controls -> {
                         IosSectionLabel("Access")
                         IosGroup {
@@ -279,10 +284,18 @@ private fun SettingsSlider(title: String, value: Float, detail: String, range: C
 private fun HomeAppearancePreview(ui: LauncherViewModel.UiState) {
     val apps = remember(ui.apps) { ui.apps.associateBy { it.id } }
     val frame = LocalGlass.current.frame
-    Box(Modifier.fillMaxWidth().height(125.dp).clip(RoundedCornerShape(26.dp))) {
-        frame?.let { Image(it.sharp.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .2f)))
-        if (LocalCyber.current) CyberBackdrop(ui.layout.appearance.usePhoto, Modifier.fillMaxSize())
+    val a = ui.layout.appearance
+    val density = LocalDensity.current.density
+    var size by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
+    val backdrop by produceState<android.graphics.Bitmap?>(null, frame, a.wallpaperDim, a.themePreset, size, density) {
+        val source = frame
+        kotlinx.coroutines.delay(64)
+        if (source != null && size.width > 0 && size.height > 0)
+            value = withContext(Dispatchers.Default) { HomeBackground.render(source, a, size.width, size.height, density) }
+    }
+    Box(Modifier.fillMaxWidth().height(125.dp).clip(RoundedCornerShape(26.dp))
+        .background(Color(0xff101b2b)).onSizeChanged { size = it }) {
+        backdrop?.let { Image(it.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
         Row(Modifier.fillMaxSize().padding(horizontal = 14.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
             ui.apps.take(4).forEach { app ->
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {

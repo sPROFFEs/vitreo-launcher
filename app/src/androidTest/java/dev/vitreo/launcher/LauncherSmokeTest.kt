@@ -146,6 +146,53 @@ class LauncherSmokeTest {
         .map { it.config[SemanticsProperties.TestTag] }
 
 
+    @Test fun lockEditorAndBothPreviewsKeepActivationOffAndNeverAuthenticate() {
+        awaitReady()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val original = model.ui.value.layout.appearance
+        val context = compose.activity
+        assertTrue(!dev.vitreo.launcher.lock.LockScreenRuntime.enabled.value)
+        try {
+            openSettings()
+            compose.onNodeWithText("Lock Screen").performScrollTo().performClick()
+            compose.onNodeWithTag("lock_enable").assertIsOff()
+            compose.onNodeWithText("Cyberpunk", substring = false).performScrollTo().performClick()
+            assertEquals(2, model.ui.value.layout.appearance.lockScreen.theme)
+            compose.onNodeWithText("iOS", substring = false).performClick()
+            assertEquals(1, model.ui.value.layout.appearance.lockScreen.theme)
+            compose.onNodeWithTag("lock_enable").assertIsOff()
+            returnHome()
+            listOf("lock-ios" to 1, "lock-cyber" to 2, "lock-large-clock" to 1).forEach { (name, theme) ->
+                compose.runOnUiThread {
+                    dev.vitreo.launcher.lock.LockScreenActivity.preview(context, original.copy(lockScreen =
+                        dev.vitreo.launcher.core.LockScreenSettings(theme = theme, clockSize = if (name == "lock-large-clock") 132f else 104f,
+                            clockStyle = if (name == "lock-large-clock") 2 else 0, wallpaper = if (theme == 2) 5 else -1)))
+                }
+                compose.waitUntil(15_000) { compose.onAllNodesWithTag("lock_screen").fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty() }
+                compose.waitUntil(15_000) { compose.onAllNodesWithTag("lock_wallpaper").fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty() }
+                compose.onNodeWithTag("lock_clock").assertIsDisplayed()
+                if (theme == 2) compose.onNodeWithText("IDENTITY VERIFICATION // ANDROID").assertIsDisplayed()
+                else compose.onNodeWithText("IDENTITY VERIFICATION // ANDROID").assertDoesNotExist()
+                val layouts = mutableListOf<TextLayoutResult>()
+                compose.onNodeWithTag("lock_clock").performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+                val image = compose.onNodeWithTag("lock_screen").captureToImage().asAndroidBitmap()
+                val directory = checkNotNull(context.getExternalFilesDir("review")); check(directory.exists() || directory.mkdirs())
+                File(directory, "$name.png").outputStream().use { assertTrue(image.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+                assertTrue("$name clock must fit: " + layouts.joinToString { "size=${it.size}, constraints=${it.layoutInput.constraints}, font=${it.layoutInput.style.fontSize}, lineHeight=${it.layoutInput.style.lineHeight}, widthOverflow=${it.didOverflowWidth}, heightOverflow=${it.didOverflowHeight}" },
+                    layouts.isNotEmpty() && layouts.none { it.didOverflowWidth || it.didOverflowHeight })
+                compose.onNodeWithTag("lock_unlock").performClick()
+                compose.onNodeWithTag("lock_message").assertTextEquals("Preview only. Android handles real authentication.")
+                assertTrue(!dev.vitreo.launcher.lock.LockScreenRuntime.enabled.value)
+                if (name == "lock-ios") returnHome() // Reopening a retained preview must use the new style.
+                else compose.onNodeWithTag("lock_close").performClick()
+                awaitReady()
+            }
+        } finally {
+            returnHome()
+            compose.runOnUiThread { model.appearance(original) }
+        }
+    }
+
     private fun returnHome() {
         val delivered = java.util.UUID.randomUUID().toString()
         val marker = "dev.vitreo.launcher.test.HOME_DELIVERY"

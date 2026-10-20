@@ -5,7 +5,9 @@ opt-in; existing layouts and older backups continue to use iOS by default.
 
 The native HUD uses dark panels, red borders, cyan details, cut corners, a static
 grid background and Rajdhani typography. Clock and Calendar use real local time
-and date. A selected photo is retained under a dark overlay. Home, Dock, folders,
+and date. Photos and built-in wallpapers use **Settings → Wallpaper → Dim wallpaper**
+in both Classic and Immersive / Neon city. Since 0.6.0, there is no opaque or fixed
+dark overlay hiding that adjustment. Home, Dock, folders,
 App Library, context menus, Search, controls and Settings share this treatment.
 Native Android widgets keep their provider content and their bounded host.
 

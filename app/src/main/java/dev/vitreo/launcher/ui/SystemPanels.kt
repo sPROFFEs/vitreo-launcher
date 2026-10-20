@@ -50,7 +50,7 @@ private data class StatusSnapshot(val battery: Int = -1, val charging: Boolean =
     val wifi: Boolean = false, val cellular: Boolean = false, val connected: Boolean = false)
 
 @Composable
-internal fun HomeStatusBar(now: Long, modifier: Modifier = Modifier, onNotices: (() -> Unit)?, onControls: (() -> Unit)?) {
+internal fun HomeStatusBar(now: Long, modifier: Modifier = Modifier, onNotices: (() -> Unit)?, onControls: (() -> Unit)?, locked: Boolean = false) {
     val context = LocalContext.current
     var state by remember(context) {
         val battery = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
@@ -86,7 +86,8 @@ internal fun HomeStatusBar(now: Long, modifier: Modifier = Modifier, onNotices: 
     val ink = LocalGlassContentColor.current
     Row(modifier.fillMaxWidth().testTag("home_status_bar").padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.weight(1f).fillMaxHeight().then(if (onNotices != null) Modifier.clickable(onClick = onNotices) else Modifier), contentAlignment = Alignment.CenterStart) {
-            Text(SimpleDateFormat(if (DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm", Locale.getDefault()).format(Date(now)), color = ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            if (locked) ControlSymbol(Icons.Outlined.Lock, "Device locked", Modifier.size(17.dp), ink)
+            else Text(SimpleDateFormat(if (DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm", Locale.getDefault()).format(Date(now)), color = ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         }
         Row(Modifier.fillMaxHeight().then(if (onControls != null) Modifier.clickable(onClick = onControls) else Modifier)
             .semantics { contentDescription = "${if (state.wifi) "Wi-Fi" else if (state.cellular) "Mobile network" else "No active network"}, ${if (state.connected) "connected" else "offline"}. Battery ${state.battery}%${if (state.charging) ", charging" else ""}" },

@@ -24,6 +24,7 @@ object StateCodec {
             put("dock", JSONArray(s.dock))
             put("knownApps", JSONArray(s.knownApps.sorted()))
             put("appearance", JSONObject().apply {
+                put("lockScreen", LockScreenCodec.encode(s.appearance.lockScreen))
                 put("iconSize", s.appearance.iconSize.toDouble())
                 put("showLabels", s.appearance.showLabels)
                 put("refraction", s.appearance.refraction.toDouble())
@@ -87,6 +88,7 @@ object StateCodec {
             dock = strings(root.getJSONArray("dock"), DOCK_SLOTS),
             knownApps = strings(root.optJSONArray("knownApps") ?: JSONArray(), MAX_ITEMS * 4).toSet(),
             appearance = Appearance(
+                lockScreen = LockScreenCodec.decode(a.optJSONObject("lockScreen")),
                 iconSize = a.optDouble("iconSize", 60.0).toFloat(),
                 showLabels = a.optBoolean("showLabels", true),
                 refraction = a.optDouble("refraction", .65).toFloat(),

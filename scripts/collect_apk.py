@@ -12,7 +12,7 @@ import subprocess
 from datetime import datetime, timezone
 from release_common import ROOT, read_version
 from release_validation import device_evidence, validate_assets
-from manifest_policy import PERMISSIONS, validate_apk_services
+from manifest_policy import validate_apk_lock_activity, PERMISSIONS, validate_apk_services
 
 def command(*args: str) -> str:
     return subprocess.check_output(args, text=True, stderr=subprocess.STDOUT)
@@ -43,7 +43,9 @@ def main() -> None:
     allowed = PERMISSIONS | {expected_id + ".DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"}
     if set(requested) - allowed:
         raise RuntimeError(f"Unexpected APK permissions: {sorted(set(requested) - allowed)}")
-    validate_apk_services(command(str(tools / "aapt"), "dump", "xmltree", str(apk), "AndroidManifest.xml"))
+    manifest_tree = command(str(tools / "aapt"), "dump", "xmltree", str(apk), "AndroidManifest.xml")
+    validate_apk_services(manifest_tree)
+    validate_apk_lock_activity(manifest_tree, expected_id)
     certificate = command(str(tools / "apksigner"), "verify", "--verbose", "--print-certs", str(apk))
     fingerprint = re.search(r"Signer #1 certificate SHA-256 digest: ([0-9a-fA-F]+)", certificate)
     if not fingerprint:

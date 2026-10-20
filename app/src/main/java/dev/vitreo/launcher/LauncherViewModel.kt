@@ -190,6 +190,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         if (!_ui.value.ready) return
         val old = _ui.value.layout
         val state = next.sanitized()
+        if (old.appearance != state.appearance && dev.vitreo.launcher.lock.LockScreenRuntime.enabled.value)
+            dev.vitreo.launcher.lock.LockScreenRuntime.configure(state.appearance)
         _ui.value = _ui.value.copy(layout = state)
         saves.trySend(state)
         if (preparedWallpaper != null) {

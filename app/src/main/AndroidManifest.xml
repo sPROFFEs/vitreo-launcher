@@ -32,6 +32,10 @@
         <action android:name="android.service.notification.NotificationListenerService" />
       </intent-filter>
     </service>
+    <activity android:name=".lock.LockScreenActivity"
+        android:exported="false" android:launchMode="singleTask"
+        android:taskAffinity="${applicationId}.lock" android:excludeFromRecents="true"
+        android:enableOnBackInvokedCallback="true" android:theme="@style/Theme.Vitreo.Lock" />
     <activity
         android:name=".MainActivity"
         android:exported="true"

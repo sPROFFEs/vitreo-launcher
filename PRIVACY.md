@@ -93,3 +93,24 @@ realizan peticiones. Los efectos ambientales de Cyberpunk Immersive se dibujan
 localmente mientras Home está visible y con foco. Se detienen al salir, activar
 Reducir movimiento o entrar en ahorro de batería. Android recibe la misma imagen
 estática base; no se añade servicio de fondo ni de wallpaper animado.
+
+## Pantalla de bloqueo opcional
+
+Desactivada por defecto. La activación se guarda exclusivamente en preferencias
+privadas del dispositivo y no entra en la copia JSON. El estilo sí se puede copiar.
+La actividad no se exporta, usa una tarea independiente que no aparece en Recientes,
+y en uso real impide capturas con FLAG_SECURE. La vista previa permite capturas.
+
+Android / GrapheneOS mantiene el bloqueo y comprueba las credenciales mediante
+KeyguardManager.requestDismissKeyguard. Vitreo no solicita, intercepta, guarda ni
+valida PIN, contraseñas o biometría. No deshabilita el keyguard ni modifica el
+wallpaper de bloqueo del sistema. Emergency y Back devuelven la pantalla nativa.
+La cámara se abre únicamente con el intent de cámara segura. La linterna usa la
+API pública sin capturar imágenes. Los mensajes, nombres de apps, acciones y
+carátulas no se muestran; el indicador opcional solo señala que hay notificaciones,
+si ya autorizaste esa integración en ajustes.
+
+No añade permisos, servicio persistente, acceso a accesibilidad, superposición,
+administrador del dispositivo, receptor de arranque ni dependencia de Google.
+Solo prepara la superficie con el display apagado y el bloqueo seguro activo;
+si el proceso deja de estar disponible, Android muestra su pantalla nativa.

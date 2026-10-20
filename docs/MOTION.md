@@ -100,3 +100,22 @@ a 60/120 fps guarantee on a phone. Physical checks on Pixel/Samsung should inclu
 slow drags, quick reversals, repeated app switches, large text, Battery Saver and
 Reduce Motion. Android owns task/Recents animations; a normal HOME activity cannot
 reproduce private SpringBoard/Quickstep behavior across other apps' windows.
+
+## Lock surface (0.6.0)
+
+The lower gesture surface stays fixed in screen coordinates while the clock and
+accessories follow the finger. Drag state is stored in dp; translation is applied
+in a graphics layer. This avoids feeding the moving content's coordinates back
+into its own gesture. The backdrop scales slightly without re-rendering its bitmap.
+Commit needs 112 dp, or at least 48 dp with 850 dp/s upward velocity. Cancellation
+springs from the current position with critical damping; commitment gives one
+system-respecting haptic and requests Android authentication.
+
+On wake, a bounded, critically damped reveal fades the prepared wallpaper and
+brings the clock in by 16 dp. It waits for a prepared backdrop. Wallpaper changes
+in the editor coalesce for 64 ms before rendering and crossfade for 180 ms; clock
+color transitions use the same duration. These animations have an immediate path
+for Reduce Motion / Battery Saver. Cyberpunk ambient effects reuse the existing
+single draw-phase clock and stop when hidden, unfocused or the display is off.
+The credential prompt and successful unlock transition belong to Android; no app
+animation tries to imitate, cover or bypass its authentication UI.

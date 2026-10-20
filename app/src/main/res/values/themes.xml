@@ -12,5 +12,10 @@
     <item name="android:windowSplashScreenBackground">#101B2B</item>
     <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_vitreo</item>
   </style>
+  <style name="Theme.Vitreo.Lock" parent="Theme.Vitreo">
+    <item name="android:windowShowWallpaper">false</item>
+    <item name="android:windowBackground">#101B2B</item>
+    <item name="android:windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+  </style>
   <color name="icon_background">#101B2B</color>
 </resources>

@@ -1,5 +1,17 @@
 # Cambios
 
+## 0.6.0
+
+- Fixed wallpaper dimming in Cyberpunk Classic and Immersive / Neon city. Both now use the same exposure slider as iOS for photos and all presets, without an extra fixed dark layer. Home, Android Home synchronization, lock previews and appearance previews share the renderer.
+
+- Optional lock-screen surface for iOS and Cyberpunk, off by default. Requires default Home and an existing secure Android lock; designed around Pixel / GrapheneOS public APIs without Google Play services.
+- Real Android keyguard authentication: incorrect credentials and cancellation keep the device locked. No app-managed PIN, biometric database, overlay, accessibility or persistent foreground service.
+- Clock editor with three weights, bounded size, glass lettering and colors; follow Home or choose an independent built-in wallpaper and dimming. Preview does not activate the surface.
+- Battery and next-alarm accessories, secure camera, flashlight and a direct return to Android's system / emergency screen. Private notification content and third-party widgets stay hidden.
+- Cyberpunk Classic and opt-in Immersive HUD ambience; lifecycle, screen power, Battery Saver and Reduce Motion pause animation work.
+- Separate task, no Recents entry, screenshots protected in real use, activation excluded from portable backups. Native keyguard remains the fallback after reboot, process death or delayed locking.
+- Isolated secure-emulator phase tests actual PIN rejection/authentication, gesture cancellation, returning to the previous app and disabling the surface without dismissing keyguard. Source and APK checks enforce its private activity contract.
+
 ## 0.5.4
 
 - Optional Home status bar and Notification Center with independently configurable gesture zones. Android SystemUI remains in other apps.

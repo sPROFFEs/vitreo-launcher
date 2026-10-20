@@ -55,8 +55,10 @@ data class Appearance(
     val homeBrightness: Float = -1f,
     val todaySections: List<String> = DEFAULT_TODAY_SECTIONS,
     val hiddenTodaySections: Set<String> = emptySet(),
+    val lockScreen: LockScreenSettings = LockScreenSettings(),
 ) {
     fun sanitized() = copy(
+        lockScreen = lockScreen.sanitized(),
         iconSize = if (iconSize.isFinite()) iconSize.coerceIn(MIN_ICON_SIZE, MAX_ICON_SIZE) else 60f,
         refraction = if (refraction.isFinite()) refraction.coerceIn(0f, 1f) else .65f,
         frost = if (frost.isFinite()) frost.coerceIn(0f, 1f) else .38f,

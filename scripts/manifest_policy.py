@@ -12,6 +12,17 @@ def validate_source(manifest):
     requested = {p.get(ANDROID + "name") for p in manifest.findall("uses-permission")}
     if requested != PERMISSIONS:
         raise RuntimeError(f"Unexpected permission set: {requested}")
+    locks = [a for a in manifest.findall("application/activity")
+             if a.get(ANDROID + "name") in {".lock.LockScreenActivity", "dev.vitreo.launcher.lock.LockScreenActivity"}]
+    if len(locks) != 1:
+        raise RuntimeError("Exactly one private lock-screen activity is required.")
+    lock = locks[0]
+    if (lock.get(ANDROID + "exported") != "false" or lock.findall("intent-filter")
+            or lock.get(ANDROID + "excludeFromRecents") != "true"
+            or lock.get(ANDROID + "taskAffinity") != "${applicationId}.lock"
+            or lock.get(ANDROID + "turnScreenOn") == "true"
+            or lock.get(ANDROID + "directBootAware") == "true"):
+        raise RuntimeError("Lock surface must be private, separate from HOME, excluded from Recents and never wake the screen.")
     services = manifest.findall("application/service")
     if len(services) != 1:
         raise RuntimeError("Only the optional system-bound notification listener is allowed.")
@@ -36,3 +47,19 @@ def validate_apk_services(tree):
         raise RuntimeError("APK notification listener must not be exported.")
     if "foregroundServiceType" in service:
         raise RuntimeError("No foreground service is authorized.")
+
+
+def validate_apk_lock_activity(tree, application_id="dev.vitreo.launcher"):
+    activities = [m.group(0) for m in re.finditer(r"(?ms)^(?P<indent> +)E: activity\b.*?(?=^(?P=indent)E:|\Z)", tree)]
+    locks = [a for a in activities if '="dev.vitreo.launcher.lock.LockScreenActivity"' in a]
+    if len(locks) != 1:
+        raise RuntimeError("APK must contain exactly one private lock-screen activity.")
+    lock = locks[0]
+    for attribute, value in (("exported", "0x0"), ("excludeFromRecents", "0xffffffff")):
+        if not re.search(rf"android:{attribute}\([^\n]*\)=\(type 0x12\){value}\b", lock):
+            raise RuntimeError(f"APK lock-screen contract failed: {attribute}")
+    if 'intent-filter' in lock or f'="{application_id}.lock"' not in lock:
+        raise RuntimeError("APK lock surface must use its own task and expose no intent filter.")
+    for attribute in ("turnScreenOn", "directBootAware"):
+        if re.search(rf"android:{attribute}\([^\n]*\)=\(type 0x12\)0xffffffff\b", lock):
+            raise RuntimeError("APK lock surface must not wake or run before first unlock.")

@@ -17,6 +17,12 @@ def device_evidence(directory: Path, commit: str) -> list[dict]:
             raise ValueError("Device evidence must pass at the exact source commit.")
         if value.get("debugTestsPassed", 0) < 1 or value.get("optimizedPreviewStarted") is not True:
             raise ValueError("Missing executed instrumentation or optimized APK smoke test.")
+        phases = value.get("debugTestPhases", {})
+        if (type(phases) is not dict or set(phases) != {"application", "systemHome", "systemLock"}
+                or any(type(v) is not int or v < 1 for v in phases.values())
+                or phases["systemHome"] != 2 or phases["systemLock"] != 2
+                or sum(phases.values()) != value["debugTestsPassed"]):
+            raise ValueError("Complete app, real Home and secure keyguard phases are required.")
         records.append(value)
     if len(records) != len(REQUIRED_APIS) or {v.get("api") for v in records} != REQUIRED_APIS:
         raise ValueError("Passing device evidence is required for API 31 and 35, exactly once each.")

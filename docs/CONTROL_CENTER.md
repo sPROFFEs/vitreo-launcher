@@ -26,7 +26,7 @@ Saver also reduces effects. No per-frame wallpaper capture or bitmap blur is use
 bar handling in Vitreo's window. Android still owns the physical top edge: a swipe
 from that edge reveals its transient bar. Other apps, the lock screen, Recents,
 system navigation and security prompts retain Android's UI. No root, overlay or
-accessibility service is installed. This is not an iOS lock screen.
+accessibility service is installed. The independently optional [lock surface](LOCK_SCREEN.md) also retains Android authentication.
 
 The custom bar shows device time, battery percentage/charging and the validated
 active network. Wi-Fi indicates a Wi-Fi connection, not measured strength; M

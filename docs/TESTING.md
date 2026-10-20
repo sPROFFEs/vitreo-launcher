@@ -146,3 +146,24 @@ panels and cancellation/flick thresholds. Codec tests verify off-by-default
 migration, backup round trips and clamped gesture preferences. Python manifest
 checks reject exported/unprotected listeners, extra services and extra permissions;
 APK collection independently checks the compiled listener contract.
+
+## Optional lock surface (0.6.0)
+
+Wallpaper regression checks measure actual rendered pixels at 0%, 30% and 60%
+dim for both Cyberpunk experiences, photos and all six palette selections. Check
+the slider visually on Classic and Immersive / Neon city; their wallpaper should
+respond immediately, retain the setting across theme changes and match Android
+Home when synchronization is enabled. iOS uses the unchanged exposure path.
+
+See [Lock screen / GrapheneOS](LOCK_SCREEN.md) for setup and boundaries. CI runs
+secure keyguard tests **after** the app, optimized Preview and real HOME checks,
+in a separate instrumentation process. It refuses physical devices and existing
+credentials, sets a disposable PIN, and restores PIN/HOME/lock timing afterwards.
+The release requires both tests in this phase on both APIs and exact accounting
+of all three native phases. A missing, skipped or incomplete phase blocks release.
+
+Physical Pixel / GrapheneOS checks must include fingerprint, PIN/passphrase,
+lockdown, secondary PIN if enabled, cold boot, switching users, incoming calls,
+secure camera and its return, System / Emergency, process death, delayed locking,
+Battery Saver and large text. Always retain Android's native lock and system
+launcher. No physical GrapheneOS result is claimed by emulator CI.

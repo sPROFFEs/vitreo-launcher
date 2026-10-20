@@ -114,7 +114,8 @@ class DeviceEvidenceTests(unittest.TestCase):
         self.commit = "a"*40
     def write(self, api, **overrides):
         path = self.root/str(api); path.mkdir(exist_ok=True)
-        value = dict(api=api, commit=self.commit, status="passed", debugTestsPassed=4, optimizedPreviewStarted=True)
+        value = dict(api=api, commit=self.commit, status="passed", debugTestsPassed=5, optimizedPreviewStarted=True,
+                     debugTestPhases={"application": 1, "systemHome": 2, "systemLock": 2})
         value.update(overrides)
         (path/"smoke-result.json").write_text(json.dumps(value))
     def test_matching_matrix(self):
@@ -142,6 +143,15 @@ class DeviceEvidenceTests(unittest.TestCase):
         duplicate=self.root/"duplicate"; duplicate.mkdir()
         (duplicate/"smoke-result.json").write_text((self.root/"31/smoke-result.json").read_text())
         with self.assertRaises(ValueError): device_evidence(self.root,self.commit)
+    def test_secure_keyguard_phase_and_exact_accounting_are_required(self):
+        for phases in ({}, {"application": 3, "systemHome": 2},
+                       {"application": 2, "systemHome": 2, "systemLock": 1},
+                       {"application": 2, "systemHome": 2, "systemLock": 2},
+                       {"application": True, "systemHome": 2, "systemLock": 2}):
+            with self.subTest(phases=phases):
+                self.write(31); self.write(35, debugTestPhases=phases)
+                with self.assertRaises(ValueError): device_evidence(self.root, self.commit)
+
     def test_junit_reports_required(self):
         with self.assertRaises(RuntimeError): passed_tests(self.root)
     def test_junit_failures_block_success(self):
@@ -200,6 +210,26 @@ class NativeScreenshotTests(unittest.TestCase):
                     patch("device_smoke.subprocess.Popen"), \
                     patch("device_smoke.subprocess.run", return_value=SimpleNamespace(returncode=0, stdout=output)):
                     with self.assertRaises(RuntimeError): run_instrumentation(system_home=True)
+
+    def test_secure_keyguard_phase_is_complete_and_keeps_previous_reports(self):
+        from test_instrumentation_results import transcript
+        from types import SimpleNamespace
+        from device_smoke import SYSTEM_LOCK_TEST
+        for output, passes in ((transcript().replace("example.Tests", SYSTEM_LOCK_TEST), True),
+                               (transcript(), False), (transcript((0,)).replace("example.Tests", SYSTEM_LOCK_TEST), False)):
+            with self.subTest(passes=passes), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                previous = root / "app/build/outputs/androidTest-results/connected/TEST-system-home.xml"
+                previous.parent.mkdir(parents=True); previous.write_text("prior evidence")
+                with patch("device_smoke.ROOT", root), patch("device_smoke.adb") as device, \
+                    patch("device_smoke.subprocess.Popen"), \
+                    patch("device_smoke.subprocess.run", return_value=SimpleNamespace(returncode=0, stdout=output)) as run:
+                    if passes: self.assertEqual(run_instrumentation(system_lock=True), 2)
+                    else:
+                        with self.assertRaises(RuntimeError): run_instrumentation(system_lock=True)
+                self.assertEqual(previous.read_text(), "prior evidence")
+                self.assertIn(SYSTEM_LOCK_TEST, run.call_args.args[0])
+                self.assertFalse(any(call.args[0] in ("install", "uninstall") for call in device.call_args_list))
 
     def test_file_transfer_preserves_binary_png_header(self):
         data = bytes([137,80,78,71,13,10,26,10,0,255,13,10])

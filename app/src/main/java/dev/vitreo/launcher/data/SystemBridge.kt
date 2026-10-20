@@ -25,7 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
 data class NoticeAction(val title: String, val intent: PendingIntent)
 data class Notice(val key: String, val packageName: String, val app: String, val title: String,
     val text: String, val time: Long, val clearable: Boolean, val intent: PendingIntent?,
-    val actions: List<NoticeAction> = emptyList())
+    val actions: List<NoticeAction> = emptyList(), val visibility: Int = Notification.VISIBILITY_PRIVATE)
 data class NowPlaying(val packageName: String = "", val title: String = "Not Playing", val artist: String = "",
     val artwork: Bitmap? = null, val playing: Boolean = false, val actions: Long = 0,
     val position: Long = 0, val duration: Long = 0, val updatedAt: Long = 0, val speed: Float = 0f) {
@@ -98,7 +98,7 @@ object SystemBridge {
                         n.actions.orEmpty().filter { it.remoteInputs.isNullOrEmpty() }.take(3).mapNotNull {
                             val intent = it.actionIntent ?: return@mapNotNull null
                             NoticeAction(it.title?.toString()?.take(80).orEmpty(), intent)
-                        })
+                        }, visibility = n.visibility)
                 }.toList()
         }.getOrDefault(emptyList())
         mutable.value = mutable.value.copy(notices = notices)

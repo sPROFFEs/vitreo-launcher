@@ -92,22 +92,6 @@ fun CyberPanel(modifier: Modifier = Modifier, content: @Composable BoxScope.() -
     }
 }
 
-@Composable
-fun CyberBackdrop(photo: Boolean, modifier: Modifier = Modifier) {
-    Canvas(modifier.testTag("cyber_backdrop")) {
-        drawRect(CyberColors.Background.copy(alpha = if (photo) .78f else 1f))
-        val step = 44.dp.toPx()
-        var x = 0f
-        while (x < size.width) { drawLine(CyberColors.Cyan.copy(alpha = .025f), Offset(x, 0f), Offset(x, size.height)); x += step }
-        var y = 0f
-        while (y < size.height) { drawLine(CyberColors.Cyan.copy(alpha = .025f), Offset(0f, y), Offset(size.width, y)); y += step }
-        val w = size.width; val h = size.height
-        drawLine(CyberColors.Red.copy(alpha = .3f), Offset(w * .7f, h * .08f), Offset(w * .94f, h * .08f), 1.dp.toPx())
-        drawLine(CyberColors.Red.copy(alpha = .3f), Offset(w * .94f, h * .08f), Offset(w, h * .08f + w * .06f), 1.dp.toPx())
-        drawLine(CyberColors.Cyan.copy(alpha = .18f), Offset(0f, h * .82f), Offset(w * .18f, h * .82f), 1.dp.toPx())
-    }
-}
-
 fun cyberArtwork(kind: String?): Int? = when (kind) {
     "phone" -> R.drawable.cyber_phone; "messages" -> R.drawable.cyber_messages
     "browser" -> R.drawable.cyber_browser; "camera" -> R.drawable.cyber_camera

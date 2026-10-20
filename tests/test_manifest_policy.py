@@ -4,7 +4,7 @@ import sys
 import unittest
 import xml.etree.ElementTree as ET
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from manifest_policy import validate_source, validate_apk_services, ANDROID, LISTENER, BIND, ACTION
+from manifest_policy import validate_source, validate_apk_services, ANDROID, LISTENER, BIND, ACTION, validate_apk_lock_activity
 
 class ManifestPolicyTests(unittest.TestCase):
     def setUp(self):
@@ -37,3 +37,23 @@ class ManifestPolicyTests(unittest.TestCase):
         validate_apk_services("\n".join("  " + line for line in tree.splitlines()))
         for bad in (tree.replace('0x12)0x0', '0x12)0xffffffff'), tree.replace(BIND, 'wrong'), tree.replace(ACTION, 'wrong'), tree + tree):
             with self.assertRaises(RuntimeError): validate_apk_services(bad)
+
+    def test_lock_activity_must_be_private_and_in_separate_task(self):
+        for attribute, value in (("exported", "true"), ("taskAffinity", ""), ("turnScreenOn", "true"), ("directBootAware", "true")):
+            manifest = copy.deepcopy(self.manifest)
+            manifest.find("application/activity").set(ANDROID + attribute, value)
+            with self.subTest(attribute=attribute), self.assertRaises(RuntimeError): validate_source(manifest)
+        ET.SubElement(self.manifest.find("application/activity"), "intent-filter")
+        with self.assertRaises(RuntimeError): validate_source(self.manifest)
+
+    def test_compiled_lock_contract(self):
+        tree = '''    E: activity (line=12)
+      A: android:name(0x01010003)="dev.vitreo.launcher.lock.LockScreenActivity"
+      A: android:taskAffinity(0x01010012)="dev.vitreo.launcher.lock"
+      A: android:exported(0x01010010)=(type 0x12)0x0
+      A: android:excludeFromRecents(0x01010017)=(type 0x12)0xffffffff
+    E: activity (line=15)
+'''
+        validate_apk_lock_activity(tree)
+        for bad in (tree.replace("0x12)0x0", "0x12)0xffffffff"), tree.replace("dev.vitreo.launcher.lock\"", "wrong\""), tree + tree):
+            with self.assertRaises(RuntimeError): validate_apk_lock_activity(bad)

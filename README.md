@@ -5,7 +5,7 @@ App Library, an optional Cyberpunk HUD theme and native Android widgets. Android
 no accounts, ads, analytics, root or accessibility service.
 
 [Download the signed APK](https://github.com/sPROFFEs/vitreo-launcher/releases/latest)
-· [Changes](CHANGELOG.md) · [Build](BUILDING.md) · [Privacy](PRIVACY.md)
+· [Lock screen / GrapheneOS](docs/LOCK_SCREEN.md) · [Changes](CHANGELOG.md) · [Build](BUILDING.md) · [Privacy](PRIVACY.md)
 
 <p>
   <img src="docs/screenshots/home.png" width="220" alt="Home screen with clock, calendar and glass dock">
@@ -113,6 +113,10 @@ select one separately to keep full control of your current photo. Ambient effect
 stop when Home is obscured or loses focus, and respect Reduce Motion/Battery Saver.
 iOS remains the default; changing theme keeps your layout.
 
+**Settings → Wallpaper → Dim wallpaper** controls brightness in both Classic and
+Immersive / Neon city, for photos and included wallpapers. There is no extra fixed
+dark layer in Cyberpunk; the setting also applies to Android Home synchronization.
+
 Select an installed ADW/Nova-compatible icon pack from the same page. To choose an
 alternate for one app, hold it and use **More → Change Icon**. **Current theme**
 contains the 23 built-in icons, so you can give any gallery app the Photos icon
@@ -138,8 +142,28 @@ Transparency uses opaque panels. Settings explains which mode is active. A textu
 wallpaper makes refraction easier to see. Vitreo does not use UIKit or capture other apps.
 
 Android controls cross-app transitions, Recents, notifications, the keyboard and
-lock screen. Vitreo coordinates its desktop and passes the tapped icon's bounds
+secure keyguard. Vitreo coordinates its desktop and passes the tapped icon's bounds
 to the system; it cannot replace iOS's compositor or Android's system launcher integration.
+
+## Optional lock screen
+
+**Settings → Lock Screen** provides iOS-inspired and Cyberpunk styles, a clock
+editor, glass lettering, independent wallpapers, battery/alarm widgets and a
+full-screen preview. Cyberpunk has Classic and optional Immersive HUD motion.
+It is **off by default** and requires Vitreo to be the default Home and an Android
+PIN, password or pattern to be configured.
+
+This is a visual surface over Android's secure keyguard. Swipe up or tap Unlock
+to request **Android / GrapheneOS authentication**; Vitreo never handles credentials.
+System / Emergency and Back return to Android's screen. Secure camera uses the
+secure-camera intent. Notification contents and third-party widgets are not
+exposed on this surface. No Google Play services or additional permissions are needed.
+
+Android retains its screen after reboot, process death or delayed locking. There
+is no persistent service to force the custom surface to appear. Activation stays
+on the device and is excluded from backups. See [setup, limitations and Pixel /
+GrapheneOS testing](docs/LOCK_SCREEN.md). Physical GrapheneOS biometric behavior
+requires device testing; emulator results are not a substitute.
 
 ## Development
 
