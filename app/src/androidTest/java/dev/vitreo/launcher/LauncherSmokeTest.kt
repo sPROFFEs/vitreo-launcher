@@ -172,6 +172,7 @@ class LauncherSmokeTest {
                 hasTestTag(tag) and hasAnyAncestor(hasTestTag("lock_editor")), useUnmergedTree = unmerged)
             editorNode("lock_clock_style:3").performScrollTo().performClick()
             editorNode("lock_editor_height").performSemanticsAction(SemanticsActions.SetProgress) { it(1.8f) }
+            compose.onNode(hasText("180% · or drag the clock's lower-right handle") and hasAnyAncestor(hasTestTag("lock_editor"))).assertIsDisplayed()
             assertEquals(beforeEditor, model.ui.value.layout.appearance.lockScreen) // Draft is isolated until Done.
             captureEvidence("lock-editor", "lock_editor")
             compose.onNodeWithTag("lock_editor_tab:1").performClick()

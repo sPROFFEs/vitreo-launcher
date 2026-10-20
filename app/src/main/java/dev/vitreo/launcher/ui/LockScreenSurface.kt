@@ -290,20 +290,33 @@ internal fun LockClock(now: Long, a: Appearance, modifier: Modifier) {
         val style = if (glass)
             typography(size).copy(brush = Brush.linearGradient(listOf(clockColor.copy(alpha = .75f), clockColor.copy(alpha = .28f), clockColor.copy(alpha = .62f))), shadow = shadow)
             else typography(size).copy(color = clockColor, shadow = shadow)
-        BasicText(time, style = style, maxLines = 1, softWrap = false, modifier = Modifier.fillMaxWidth()
+        // Scale one composed layer, so the glyph fill and its glass rim share geometry.
+        Box(Modifier.fillMaxWidth()
             .layout { measurable, constraints ->
                 val child = measurable.measure(constraints)
                 val stretch = if (cyber) 1f else options.clockHeight
                 val height = (child.height * stretch).roundToInt()
                 layout(child.width, height) { child.placeRelativeWithLayer(0, (height - child.height) / 2) { scaleY = stretch } }
-            }.then(if (glass) Modifier.drawWithCache {
+            }) {
+          BasicText(time, style = style, maxLines = 1, softWrap = false, modifier = Modifier.fillMaxWidth()
+            .then(if (glass) Modifier.drawWithCache {
                 val outline = measurer.measure(time, typography(size), maxLines = 1, softWrap = false,
                     constraints = androidx.compose.ui.unit.Constraints.fixedWidth(this.size.width.roundToInt()))
                 onDrawWithContent {
+                    // Filled glyph silhouettes avoid stroking the overlapping contours
+                    // inside bold/variable Android fonts (visible seams in 3, 4, etc.).
+                    val canvas = drawContext.canvas
+                    canvas.saveLayer(androidx.compose.ui.geometry.Rect(Offset.Zero, this.size), Paint())
+                    val edge = .55.dp.toPx()
+                    listOf(Offset(-edge, 0f), Offset(edge, 0f), Offset(0f, -edge), Offset(0f, edge)).forEach {
+                        drawText(outline, color = clockColor.copy(alpha = .6f), topLeft = it)
+                    }
+                    drawText(outline, color = Color.White, blendMode = BlendMode.DstOut)
+                    canvas.restore()
                     drawContent()
-                    drawText(outline, color = clockColor.copy(alpha = .65f), drawStyle = Stroke(.55.dp.toPx()))
                 }
             } else Modifier).testTag("lock_clock"))
+        }
     }
 }
 

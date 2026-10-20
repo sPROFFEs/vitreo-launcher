@@ -2,6 +2,8 @@
 
 ## 0.6.1
 
+- Build the glass clock rim from filled glyph silhouettes so stretched bold fonts have no internal contour seams. Verify the editor’s visible height readout before taking its capture.
+
 - Emulator preflight prevents a first-boot stock-launcher ANR and the immersive tutorial from covering native scenarios. Keep strict focus/assertion checks; save full window/ANR diagnostics and query the editable clock’s unmerged semantics for gesture geometry.
 
 - Full-screen Lock Screen editor with isolated drafts, Cancel / Done, six font designs, live colors, Glass / Solid lettering, wallpaper thumbnails, dim and accessory switches. Tap the clock or drag its corner to change vertical height; tall iOS clocks move accessories below. Settings remain behind Android authentication.
