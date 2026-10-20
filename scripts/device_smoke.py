@@ -137,7 +137,9 @@ def prepare_emulator_home() -> None:
     deadline = time.monotonic() + 20
     focused_since = None
     while True:
-        window = adb("shell", "dumpsys", "window", "windows")
+        # The "windows" subcommand omits mCurrentFocus on API 31/35.
+        # The complete dump includes the display focus section used by the UI suite.
+        window = adb("shell", "dumpsys", "window")
         focus = "\n".join(line for line in window.splitlines() if "mCurrentFocus" in line)
         if "Application Not Responding" in focus:
             raise RuntimeError("ANR blocks emulator UI after initial preparation: " + focus.strip())
@@ -409,7 +411,7 @@ def main() -> None:
             (output / "logcat.txt").write_text(adb("logcat", "-d", "-t", "3000"))
         except Exception as exc:
             (output / "logcat-unavailable.txt").write_text(type(exc).__name__)
-        for name, command in (("window.txt", ("dumpsys", "window", "windows")),
+        for name, command in (("window.txt", ("dumpsys", "window")),
                               ("last-anr.txt", ("dumpsys", "activity", "lastanr"))):
             try: (output / name).write_text(adb("shell", *command))
             except Exception as exc: (output / (name + ".unavailable")).write_text(type(exc).__name__)
