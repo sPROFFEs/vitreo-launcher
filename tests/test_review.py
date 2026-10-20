@@ -173,6 +173,7 @@ class NativeScreenshotTests(unittest.TestCase):
             for relative in ("app/build/outputs/apk/debug/app.apk", "app/build/outputs/apk/androidTest/debug/test.apk"):
                 file = root / relative; file.parent.mkdir(parents=True); file.write_bytes(b"fixture")
             with patch("device_smoke.ROOT", root), patch("device_smoke.adb") as device, \
+                patch("device_smoke.prepare_emulator_home"), \
                 patch("device_smoke.subprocess.Popen") as logging, \
                 patch("device_smoke.subprocess.run", return_value=SimpleNamespace(returncode=0, stdout=transcript())) as run:
                 self.assertEqual(run_instrumentation(), 2)

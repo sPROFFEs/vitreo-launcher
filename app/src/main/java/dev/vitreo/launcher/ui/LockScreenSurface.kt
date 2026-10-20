@@ -63,8 +63,10 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
     var interactive by remember { mutableStateOf(context.getSystemService(PowerManager::class.java).isInteractive) }
     var saving by remember { mutableStateOf(context.getSystemService(PowerManager::class.java).isPowerSaveMode) }
     var resumed by remember { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
-    var battery by remember { mutableIntStateOf(0) }
-    var charging by remember { mutableStateOf(false) }
+    val initialBattery = remember(context) { context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED)) }
+    var battery by remember { mutableIntStateOf(((initialBattery?.getIntExtra(BatteryManager.EXTRA_LEVEL, 0) ?: 0) * 100 /
+        (initialBattery?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100).coerceAtLeast(1)).coerceIn(0, 100)) }
+    var charging by remember { mutableStateOf((initialBattery?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0) != 0) }
     DisposableEffect(context, lifecycle) {
         val observer = LifecycleEventObserver { _, _ -> resumed = lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) }
         lifecycle.addObserver(observer)

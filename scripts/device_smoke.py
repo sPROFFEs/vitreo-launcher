@@ -112,6 +112,46 @@ def collect_native_screens(output: Path, names: list[str]) -> None:
         if not data.startswith(bytes([137, 80, 78, 71, 13, 10, 26, 10])):
             raise RuntimeError(f"Invalid native screenshot {name}: {len(data)} bytes; header {data[:16].hex()}.")
 
+def prepare_emulator_home() -> None:
+    """One clean stock Home start after APK-install broadcasts, before any test runs.
+
+    A first-boot Pixel Launcher ANR can otherwise cover every ActivityScenario.
+    Only known image launchers are restarted; any ANR after this reset fails fast.
+    Vitreo crashes, ANRs and failed tests are never dismissed or retried.
+    """
+    if adb("shell", "getprop", "ro.kernel.qemu").strip() != "1":
+        raise RuntimeError("Stock Home preparation requires a disposable emulator.")
+    component = None
+    for package in ("com.google.android.apps.nexuslauncher", "com.android.launcher3"):
+        resolved = adb("shell", "cmd", "package", "resolve-activity", "--brief", "-a", "android.intent.action.MAIN",
+            "-c", "android.intent.category.HOME", "-p", package)
+        component = next((line.strip() for line in resolved.splitlines()
+            if re.fullmatch(re.escape(package) + r"/[A-Za-z0-9_.$]+", line.strip())), None)
+        if component: break
+    if component is None:
+        raise RuntimeError("No known stock emulator Home activity was found.")
+    adb("shell", "am", "force-stop", component.split("/")[0])
+    start = adb("shell", "am", "start", "-W", "-n", component, "-a", "android.intent.action.MAIN", "-c", "android.intent.category.HOME")
+    if "Status: ok" not in start or "Error:" in start:
+        raise RuntimeError("Stock emulator Home failed its initial clean start.")
+    deadline = time.monotonic() + 20
+    focused_since = None
+    while True:
+        window = adb("shell", "dumpsys", "window", "windows")
+        focus = "\n".join(line for line in window.splitlines() if "mCurrentFocus" in line)
+        if "Application Not Responding" in focus:
+            raise RuntimeError("ANR blocks emulator UI after initial preparation: " + focus.strip())
+        now = time.monotonic()
+        if component.split("/")[0] + "/" in focus:
+            if focused_since is None: focused_since = now
+            if now - focused_since >= 1:
+                print("Stock emulator Home has stable focus; starting native tests.", flush=True)
+                return
+        else: focused_since = None
+        if now >= deadline:
+            raise RuntimeError("Stock emulator Home never gained stable focus: " + focus.strip())
+        time.sleep(.2)
+
 def run_instrumentation(system_home: bool = False, system_lock: bool = False) -> int:
     if system_home and system_lock: raise ValueError("Select only one isolated device phase.")
     # APKs are built once, then downloaded by both disposable emulator jobs.
@@ -120,6 +160,7 @@ def run_instrumentation(system_home: bool = False, system_lock: bool = False) ->
             apks = list((ROOT / directory).glob("*.apk"))
             if len(apks) != 1: raise RuntimeError(f"Expected one prebuilt APK in {directory}.")
             adb("install", "-r", "-t", str(apks[0]))
+        prepare_emulator_home()
     reports = ROOT / "app/build/outputs/androidTest-results/connected"
     reports.mkdir(parents=True, exist_ok=True)
     name = "system-lock" if system_lock else "system-home" if system_home else "instrumentation"
@@ -169,7 +210,11 @@ def main() -> None:
     output.mkdir(parents=True, exist_ok=True)
     result_path = output / "smoke-result.json"
     result_path.unlink(missing_ok=True)
+    immersive = adb("shell", "settings", "get", "secure", "immersive_mode_confirmations").strip()
     try:
+        # The system's one-time tutorial is tested by Android, not by this UI suite.
+        # Keep it from covering a full-screen Dialog or swallowing injected gestures.
+        adb("shell", "settings", "put", "secure", "immersive_mode_confirmations", "confirmed")
         fixtures = list((ROOT / "test-fixtures/uninstall-app/build/outputs/apk/debug").glob("*.apk"))
         if len(fixtures) != 1:
             raise RuntimeError("Build :uninstallFixture:assembleDebug before device smoke tests.")
@@ -346,6 +391,13 @@ def main() -> None:
             "nativeScreens": native_screens,
             "physicalGrapheneOsTested": False}, indent=2) + "\n")
     finally:
+        try:
+            if immersive in ("", "null"):
+                adb("shell", "settings", "delete", "secure", "immersive_mode_confirmations")
+            else:
+                adb("shell", "settings", "put", "secure", "immersive_mode_confirmations", immersive)
+        except Exception as exc:
+            (output / "immersive-restore-failed.txt").write_text(type(exc).__name__)
         if not result_path.exists():
             try:
                 # Failed instrumentation must retain the screens captured before
@@ -357,6 +409,10 @@ def main() -> None:
             (output / "logcat.txt").write_text(adb("logcat", "-d", "-t", "3000"))
         except Exception as exc:
             (output / "logcat-unavailable.txt").write_text(type(exc).__name__)
+        for name, command in (("window.txt", ("dumpsys", "window", "windows")),
+                              ("last-anr.txt", ("dumpsys", "activity", "lastanr"))):
+            try: (output / name).write_text(adb("shell", *command))
+            except Exception as exc: (output / (name + ".unavailable")).write_text(type(exc).__name__)
 
 if __name__ == "__main__":
     main()

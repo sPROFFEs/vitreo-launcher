@@ -144,7 +144,10 @@ internal fun LockScreenEditor(appearance: Appearance, onCancel: () -> Unit, onSa
 internal fun LockClockStylePicker(options: LockScreenSettings, cyber: Boolean, onChange: (LockScreenSettings) -> Unit) {
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf(if (cyber) "HUD" else "Rounded", "Light", "Bold", "Serif", "Mono", "Condensed").forEachIndexed { i, name ->
-            OutlinedButton(onClick = { onChange(options.copy(clockStyle = i)) }, modifier = Modifier.testTag("lock_clock_style:$i").semantics { selected = options.clockStyle == i }) {
+            OutlinedButton(onClick = { onChange(options.copy(clockStyle = i)) },
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = if (options.clockStyle == i) MaterialTheme.colorScheme.primary.copy(alpha = .18f) else Color.Transparent),
+                border = BorderStroke(if (options.clockStyle == i) 1.5.dp else 1.dp, if (options.clockStyle == i) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = .2f)),
+                modifier = Modifier.testTag("lock_clock_style:$i").semantics { selected = options.clockStyle == i }) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("12", fontSize = 24.sp, fontFamily = lockClockFont(cyber, i),
                         fontWeight = when (i) { 1 -> FontWeight.Light; 2 -> FontWeight.Bold; else -> FontWeight.Medium })

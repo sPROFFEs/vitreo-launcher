@@ -169,3 +169,5 @@ Battery Saver and large text. Always retain Android's native lock and system
 launcher. No physical GrapheneOS result is claimed by emulator CI.
 
 Lock customization evidence also includes the full-screen draft editor and Cyberpunk Home/status, Notification Center and Control Center. Native checks exercise Save / Cancel, height and font persistence without activation; the large-clock preview uses 210% vertical stretch.
+
+Before application tests, the disposable-emulator fixture confirms Android’s immersive tutorial and performs one clean start of the image’s stock Pixel Launcher / Launcher3 after APK-install broadcasts. It requires stable window focus; any subsequent ANR fails preflight. Product ANRs and failed tests are never dismissed or retried. The tutorial setting is restored, and full window / last-ANR diagnostics accompany logcat on failure. Physical devices and unknown launchers are rejected before the stock restart.

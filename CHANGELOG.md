@@ -2,6 +2,8 @@
 
 ## 0.6.1
 
+- Emulator preflight prevents a first-boot stock-launcher ANR and the immersive tutorial from covering native scenarios. Keep strict focus/assertion checks; save full window/ANR diagnostics and query the editable clock’s unmerged semantics for gesture geometry.
+
 - Full-screen Lock Screen editor with isolated drafts, Cancel / Done, six font designs, live colors, Glass / Solid lettering, wallpaper thumbnails, dim and accessory switches. Tap the clock or drag its corner to change vertical height; tall iOS clocks move accessories below. Settings remain behind Android authentication.
 - Refined iOS status geometry against visual references: two filled Wi-Fi bands and lower sector, compact rounded battery, solid lock and camera/flashlight controls. Power Saver uses a yellow battery. Cyberpunk retains its angular HUD symbols.
 
