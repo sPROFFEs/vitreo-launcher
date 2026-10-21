@@ -22,8 +22,8 @@ import kotlin.math.abs
 
 /** Motion roles adapted from Folio's MIT FolioTokens.kt (see third_party/folio/PROVENANCE.md). */
 object LauncherMotion {
-    fun <T> panel(cyber: Boolean = false) = spring<T>(dampingRatio = if (cyber) 1f else .9f, stiffness = if (cyber) 1000f else 380f)
-    fun <T> menu(cyber: Boolean = false) = spring<T>(dampingRatio = if (cyber) 1f else .78f, stiffness = if (cyber) 1200f else 650f)
+    fun <T> panel(cyber: Boolean = false) = spring<T>(dampingRatio = if (cyber) 1f else .9f, stiffness = if (cyber) 1000f else 460f)
+    fun <T> menu(cyber: Boolean = false) = spring<T>(dampingRatio = if (cyber) 1f else .9f, stiffness = if (cyber) 1200f else 620f)
     fun <T> close() = spring<T>(dampingRatio = 1f, stiffness = 700f)
 }
 
@@ -52,6 +52,7 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
     val density = LocalDensity.current.density
     val currentTarget by rememberUpdatedState(target)
     val currentOpening by rememberUpdatedState(openingProgress)
+    val reveal = remember { derivedStateOf { (fingerProgress ?: currentOpening ?: lastOpeningProgress ?: progress.value).coerceIn(0f, 1f) } }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
@@ -114,12 +115,12 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
                             start = progress.value
                             val openingTravel = when (style) {
                                 SurfaceKind.Search -> -65 * density
-                                SurfaceKind.Controls, SurfaceKind.Notifications -> -size.height * .58f
+                                SurfaceKind.Controls, SurfaceKind.Notifications -> -size.height * if (cyber) .58f else .18f
                                 else -> 0f
                             }
                             val closingTravel = when (style) {
                                 SurfaceKind.Search -> size.height * .22f
-                                SurfaceKind.Controls, SurfaceKind.Notifications -> -size.height * .58f
+                                SurfaceKind.Controls, SurfaceKind.Notifications -> -size.height * if (cyber) .58f else .18f
                                 else -> 0f
                             }
                             val previousBlend = if (start <= handoffProgress) start / handoffProgress.coerceAtLeast(.001f)
@@ -164,14 +165,14 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
             if (!reduced) {
                 val start = when (style) {
                     SurfaceKind.Folder -> if (cyber) .94f else .25f
-                    SurfaceKind.Category -> if (cyber) .97f else .72f
+                    SurfaceKind.Category -> if (cyber) .97f else .86f
                     else -> 1f
                 }
                 scaleX = start + (1f - start) * p; scaleY = scaleX
                 transformOrigin = if (style == SurfaceKind.Folder || style == SurfaceKind.Category) origin else TransformOrigin.Center
                 translationY = when (style) {
                     SurfaceKind.Search -> (1f - p) * if (dismissDown) size.height * .22f else -65 * density
-                    SurfaceKind.Controls, SurfaceKind.Notifications -> (1f - p) * size.height * -.58f
+                    SurfaceKind.Controls, SurfaceKind.Notifications -> (1f - p) * size.height * if (cyber) -.58f else -.18f
                     SurfaceKind.Page -> (1f - p) * size.height * .16f
                     else -> 0f
                 }
@@ -184,11 +185,13 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
                 }
             }
         }) {
+            CompositionLocalProvider(LocalSurfaceReveal provides reveal) {
             AnimatedContent(displayed, transitionSpec = {
                 if (reduced) fadeIn(tween(100)) togetherWith fadeOut(tween(100))
                 else (fadeIn(tween(150)) + slideInHorizontally(LauncherMotion.panel(cyber)) { if (forward) it / 7 else -it / 10 }) togetherWith
                     (fadeOut(tween(120)) + slideOutHorizontally(LauncherMotion.close()) { if (forward) -it / 10 else it / 7 })
             }, label = "surface navigation") { content(it) }
+            }
         }
     }
 }

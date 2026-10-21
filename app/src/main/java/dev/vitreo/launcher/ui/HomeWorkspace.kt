@@ -32,14 +32,15 @@ internal fun HomeWorkspace(page: HomeGridPage, rows: Int, rowHeight: Float, icon
     onBounds: (String, Rect?) -> Unit) {
     val density = LocalDensity.current
     val reduced = LocalGlass.current.appearance.reducedEffects
+    val cyber = LocalCyber.current
     val arrival = LocalHomeArrival.current
     var origin by remember { mutableStateOf(Offset.Zero) }
-    BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 18.dp).verticalScroll(rememberScrollState())
+    BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = (if (cyber) 18f else IosDesign.HomeInset).dp).verticalScroll(rememberScrollState())
         .onGloballyPositioned { origin = it.positionInRoot() }) {
         val cellWidth = maxWidth / GRID_COLUMNS
         @Composable fun position(column: Int, row: Int): Modifier {
             val target = with(density) { IntOffset((cellWidth * column).roundToPx(), (rowHeight.dp * row).roundToPx()) }
-            val offset = animateIntOffsetAsState(target, if (reduced) tween(0) else LauncherMotion.panel(), label = "home cell")
+            val offset = animateIntOffsetAsState(target, if (reduced) tween(0) else LauncherMotion.panel(cyber), label = "home cell")
             return Modifier.offset { offset.value }
         }
         Box(Modifier.fillMaxWidth().height((rows * rowHeight).dp)) {

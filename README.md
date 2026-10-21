@@ -5,7 +5,7 @@ App Library, an optional Cyberpunk HUD theme and native Android widgets. Android
 no accounts, ads, analytics, root or accessibility service.
 
 [Download the signed APK](https://github.com/sPROFFEs/vitreo-launcher/releases/latest)
-· [Lock screen / GrapheneOS](docs/LOCK_SCREEN.md) · [Changes](CHANGELOG.md) · [Build](BUILDING.md) · [Privacy](PRIVACY.md)
+· [iOS design study](docs/IOS_DESIGN.md) · [Lock screen / GrapheneOS](docs/LOCK_SCREEN.md) · [Changes](CHANGELOG.md) · [Build](BUILDING.md) · [Privacy](PRIVACY.md)
 
 <p>
   <img src="docs/screenshots/home.png" width="220" alt="Home screen with clock, calendar and glass dock">
@@ -153,6 +153,18 @@ wallpaper makes refraction easier to see. Vitreo does not use UIKit or capture o
 Android controls cross-app transitions, Recents, notifications, the keyboard and
 secure keyguard. Vitreo coordinates its desktop and passes the tapped icon's bounds
 to the system; it cannot replace iOS's compositor or Android's system launcher integration.
+
+## iOS visual system
+
+The iOS theme has aligned Home / dock columns, floating capsule search, continuous
+page feedback and App Library previews that fit their cards. Clear glass follows
+wallpaper contrast and dimming; stronger regular materials keep menus readable.
+Control Center adds wider modules, active-state feedback and elastic sliders with
+stable touch regions. Reduce Motion and Reduce Transparency remain available.
+
+The [design study](docs/IOS_DESIGN.md) records all six community references, pinned
+revisions, Apple guidance, implementation choices and integration limits. These
+are native Android improvements, with no embedded web UI or private iOS runtime.
 
 ## Optional lock screen
 

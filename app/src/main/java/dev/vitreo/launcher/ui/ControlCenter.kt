@@ -15,6 +15,14 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.Crossfade
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.shape.CircleShape
@@ -87,60 +95,89 @@ private fun shortcut(id: String) = when (id) {
 @Composable
 private fun PanelControl(title: String, icon: ImageVector, modifier: Modifier = Modifier, active: Boolean = false,
     enabled: Boolean = true, color: Color = Color(0xff0a84ff), wide: Boolean = false, onClick: () -> Unit) {
-    val shape = if (LocalCyber.current) CyberShape else if (wide) RoundedCornerShape(26.dp) else CircleShape
-    GlassPanel(modifier.clip(shape).testTag("control:$title").semantics {
+    val cyber = LocalCyber.current
+    val reduced = LocalGlass.current.appearance.reducedEffects
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed && !cyber && !reduced) 1.035f else 1f,
+        if (reduced) tween(0) else spring(dampingRatio = .86f, stiffness = 600f), label = "Control touch")
+    val fill by animateColorAsState(if (!active) Color.Transparent else if (cyber) color.copy(alpha = .86f) else Color.White.copy(alpha = .94f),
+        tween(if (reduced) 0 else 180), label = "Control state")
+    val shape = if (cyber) CyberShape else if (wide) RoundedCornerShape(34.dp) else CircleShape
+    GlassPanel(modifier.graphicsLayer { scaleX = scale; scaleY = scale }.clip(shape).testTag("control:$title").semantics {
         contentDescription = title
         stateDescription = if (!enabled) "Unavailable" else if (active) "On" else "Open"
-    }.clickable(enabled = enabled, onClick = onClick), radius = if (wide) 26f else 100f, tint = .19f, interactive = enabled) {
-        Row(Modifier.fillMaxSize().background(if (active) color.copy(alpha = .86f) else Color.Transparent)
+    }.clickable(interaction, null, enabled = enabled, onClick = onClick), radius = if (wide) 34f else 100f, tint = .14f, interactive = enabled) {
+        Row(Modifier.fillMaxSize().background(fill)
             .graphicsLayer { alpha = if (enabled) 1f else .35f }.padding(if (wide) 16.dp else 0.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = if (wide) Arrangement.spacedBy(12.dp) else Arrangement.Center) {
-            ControlSymbol(icon, null, Modifier.size(28.dp), tint = Color.White)
-            if (wide) Text(title, color = Color.White, fontSize = 14.sp, maxLines = 2, lineHeight = 16.sp, overflow = TextOverflow.Ellipsis)
+            ControlSymbol(icon, null, Modifier.size(28.dp), tint = if (active && !cyber) color else Color.White)
+            if (wide) Text(title, color = if (active && !cyber) Color(0xff151519) else Color.White, fontSize = 14.sp, maxLines = 2, lineHeight = 16.sp, overflow = TextOverflow.Ellipsis)
         }
     }
 }
 
-/** Accessible vertical slider; drawing/gesture state stays local to this control. */
+/** The hit area stays still while the visual capsule stretches at its limits. */
 @Composable
 private fun ControlSlider(title: String, icon: ImageVector, value: Float, enabled: Boolean = true,
-    detail: String = "${(value * 100).roundToInt()}%", height: androidx.compose.ui.unit.Dp = 176.dp, onChange: (Float) -> Unit, onFinish: (Float) -> Unit = {}) {
+    detail: String = "${(value * 100).roundToInt()}%", height: androidx.compose.ui.unit.Dp = 176.dp,
+    onChange: (Float) -> Unit, onFinish: (Float) -> Unit = {}) {
     val change by rememberUpdatedState(onChange)
     val finish by rememberUpdatedState(onFinish)
+    val cyber = LocalCyber.current
+    val reduced = LocalGlass.current.appearance.reducedEffects
     val rangeValue = value.coerceIn(0f, 1f)
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        GlassPanel(Modifier.fillMaxWidth().height(height).testTag("control_slider:$title")
-            .semantics {
-                contentDescription = title; stateDescription = if (enabled) detail else "Fixed by Android"
-                progressBarRangeInfo = ProgressBarRangeInfo(rangeValue, 0f..1f)
-                if (enabled) setProgress { requested ->
-                    val next = requested.coerceIn(0f, 1f); change(next); finish(next); true
-                } else disabled()
+    var tracking by remember { mutableStateOf<Float?>(null) }
+    var overscroll by remember { mutableFloatStateOf(0f) }
+    var anchor by remember { mutableFloatStateOf(.5f) }
+    val stretch by animateFloatAsState(if (cyber || reduced) 1f else iosSliderStretch(overscroll).scale,
+        if (reduced) tween(0) else spring(dampingRatio = .84f, stiffness = 420f), label = "Slider elasticity")
+    val display = tracking ?: rangeValue
+    val ink by animateColorAsState(if (cyber) { if (display <= .18f) Color.White else if (title == "Home brightness") Color(0xffffc700) else Color(0xff00bfe8) }
+        else if (display <= .2f) Color.White else Color(0xff333339),
+        tween(if (reduced) 0 else 120), label = "Slider symbol contrast")
+    Box(Modifier.fillMaxWidth().height(height).testTag("control_slider:$title").semantics {
+        contentDescription = title; stateDescription = if (enabled) detail else "Fixed by Android"
+        progressBarRangeInfo = ProgressBarRangeInfo(rangeValue, 0f..1f)
+        if (enabled) setProgress { requested ->
+            val next = requested.coerceIn(0f, 1f); change(next); finish(next); true
+        } else disabled()
+    }.then(if (!enabled) Modifier else Modifier.pointerInput(cyber, reduced) {
+        awaitEachGesture {
+            val down = awaitFirstDown(); down.consume()
+            fun update(y: Float): Float {
+                val raw = 1f - y / size.height.coerceAtLeast(1)
+                overscroll = raw
+                if (raw < 0f || raw > 1f) anchor = iosSliderStretch(raw).anchor
+                val next = raw.coerceIn(0f, 1f)
+                tracking = next; change(next)
+                return next
             }
-            .then(if (!enabled) Modifier else Modifier.pointerInput(Unit) {
-                awaitEachGesture {
-                    val down = awaitFirstDown(); down.consume()
-                    var last = (1f - down.position.y / size.height).coerceIn(0f, 1f)
-                    change(last)
-                    try {
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            val pointer = event.changes.firstOrNull { it.id == down.id } ?: break
-                            if (!pointer.pressed) break
-                            last = (1f - pointer.position.y / size.height).coerceIn(0f, 1f)
-                            pointer.consume(); change(last)
-                        }
-                    } finally { finish(last) }
+            var last = update(down.position.y)
+            try {
+                while (true) {
+                    val event = awaitPointerEvent()
+                    val pointer = event.changes.firstOrNull { it.id == down.id } ?: break
+                    if (!pointer.pressed) break
+                    pointer.consume(); last = update(pointer.position.y)
                 }
-            }), radius = 31f, tint = .14f, interactive = enabled) {
-            Box(Modifier.fillMaxSize()) {
-                Box(Modifier.fillMaxWidth().fillMaxHeight(rangeValue).align(Alignment.BottomCenter)
-                    .background(if (LocalCyber.current) CyberColors.Cyan.copy(alpha = .8f) else Color.White.copy(alpha = .94f)))
-                ControlSymbol(icon, null, Modifier.align(Alignment.BottomCenter).padding(bottom = 18.dp).size(27.dp),
-                    tint = if (rangeValue <= .18f) Color.White else if (title == "Home brightness") Color(0xffffc700) else Color(0xff00bfe8))
+            } finally {
+                overscroll = 0f; tracking = null; finish(last)
             }
         }
-
+    })) {
+        GlassPanel(Modifier.fillMaxSize().graphicsLayer {
+            scaleY = stretch; transformOrigin = TransformOrigin(.5f, anchor)
+        }, radius = if (cyber) 31f else 40f, tint = .13f, interactive = enabled) {
+            Box(Modifier.fillMaxSize().testTag("control_slider_lens:$title")) {
+                Box(Modifier.fillMaxWidth().fillMaxHeight(display).align(Alignment.BottomCenter)
+                    .background(if (cyber) CyberColors.Cyan.copy(alpha = .8f) else Color(0xfffaf8f4).copy(alpha = .96f)))
+                Crossfade(icon, Modifier.align(Alignment.BottomCenter).padding(bottom = if (cyber) 18.dp else 22.dp).size(27.dp),
+                    tween(if (reduced || cyber) 0 else 100), label = "Slider symbol") { symbol ->
+                    ControlSymbol(symbol, null, Modifier.size(27.dp), tint = ink)
+                }
+            }
+        }
     }
 }
 
@@ -214,7 +251,8 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
     val reduceMotion = LocalGlass.current.appearance.reducedEffects
     fun pageTo(index: Int) { scope.launch { if (reduceMotion) pager.scrollToPage(index) else pager.animateScrollToPage(index) } }
     BackHandler(choosing) { choosing = false }
-    BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 24.dp).testTag("control_center")) {
+    CompositionLocalProvider(LocalGlassContentColor provides Color.White) {
+    BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = if (LocalCyber.current) 24.dp else 16.dp).testTag("control_center")) {
         val gap = 12.dp
         val rail = 22.dp
         val unit = minOf((maxWidth - rail - 14.dp - gap * 3) / 4, 80.dp)
@@ -243,12 +281,12 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
                         when (page) {
                             0 -> {
                                 Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
-                                    ConnectivityTile(Modifier.size(double), device.airplane, device.wifi, device.bluetooth, onSystem,
+                                    ConnectivityTile(Modifier.size(double).iosControlReveal(0), device.airplane, device.wifi, device.bluetooth, onSystem,
                                         onExpand = { pageTo(2) })
-                                    MediaTile(Modifier.size(double), bridge.media, device.musicActive, onUtility, { if (!(if (bridge.media.available) SystemBridge.command(it) else controller.mediaKey(it))) onError("Android could not send the media command.") },
+                                    MediaTile(Modifier.size(double).iosControlReveal(1), bridge.media, device.musicActive, onUtility, { if (!(if (bridge.media.available) SystemBridge.command(it) else controller.mediaKey(it))) onError("Android could not send the media command.") },
                                         onExpand = { pageTo(1) })
                                 }
-                                Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                                Row(Modifier.iosControlReveal(2), horizontalArrangement = Arrangement.spacedBy(gap)) {
                                     Column(Modifier.width(double), verticalArrangement = Arrangement.spacedBy(gap)) {
                                         Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
                                             PanelControl("Rotation", Icons.Outlined.ScreenRotation, Modifier.size(unit)) { onSystem(Settings.ACTION_DISPLAY_SETTINGS) }
@@ -265,15 +303,15 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
                                         detail = if (brightness < 0) "System" else "${(brightness * 100).roundToInt()}%",
                                         onChange = { brightness = it.coerceIn(.02f, 1f) },
                                         onFinish = { onAppearance(latestAppearance.copy(homeBrightness = it.coerceIn(.02f, 1f))) }) }
-                                    Box(Modifier.width(unit)) { ControlSlider("Media volume", if (device.volume == 0f) Icons.Outlined.VolumeOff else Icons.Outlined.VolumeUp,
+                                    Box(Modifier.width(unit)) { ControlSlider("Media volume", when { device.volume == 0f -> Icons.Outlined.VolumeOff; device.volume < .5f -> Icons.Outlined.VolumeDown; else -> Icons.Outlined.VolumeUp },
                                         device.volume, !device.volumeFixed, height = double, onChange = {
                                             if (!controller.volume(it) && !volumeErrorShown) {
                                                 volumeErrorShown = true; onError("Android did not allow the volume change. Use Sound settings.")
                                             }
                                         }) }
                                 }
-                                controlRows(appearance.controlShortcuts, appearance.controlWide).forEach { row ->
-                                    Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                                controlRows(appearance.controlShortcuts, appearance.controlWide).forEachIndexed { rowIndex, row ->
+                                    Row(Modifier.iosControlReveal(rowIndex + 3), horizontalArrangement = Arrangement.spacedBy(gap)) {
                                         row.forEach { id ->
                                             val item = shortcut(id)
                                             val wide = id in appearance.controlWide
@@ -379,6 +417,7 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
             }
         }
     }
+    }
 }
 
 @Composable
@@ -408,7 +447,7 @@ private fun MediaTile(modifier: Modifier, media: NowPlaying, legacyActive: Boole
     GlassPanel(modifier, radius = 30f, tint = .16f) {
         Column(Modifier.fillMaxSize().padding(if (expanded) 22.dp else 12.dp), verticalArrangement = Arrangement.SpaceBetween) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(if (expanded) 100.dp else 35.dp).clip(if (LocalCyber.current) CyberControlShape else RoundedCornerShape(9.dp)).background(Color.White.copy(alpha = .1f)).clickable { openPlayer() }, contentAlignment = Alignment.Center) {
+                Box(Modifier.size(if (expanded) 100.dp else if (LocalCyber.current) 35.dp else 40.dp).clip(if (LocalCyber.current) CyberControlShape else RoundedCornerShape(9.dp)).background(Color.White.copy(alpha = .1f)).clickable { openPlayer() }, contentAlignment = Alignment.Center) {
                     if (media.artwork != null) Image(media.artwork.asImageBitmap(), "Album artwork", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                     else ControlSymbol(Icons.Outlined.MusicNote, "Open music app", Modifier.size(if (expanded) 44.dp else 22.dp), tint = Color.White.copy(alpha = .7f))
                 }
@@ -417,9 +456,9 @@ private fun MediaTile(modifier: Modifier, media: NowPlaying, legacyActive: Boole
                     ControlSymbol(Icons.Outlined.Podcasts, if (expanded) "Open player" else "Expand media", Modifier.size(20.dp), tint = Color.White)
                 }
             }
-            Text(if (media.available) media.title else if (active) "Playing audio" else "Not Playing", color = Color.White, fontSize = if (expanded) 24.sp else 14.sp,
+            Text(if (media.available) media.title else if (active) "Playing audio" else "Not Playing", color = Color.White, fontSize = if (expanded) 24.sp else if (LocalCyber.current) 14.sp else 16.sp,
                 fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (media.available && media.artist.isNotBlank()) Text(media.artist, color = Color.White.copy(alpha = .65f), fontSize = if (expanded) 16.sp else 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (media.available && media.artist.isNotBlank()) Text(media.artist, color = Color.White.copy(alpha = .65f), fontSize = if (expanded) 16.sp else if (LocalCyber.current) 11.sp else 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (expanded && media.available && media.duration > 0) {
                 val tick = LocalHomeClock.current
                 val elapsed = if (media.playing && media.updatedAt > 0) (android.os.SystemClock.elapsedRealtime() - media.updatedAt).coerceAtLeast(0) * media.speed else 0f
@@ -461,7 +500,7 @@ private fun NetworkButton(title: String, icon: ImageVector, modifier: Modifier, 
         val shape = if (cyber) CyberControlShape else CircleShape
         val background = if (cyber) { if (active == true) CyberColors.Cyan.copy(alpha = .22f) else CyberColors.Panel }
             else if (active == true) activeColor else Color.White.copy(alpha = .12f)
-        Box(Modifier.size(38.dp).clip(shape).background(background)
+        Box(Modifier.size(if (cyber) 38.dp else 42.dp).clip(shape).background(background)
             .then(if (cyber) Modifier.border(.7.dp, if (active == true) CyberColors.Cyan else CyberColors.Red.copy(alpha = .55f), shape) else Modifier),
             contentAlignment = Alignment.Center) {
             ControlSymbol(icon, null, Modifier.size(22.dp), tint = Color.White)

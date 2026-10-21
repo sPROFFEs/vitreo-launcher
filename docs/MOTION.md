@@ -28,8 +28,8 @@ Compose's native springs and gesture velocity are used directly.
 
 | Interaction | Implementation |
 | --- | --- |
-| Panel open / cancel | Spring, damping 0.9, stiffness 380 |
-| Context menu | Spring, damping 0.78, stiffness 650; anchored to the source icon |
+| iOS panel open / cancel | Spring, damping 0.9, stiffness 460 |
+| iOS context menu | Spring, damping 0.9, stiffness 620; anchored to the source icon |
 | Panel close | Critically damped spring, stiffness 700 |
 | Drag dismissal | Finger-driven progress, velocity passed into the settling spring; short downward flicks can close, upward reversals cancel |
 | Dock / pager | Fractional page progress controls translation and smoothstep opacity; Home reserves a fixed footer, so its cells never jump |
@@ -101,9 +101,9 @@ slow drags, quick reversals, repeated app switches, large text, Battery Saver an
 Reduce Motion. Android owns task/Recents animations; a normal HOME activity cannot
 reproduce private SpringBoard/Quickstep behavior across other apps' windows.
 
-## Lock surface (0.6.0)
+## Lock surface (0.6.0–0.6.2)
 
-The lower gesture surface stays fixed in screen coordinates while the clock and
+The central clock / accessories gesture area stays fixed in screen coordinates while the clock and
 accessories follow the finger. Drag state is stored in dp; translation is applied
 in a graphics layer. This avoids feeding the moving content's coordinates back
 into its own gesture. The backdrop scales slightly without re-rendering its bitmap.
@@ -119,3 +119,15 @@ for Reduce Motion / Battery Saver. Cyberpunk ambient effects reuse the existing
 single draw-phase clock and stop when hidden, unfocused or the display is off.
 The credential prompt and successful unlock transition belong to Android; no app
 animation tries to imitate, cover or bypass its authentication UI.
+
+## iOS refinement in 0.7.0
+
+See [the pinned six-repository study](IOS_DESIGN.md). Menus use a more restrained
+spring and retain velocity during interrupted dismissal; stopped activities settle
+their menu surface. Control Center uses one shared reveal with a short module
+offset, and sliders apply nonlinear visual resistance outside their real range
+without moving the pointer region. Page dots follow fractional pager progress;
+the caller does not read that fraction while composing the whole launcher.
+Glass sampling observes parent motion during drawing and reuses its wallpaper
+textures. No per-frame wallpaper decode, new blur bitmap or resting render loop
+is added. Reduce Motion removes geometry changes.

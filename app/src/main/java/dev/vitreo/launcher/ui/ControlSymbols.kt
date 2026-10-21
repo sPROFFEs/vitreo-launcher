@@ -31,6 +31,7 @@ internal object ControlSymbols {
         "Notifications" to symbol("Bell", "M12 3 C7 3 6 7 6 11 L4 17 L20 17 L18 11 C18 7 17 3 12 3 Z M10 21 L14 21", true),
         "ScreenRotation" to symbol("Rotation", "M9 11 L15 11 L15 17 L9 17 Z M10 11 L10 9 A2 2 0 0 1 14 9 L14 11 M20 8 A9 9 0 1 0 20 17 M17 7 L21 8 L22 4"),
         "BrightnessHigh" to symbol("Sun", "M15.5 12 A3.5 3.5 0 1 1 8.5 12 A3.5 3.5 0 1 1 15.5 12 M12 2 L12 4 M12 20 L12 22 M2 12 L4 12 M20 12 L22 12 M5 5 L6.5 6.5 M17.5 17.5 L19 19 M5 19 L6.5 17.5 M17.5 6.5 L19 5"),
+        "VolumeDown" to symbol("VolumeLow", "M3 9 L7 9 L12 5 L12 19 L7 15 L3 15 Z M16 8 Q20 12 16 16"),
         "VolumeUp" to symbol("Volume", "M3 9 L7 9 L12 5 L12 19 L7 15 L3 15 Z M16 8 Q20 12 16 16 M19 5 Q25 12 19 19"),
         "VolumeOff" to symbol("Muted", "M3 9 L7 9 L12 5 L12 19 L7 15 L3 15 Z M17 9 L22 15 M22 9 L17 15"),
         "MusicNote" to symbol("Music", "M10 17 L10 5 L21 3 L21 15 M10 8 L21 6 M10 17 A3 2.4 0 1 1 4 17 A3 2.4 0 1 1 10 17 M21 15 A3 2.4 0 1 1 15 15 A3 2.4 0 1 1 21 15"),

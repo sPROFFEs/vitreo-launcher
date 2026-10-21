@@ -32,12 +32,14 @@ class GlassRenderer(private val context: Context) {
     private var radiusDp = 28f
     private var panelTint = .18f
     private var regular = false
+    private var foregroundDark = false
     private var touchX = .5f
     private var touchY = .5f
     private var pressed = 0f
     private var sharp: BitmapShader? = null
     private var frosted: BitmapShader? = null
     private var fallback: BitmapShader? = null
+    private var fallbackSharp: BitmapShader? = null
     private var runtime: Shader? = null
     private var shaderFailed = false
     private val matrix = Matrix()
@@ -47,16 +49,17 @@ class GlassRenderer(private val context: Context) {
     private val innerBorder = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
 
     fun configure(frame: WallpaperFrame?, viewport: Viewport, appearance: Appearance, radius: Float, tint: Float,
-        regular: Boolean = false, touchX: Float = .5f, touchY: Float = .5f, pressed: Float = 0f) {
+        regular: Boolean = false, touchX: Float = .5f, touchY: Float = .5f, pressed: Float = 0f, foregroundDark: Boolean = false) {
         if (this.frame !== frame) {
             this.frame = frame
             sharp = frame?.let { texture(it.sharp) }
             frosted = frame?.let { texture(it.frosted) }
+            fallbackSharp = frame?.let { BitmapShader(it.sharp, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP) }
             fallback = frame?.let { BitmapShader(it.frosted, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP) }
         }
         this.viewport = viewport; this.appearance = appearance
         radiusDp = radius; panelTint = tint
-        this.regular = regular; this.touchX = touchX; this.touchY = touchY; this.pressed = pressed
+        this.regular = regular; this.foregroundDark = foregroundDark; this.touchX = touchX; this.touchY = touchY; this.pressed = pressed
     }
 
     private fun texture(bitmap: Bitmap) = BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply {
@@ -80,9 +83,10 @@ class GlassRenderer(private val context: Context) {
         val f = frame
         val dark = appearance.interfaceStyle == 2 || appearance.interfaceStyle == 0 &&
             context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK == android.content.res.Configuration.UI_MODE_NIGHT_YES
-        val materialDark = dark || !regular
-        val opacity = if (regular) max(panelTint, if (dark) .62f else .65f)
-            else max(panelTint, if ((f?.brightness ?: 0f) > .7f) .56f else .20f)
+        val materialDark = if (regular) dark else !foregroundDark
+        val backdropBrightness = (f?.brightness ?: 0f) * (1f - appearance.wallpaperDim)
+        val opacity = if (regular) max(panelTint, if (dark) .60f else .66f)
+            else max(panelTint, if (foregroundDark) .18f else if (backdropBrightness > .65f) .35f else .13f)
         val materialColor = if (materialDark) Color.rgb(23, 25, 32) else Color.rgb(248, 249, 253)
         if (appearance.opaquePanels || f == null || viewport.width <= 1f) {
             paint.shader = null; paint.color = materialColor
@@ -99,7 +103,7 @@ class GlassRenderer(private val context: Context) {
                 Agsl.configure(runtime!!, sharp!!, frosted!!, width.toFloat(), height.toFloat(), x, y, radius,
                     appearance.refraction * if (regular) .85f else 1f,
                     if (regular) max(.72f, appearance.frost) else appearance.frost, opacity, materialDark,
-                    touchX, touchY, pressed, density)
+                    touchX, touchY, pressed, density, appearance.wallpaperDim)
                 paint.shader = runtime; paint.color = Color.WHITE
                 canvas.drawRoundRect(bounds, radius, radius, paint)
                 usedAgsl = true
@@ -111,10 +115,18 @@ class GlassRenderer(private val context: Context) {
             }
         }
         if (!usedAgsl) {
-            align(fallback!!, f.frosted, x, y)
-            paint.shader = fallback; paint.color = Color.WHITE
+            // Blend cached textures rather than re-blurring or rebuilding a bitmap.
+            // Clear controls retain wallpaper detail on Android 12 and in Battery Saver.
+            align(fallbackSharp!!, f.sharp, x, y)
+            paint.shader = fallbackSharp; paint.color = Color.WHITE
             canvas.drawRoundRect(bounds, radius, radius, paint)
-            paint.shader = null; paint.color = Color.argb((opacity * 255).toInt(), Color.red(materialColor), Color.green(materialColor), Color.blue(materialColor))
+            val frost = if (regular) max(.78f, appearance.frost) else appearance.frost
+            align(fallback!!, f.frosted, x, y)
+            paint.shader = fallback; paint.alpha = (frost * 255).toInt()
+            canvas.drawRoundRect(bounds, radius, radius, paint)
+            paint.shader = null; paint.color = Color.argb((appearance.wallpaperDim * 255).toInt(), 0, 0, 0)
+            canvas.drawRoundRect(bounds, radius, radius, paint)
+            paint.color = Color.argb((opacity * 255).toInt(), Color.red(materialColor), Color.green(materialColor), Color.blue(materialColor))
             canvas.drawRoundRect(bounds, radius, radius, paint)
             if (pressed > .001f) {
                 paint.shader = RadialGradient(width * touchX, height * touchY, max(width, height).toFloat(),
@@ -151,7 +163,7 @@ private object Agsl {
     }
     fun configure(shader: Shader, sharp: Shader, frosted: Shader, width: Float, height: Float,
                   x: Float, y: Float, radius: Float, strength: Float, frost: Float, tint: Float, dark: Boolean,
-                  touchX: Float, touchY: Float, pressed: Float, density: Float) {
+                  touchX: Float, touchY: Float, pressed: Float, density: Float, dim: Float) {
         val s = shader as RuntimeShader
         s.setInputShader("wallpaper", sharp); s.setInputShader("frosted", frosted)
         s.setFloatUniform("resolution", width, height); s.setFloatUniform("origin", x, y)
@@ -159,6 +171,7 @@ private object Agsl {
         s.setFloatUniform("frostAmount", frost); s.setFloatUniform("tint", tint)
         s.setFloatUniform("touchPoint", touchX * width, touchY * height); s.setFloatUniform("pressed", pressed)
         s.setFloatUniform("pixelDensity", density)
+        s.setFloatUniform("wallpaperDim", dim)
         val color = if (dark) .065f else .96f
         s.setFloatUniform("tintColor", color, color, if (dark) .09f else .99f)
     }

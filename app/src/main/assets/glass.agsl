@@ -12,6 +12,7 @@ uniform float3 tintColor;
 uniform float2 touchPoint;
 uniform float pressed;
 uniform float pixelDensity;
+uniform float wallpaperDim;
 
 float roundedDistance(float2 p, float2 halfSize, float r) {
     float2 q = abs(p) - halfSize + float2(r);
@@ -23,7 +24,7 @@ half4 main(float2 position) {
     float r = min(radius, min(halfSize.x, halfSize.y));
     float2 p = position - halfSize;
     float distance = roundedDistance(p, halfSize, r);
-    float rimWidth = max(r * 0.58, pixelDensity * 6.0);
+    float rimWidth = max(min(r * 0.58, pixelDensity * 16.0), pixelDensity * 6.0);
     float edge = 1.0 - smoothstep(0.0, rimWidth, max(-distance, 0.0));
     // Analytic rounded-rect normal: one distance evaluation instead of five per pixel.
     float2 q = abs(p) - halfSize + float2(r);
@@ -33,7 +34,8 @@ half4 main(float2 position) {
         : (q.x > q.y ? float2(sign(p.x), 0.0) : float2(0.0, sign(p.y)));
     // Curved edge bends the background; the broad centre stays visually quiet.
     float bend = (1.0 - sqrt(max(1.0 - edge * edge, 0.0)));
-    float2 samplePoint = position + origin - normal * bend * strength * r * 0.95;
+    float thickness = min(r * 0.76, pixelDensity * 18.0);
+    float2 samplePoint = position + origin - normal * bend * strength * thickness;
     float2 dispersion = normal * bend * strength * pixelDensity * 0.55;
     half3 clear = half3(wallpaper.eval(samplePoint + dispersion).r,
                        wallpaper.eval(samplePoint).g,
@@ -42,6 +44,9 @@ half4 main(float2 position) {
     // Keep the text-bearing centre diffuse. The curved rim is clearer, so the
     // lens remains visible on small high-density controls and regular panels.
     half3 color = mix(clear, diffuse, half(clamp(frostAmount * (1.0 - bend * 0.72), 0.0, 1.0)));
+    half luminance = dot(color, half3(0.2126, 0.7152, 0.0722));
+    color = mix(half3(luminance), color, half(1.08 + frostAmount * 0.12));
+    color *= half(1.0 - wallpaperDim);
     color = mix(color, half3(tintColor), half(tint * (1.0 - bend * 0.68)));
     float2 lightDirection = normalize(mix(float2(-0.65, -0.76),
         (touchPoint - halfSize) / max(halfSize, float2(1.0)) + float2(-0.3, -0.4), pressed * 0.5));

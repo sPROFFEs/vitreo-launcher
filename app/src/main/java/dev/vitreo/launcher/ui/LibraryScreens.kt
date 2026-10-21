@@ -53,7 +53,7 @@ fun Spotlight(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestion
     Column(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .32f)).safeDrawingPadding()
         .imePadding().padding(horizontal = 18.dp).testTag("library_title")) {
         Row(Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-            GlassPanel(Modifier.weight(1f).height(49.dp), radius = 19f, tint = .32f) {
+            GlassPanel(Modifier.weight(1f).height(49.dp), radius = 25f, tint = .24f, contentColor = Color.White) {
                 Row(Modifier.fillMaxSize().padding(horizontal = 13.dp), verticalAlignment = Alignment.CenterVertically) {
                     LauncherSymbol(Icons.Outlined.Search, null, Modifier.size(21.dp), tint = Color.White.copy(alpha = .8f))
                     BasicTextField(query, { onQueryChange(it.take(100)) }, Modifier.weight(1f).padding(start = 9.dp)
@@ -141,52 +141,62 @@ private fun ColumnScope.AlphabeticalApps(records: List<AppRecord>, apps: Map<Str
 fun AppLibrary(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestions: List<AppRecord>,
     onSearch: () -> Unit, onLaunch: (String, Rect?) -> Unit, onActions: (String, Rect?) -> Unit,
     onCategory: (String, List<AppRecord>, Rect?) -> Unit) {
+    val ink = LocalGlassContentColor.current
+    val cyber = LocalCyber.current
     val groups = remember(records, suggestions) {
         listOf("Suggestions" to suggestions.take(8)) + records.groupBy { appGroup(it.label, it.packageName, it.category) }
             .toSortedMap().toList()
     }
-    Column(Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 12.dp).testTag("app_library")) {
-        GlassPanel(Modifier.fillMaxWidth().height(51.dp).clickable(onClick = onSearch), radius = 24f, tint = .2f) {
+    Column(Modifier.fillMaxSize().padding(horizontal = (if (cyber) 18f else IosDesign.HomeInset).dp, vertical = 12.dp).testTag("app_library")) {
+        GlassPanel(Modifier.fillMaxWidth().height(IosDesign.SearchHeight.dp).clickable(onClick = onSearch), radius = 25f, tint = .16f, interactive = true) {
             Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                LauncherSymbol(Icons.Outlined.Search, null, Modifier.size(20.dp), tint = Color.White.copy(alpha = .8f))
-                Text("App Library", color = Color.White.copy(alpha = .85f), fontSize = 18.sp, modifier = Modifier.padding(start = 9.dp))
+                LauncherSymbol(Icons.Outlined.Search, null, Modifier.size(20.dp), tint = ink.copy(alpha = .8f))
+                Text("App Library", color = ink.copy(alpha = .85f), fontSize = 18.sp, modifier = Modifier.padding(start = 9.dp))
             }
         }
-        LazyVerticalGrid(GridCells.Fixed(2), Modifier.weight(1f).fillMaxWidth().padding(top = 22.dp),
-            horizontalArrangement = Arrangement.spacedBy(18.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        val categoryColumns = if (LocalConfiguration.current.screenWidthDp < 300) 1 else 2
+        LazyVerticalGrid(GridCells.Fixed(categoryColumns), Modifier.weight(1f).fillMaxWidth().padding(top = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             items(groups, key = { it.first }) { (title, group) ->
                 var cardBounds by remember { mutableStateOf<Rect?>(null) }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     GlassPanel(Modifier.fillMaxWidth().aspectRatio(1f).onGloballyPositioned { cardBounds = it.boundsInRoot() }.testTag("library_category:$title")
-                        .clickable { onCategory(title, group, cardBounds) }, radius = 29f, tint = .26f) {
-                        Column(Modifier.fillMaxSize().padding(11.dp), verticalArrangement = Arrangement.SpaceEvenly) {
-                            repeat(2) { row ->
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                    repeat(2) { column ->
-                                        val index = row * 2 + column
-                                        val app = group.getOrNull(index)
-                                        if (app == null) Spacer(Modifier.size(53.dp))
-                                        else if (index == 3 && group.size > 4) {
-                                            Column(Modifier.size(53.dp).clickable { onCategory(title, group, cardBounds) }, verticalArrangement = Arrangement.SpaceEvenly) {
-                                                repeat(2) { miniRow ->
-                                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                                        repeat(2) { miniColumn -> group.getOrNull(3 + miniRow * 2 + miniColumn)?.let {
-                                                            EntryIcon(HomeEntry.App(it.id), apps, 22.dp)
-                                                        } ?: Spacer(Modifier.size(22.dp)) }
+                        .clickable { onCategory(title, group, cardBounds) }, radius = if (cyber) 29f else IosDesign.CardRadius, tint = .18f, interactive = true) {
+                        BoxWithConstraints(Modifier.fillMaxSize().padding(10.dp)) {
+                            val cell = minOf(maxWidth / 2, maxHeight / 2)
+                            val icon = (cell - 14.dp).coerceIn(24.dp, 56.dp)
+                            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceEvenly) {
+                                repeat(2) { row ->
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                        repeat(2) { column ->
+                                            val index = row * 2 + column
+                                            val app = group.getOrNull(index)
+                                            if (app == null) Spacer(Modifier.size(cell))
+                                            else if (index == 3 && group.size > 4) Box(Modifier.size(cell), contentAlignment = Alignment.Center) {
+                                                Column(Modifier.size(icon).clickable { onCategory(title, group, cardBounds) }, verticalArrangement = Arrangement.SpaceEvenly) {
+                                                    repeat(2) { miniRow ->
+                                                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                                            repeat(2) { miniColumn ->
+                                                                val mini = group.getOrNull(3 + miniRow * 2 + miniColumn)
+                                                                val size = (icon - 6.dp) / 2
+                                                                if (mini == null) Spacer(Modifier.size(size))
+                                                                else EntryIcon(HomeEntry.App(mini.id), apps, size)
+                                                            }
+                                                        }
                                                     }
                                                 }
-                                            }
-                                        } else LauncherTile(HomeEntry.App(app.id), apps, 53.dp, false, Modifier.size(53.dp, 65.dp),
-                                            onClick = { onLaunch(app.id, it) }, onActions = { onActions(app.id, it) })
+                                            } else LauncherTile(HomeEntry.App(app.id), apps, icon, false, Modifier.size(cell),
+                                                onClick = { onLaunch(app.id, it) }, onActions = { onActions(app.id, it) })
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                    Text(title, color = LocalGlassContentColor.current, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+                    Text(title, color = ink, fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(top = 8.dp))
                 }
             }
-            item(span = { GridItemSpan(2) }) { Spacer(Modifier.height(18.dp)) }
+            item(span = { GridItemSpan(categoryColumns) }) { Spacer(Modifier.height(18.dp)) }
         }
     }
 }
@@ -194,19 +204,22 @@ fun AppLibrary(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestio
 @Composable
 fun CategoryScreen(title: String, records: List<AppRecord>, apps: Map<String, AppRecord>,
     onClose: () -> Unit, onLaunch: (String, Rect?) -> Unit, onActions: (String, Rect?) -> Unit) {
-    val columns = ((LocalConfiguration.current.screenWidthDp - 68) / 76).coerceAtLeast(1)
+    val screenWidth = LocalConfiguration.current.screenWidthDp
+    val columns = ((screenWidth - 68) / 76).coerceIn(1, if (screenWidth < 600) 3 else 6)
     val rows = (records.size + columns - 1) / columns
     val panelHeight = rows * (60f + 20f * LocalDensity.current.fontScale + 12f) + (rows - 1).coerceAtLeast(0) * 12f + 40f
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(20.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(title, Modifier.weight(1f), color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-            IconButton(onClick = onClose) { LauncherSymbol(Icons.Outlined.Close, "Close", tint = Color.White) }
+        Box(Modifier.fillMaxWidth().padding(top = 16.dp).heightIn(min = 52.dp), contentAlignment = Alignment.Center) {
+            Text(title, Modifier.padding(horizontal = 44.dp), color = Color.White, fontSize = 30.sp,
+                fontWeight = if (LocalCyber.current) FontWeight.Bold else FontWeight.Normal,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 2)
+            IconButton(onClick = onClose, modifier = Modifier.align(Alignment.CenterEnd)) { LauncherSymbol(Icons.Outlined.Close, "Close", tint = Color.White) }
         }
-        Text("${records.size} apps", color = Color.White.copy(alpha = .8f), fontSize = 14.sp,
-            modifier = Modifier.padding(top = 2.dp, bottom = 20.dp))
+        Text("${records.size} apps", color = Color.White.copy(alpha = .7f), fontSize = 13.sp,
+            modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 4.dp, bottom = 24.dp))
         GlassPanel(Modifier.fillMaxWidth().heightIn(max = panelHeight.dp).weight(1f, fill = false).testTag("category_panel"),
             radius = 34f, material = GlassMaterial.Regular) {
-            LazyVerticalGrid(GridCells.Adaptive(76.dp), Modifier.fillMaxWidth().padding(14.dp),
+            LazyVerticalGrid(GridCells.Fixed(columns), Modifier.fillMaxWidth().padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 6.dp)) {
                 items(records, key = { it.id }) { app ->
                     LauncherTile(HomeEntry.App(app.id), apps, 60.dp, true, Modifier.testTag("category_entry:${app.id}"),

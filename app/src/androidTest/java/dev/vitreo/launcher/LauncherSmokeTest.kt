@@ -502,6 +502,48 @@ class LauncherSmokeTest {
         }
     }
 
+    @Test fun iosSliderStretchKeepsItsHitAreaAndClampsTheRealBrightness() {
+        awaitReady()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val original = model.ui.value.layout.appearance
+        try {
+            compose.runOnUiThread { model.appearance(original.copy(themePreset = 0, reducedEffects = false, controlCenter = true, homeBrightness = .5f)) }
+            openControlsFromEdge()
+            val slider = compose.onNodeWithTag("control_slider:Home brightness")
+            val lens = compose.onNodeWithTag("control_slider_lens:Home brightness", useUnmergedTree = true)
+            val hitBefore = slider.getUnclippedBoundsInRoot()
+            // Unclipped bounds use the layout size and omit graphics-layer scaling.
+            // Inspect the transformed child bounds to verify the visible deformation.
+            val heightBefore = lens.fetchSemanticsNode().boundsInRoot.height
+            fun lensHeight() = lens.fetchSemanticsNode().boundsInRoot.height
+            compose.mainClock.autoAdvance = false
+            try {
+                slider.performTouchInput { down(center); moveTo(Offset(center.x, -height * .4f), delayMillis = 250) }
+                compose.mainClock.advanceTimeBy(300)
+                assertEquals("The touch area must not move with the visual capsule", hitBefore, slider.getUnclippedBoundsInRoot())
+                assertTrue("Overscroll stretches the visible glass ($heightBefore -> ${lensHeight()})", lensHeight() > heightBefore)
+                assertTrue("Stretch stays restrained", lensHeight() < heightBefore * 1.09f)
+            } finally {
+                try { slider.performTouchInput { up() } } finally { compose.mainClock.autoAdvance = true }
+            }
+            compose.waitForIdle()
+            assertEquals(1f, model.ui.value.layout.appearance.homeBrightness, .001f)
+            assertEquals(heightBefore, lensHeight(), .5f)
+            compose.runOnUiThread { model.appearance(model.ui.value.layout.appearance.copy(reducedEffects = true)) }
+            val still = lens.fetchSemanticsNode().boundsInRoot
+            try {
+                slider.performTouchInput { down(center); moveTo(Offset(center.x, height * 1.4f), delayMillis = 250) }
+                compose.waitForIdle()
+                assertEquals("Reduce Motion disables stretch", still, lens.fetchSemanticsNode().boundsInRoot)
+            } finally { slider.performTouchInput { up() } }
+            compose.waitForIdle()
+            assertEquals(.02f, model.ui.value.layout.appearance.homeBrightness, .001f)
+        } finally {
+            compose.mainClock.autoAdvance = true
+            compose.runOnUiThread { model.appearance(original) }
+        }
+    }
+
     @Test fun controlsChangeRealVolumeAndPersistHomeBrightnessAndShortcuts() {
         awaitReady()
         val instrumentation = InstrumentationRegistry.getInstrumentation()

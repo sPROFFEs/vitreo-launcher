@@ -1,5 +1,14 @@
 # Cambios
 
+## 0.7.0
+
+- Refine the iOS visual system using six reviewed community repositories and Apple's material / motion guidance. Document pinned source revisions, selected patterns, rejected approximations and Android integration limits.
+- Align Home and dock icon columns, refine the floating dock, unify capsule search fields and smoothly transition Search into a continuously weighted page indicator. Keep the active page visible in large collections.
+- Clear glass follows foreground contrast and wallpaper dimming, including the full-screen Control / Notification Center backdrop. Android 12 / Battery Saver blends cached sharp and frosted textures; Android 13+ retains bounded optical refraction, subtle color transmission and illuminated edges. Track parent movement at draw time without rebuilding wallpaper bitmaps.
+- Roomier iOS Control Center modules, readable media typography, animated active states, gentle touch feedback and a restrained module reveal. Brightness / volume capsules resist overscroll while their hit areas and real Android values stay bounded; Reduce Motion disables deformation.
+- App Library previews fit their cards on narrow screens. Refine category grids and centered headings, folder titles, contextual menu lift and interruption / lifecycle handling.
+- Add slider resistance / page-window regression coverage and native verification of actual glass stretch, stable hit regions, endpoint clamping and reduced motion.
+
 ## 0.6.2
 
 - Optional Fingerprint shortcut in Lock Screen settings, hidden by default. Hands control to Android / GrapheneOS's native keyguard; only the OS decides whether fingerprint, a secondary factor or credentials are permitted. Preview never authenticates.

@@ -33,6 +33,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
 import dev.vitreo.launcher.core.*
 import dev.vitreo.launcher.data.AppRecord
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
@@ -54,11 +58,28 @@ fun AppContextMenu(target: AppActionTarget?, state: LauncherState, apps: Map<Str
     val cyber = LocalCyber.current
     val context = LocalContext.current
     val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
+    val currentTarget by rememberUpdatedState(target)
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) scope.launch {
+                progress.snapTo(if (currentTarget == null) 0f else 1f)
+                retained = currentTarget
+            }
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
     LaunchedEffect(target, reduced) {
-        if (target != null) retained = target
-        progress.animateTo(if (target == null) 0f else 1f,
-            if (reduced) tween(120) else if (target == null) LauncherMotion.close() else LauncherMotion.menu(cyber))
-        if (target == null) retained = null
+        // Preserve spring velocity when a dismissal is interrupted by another action.
+        scope.launch {
+            if (currentTarget != target) return@launch
+            if (target != null) retained = target
+            progress.animateTo(if (target == null) 0f else 1f,
+                if (reduced) tween(100) else if (target == null) LauncherMotion.close() else LauncherMotion.menu(cyber))
+            if (target == null && currentTarget == null) retained = null
+        }
     }
     if (current == null) return
     val entry = current.entry
@@ -76,6 +97,7 @@ fun AppContextMenu(target: AppActionTarget?, state: LauncherState, apps: Map<Str
             }.getOrDefault(emptyList())
         }
     }
+    CompositionLocalProvider(LocalSurfaceReveal provides progress.asState()) {
     BoxWithConstraints(Modifier.fillMaxSize().testTag("context_menu")
         .graphicsLayer { alpha = progress.value.coerceIn(0f, 1f) }
         .background(Color.Black.copy(alpha = .14f))
@@ -99,7 +121,7 @@ fun AppContextMenu(target: AppActionTarget?, state: LauncherState, apps: Map<Str
         EntryIcon(entry, apps, with(density) { iconSize.toDp() },
             Modifier.offset { IntOffset(iconLeft.roundToInt(), iconTop.roundToInt()) }
                 .graphicsLayer {
-                    val scale = if (reduced) 1f else 1f + .1f * progress.value
+                    val scale = if (reduced) 1f else 1f + (if (cyber) .1f else .075f) * progress.value
                     scaleX = scale; scaleY = scale
                     shadowElevation = 12 * density.density * progress.value
                 }.testTag("context_icon").clickable(remember { MutableInteractionSource() }, null) {
@@ -110,10 +132,10 @@ fun AppContextMenu(target: AppActionTarget?, state: LauncherState, apps: Map<Str
             .width(with(density) { menuW.toDp() }).heightIn(max = with(density) { available.toDp() })
             .onSizeChanged { menuHeight = it.height }.graphicsLayer {
                 transformOrigin = TransformOrigin(((iconLeft + iconSize / 2 - left) / menuW).coerceIn(0f, 1f), if (below) 0f else 1f)
-                val start = if (cyber) .96f else .65f
+                val start = if (cyber) .96f else .86f
                 val scale = if (reduced) 1f else start + (1f - start) * progress.value
                 scaleX = scale; scaleY = scale
-            }.clickable(remember { MutableInteractionSource() }, null) {}, radius = 24f, material = GlassMaterial.Regular) {
+            }.clickable(remember { MutableInteractionSource() }, null) {}, radius = if (cyber) 24f else 28f, material = GlassMaterial.Regular) {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(entryLabel(entry, apps), Modifier.padding(horizontal = 17.dp, vertical = 12.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.Medium)
@@ -157,6 +179,7 @@ fun AppContextMenu(target: AppActionTarget?, state: LauncherState, apps: Map<Str
                 }
             }
         }
+    }
     }
 }
 

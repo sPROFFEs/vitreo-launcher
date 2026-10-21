@@ -71,7 +71,7 @@ fun TodayPage(now: Long, widgets: WidgetController, suggestions: List<AppRecord>
                     LauncherSymbol(Icons.Outlined.Settings, "Settings", tint = ink)
                 }
             }
-            GlassPanel(Modifier.fillMaxWidth().height(47.dp).clickable(onClick = onSearch), radius = 22f, tint = .13f) {
+            GlassPanel(Modifier.fillMaxWidth().height(IosDesign.SearchHeight.dp).clickable(onClick = onSearch), radius = 25f, tint = .13f, interactive = true) {
                 Row(Modifier.fillMaxSize().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                     LauncherSymbol(Icons.Outlined.Search, null, Modifier.size(21.dp), tint = ink.copy(alpha = .8f))
                     Text("Search", color = ink.copy(alpha = .8f), fontSize = 17.sp, modifier = Modifier.padding(start = 8.dp))

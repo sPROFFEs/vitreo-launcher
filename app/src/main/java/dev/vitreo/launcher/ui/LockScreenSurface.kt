@@ -157,7 +157,7 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
     var localMessage by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(message) { localMessage = message }
     VitreoTheme(style = 2, preset = appearance.themePreset) {
-        CompositionLocalProvider(LocalGlass provides GlassEnvironment(frame, viewport, appearance), LocalCyberPhase provides ambient) {
+        CompositionLocalProvider(LocalGlass provides GlassEnvironment(frame, viewport, appearance, drag.asState()), LocalCyberPhase provides ambient, LocalGlassContentColor provides Color.White) {
             Box(Modifier.fillMaxSize().background(Color(0xff101b2b)).onSizeChanged {
                 viewport = Viewport(it.width.toFloat(), it.height.toFloat())
             }.testTag("lock_screen")) {

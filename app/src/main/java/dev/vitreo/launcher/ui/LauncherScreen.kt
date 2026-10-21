@@ -32,6 +32,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
@@ -177,10 +178,10 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) widgets.host.startListening()
         onDispose { lifecycle.removeObserver(observer); widgets.host.stopListening() }
     }
-    val geometry = remember(workspaceSize, workspaceWasEditing, appearance.iconSize, density.density, density.fontScale) {
+    val geometry = remember(workspaceSize, workspaceWasEditing, appearance.iconSize, appearance.themePreset, density.density, density.fontScale) {
         // The edit toolbar uses 33dp more space. Keep the same rows/pages when
         // entering edit mode, and only tighten their spacing in that space.
-        workspaceGeometry(workspaceSize.width / density.density - 36f,
+        workspaceGeometry(workspaceSize.width / density.density - if (appearance.themePreset == 1) 36f else IosDesign.HomeInset * 2,
             workspaceSize.height / density.density + if (workspaceWasEditing) 33f else 0f,
             LayoutPreset(iconSize = appearance.iconSize), density.fontScale)
     }
@@ -201,7 +202,8 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         }
     }
     val onHomePage = pager.currentPage in 1..homePages
-    val footerHeight = (maxOf(91f, geometry.iconSize + 28f) + 51f).dp
+    val dockHeight = if (appearance.themePreset == 1) maxOf(91f, geometry.iconSize + 28f) else IosDesign.dockHeight(geometry.iconSize)
+    val footerHeight = (dockHeight + if (appearance.themePreset == 1) 51f else 54f).dp
     val dockVisibility = remember { Animatable(1f) }
     val dockHidden by remember { derivedStateOf { dockVisibility.value <= .001f } }
     LaunchedEffect(pager, homePages, appearance.reducedEffects) {
@@ -539,7 +541,15 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         if (appearance.reducedEffects) tween(0) else LauncherMotion.close(), label = "menu backdrop")
     val wallpaperText = if (appearance.themePreset == 1) CyberColors.Text else if (lightWallpaper) Color(0xff151518) else Color.White
     val cyberPhase = cyberAmbientPhase(appearance, sheet == null && !launching && !editing)
-    CompositionLocalProvider(LocalCyberPhase provides cyberPhase, LocalGlass provides GlassEnvironment(frame, viewport, appearance), LocalHomeClock provides now,
+    val glassMotion = remember(pager) { derivedStateOf {
+        listOf(pager.currentPage + pager.currentPageOffsetFraction, dockVisibility.value, departure.value, arrival.value)
+    } }
+    // Panels sit over an already shaded backdrop. Keep their samples in that
+    // exposure family instead of showing the undimmed wallpaper through them.
+    val controlMaterial = appearance.copy(frost = maxOf(.88f, appearance.frost),
+        wallpaperDim = if (appearance.themePreset == 1) appearance.wallpaperDim
+            else 1f - (1f - appearance.wallpaperDim) * .65f)
+    CompositionLocalProvider(LocalCyberPhase provides cyberPhase, LocalGlass provides GlassEnvironment(frame, viewport, appearance, glassMotion), LocalHomeClock provides now,
         LocalGlassContentColor provides wallpaperText, LocalIconPacks provides PackEnvironment(model.iconPacks, ui.iconRevision),
         LocalHomeArrival provides HomeArrivalEnvironment(arrival.asState(), viewport.width, viewport.height,
             onHomePage && sheet == null && !editing && !appearance.reducedEffects)) {
@@ -628,23 +638,11 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                         alpha = p * p * (3f - 2f * p)
                         translationY = (1f - p) * size.height
                     }) {
-                    Box(Modifier.fillMaxWidth().height(46.dp), contentAlignment = Alignment.Center) {
-                        if (editing || pager.isScrollInProgress) GlassPanel(radius = 20f, tint = .12f) {
-                            Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                                repeat(homePages.coerceAtMost(12)) { index ->
-                                    Box(Modifier.size(6.dp).background(Color.White.copy(alpha = if (index + 1 == pager.currentPage) 1f else .35f), CircleShape))
-                                }
-                            }
-                        } else GlassPanel(Modifier.testTag("library_button").clickable { openSearch() }, radius = 18f, tint = .1f, interactive = true) {
-                            Row(Modifier.padding(horizontal = 14.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
-                                LauncherSymbol(Icons.Outlined.Search, null, Modifier.size(14.dp), tint = Color.White)
-                                Text("Search", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 5.dp))
-                            }
-                        }
-                    }
-                    GlassPanel(Modifier.padding(horizontal = 11.dp).fillMaxWidth().testTag("dock")
-                        .onGloballyPositioned { dockBounds = it.boundsInRoot() }, radius = 35f, tint = .16f) {
-                        Row(Modifier.fillMaxWidth().height(maxOf(91f, geometry.iconSize + 28f).dp).padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    HomePageControl({ pager.currentPage + pager.currentPageOffsetFraction }, homePages,
+                        editing || pager.isScrollInProgress, ::openSearch)
+                    GlassPanel(Modifier.padding(horizontal = (if (appearance.themePreset == 1) 11f else IosDesign.DockInset).dp).fillMaxWidth().testTag("dock")
+                        .onGloballyPositioned { dockBounds = it.boundsInRoot() }, radius = if (appearance.themePreset == 1) 35f else minOf(44f, dockHeight * .45f), tint = .12f) {
+                        Row(Modifier.fillMaxWidth().height(dockHeight.dp).padding(horizontal = (if (appearance.themePreset == 1) 10f else IosDesign.DockInnerInset).dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                             repeat(DOCK_SLOTS) { slot ->
                                 val id = ui.layout.dock.getOrNull(slot)
                                 if (id == null) Box(Modifier.weight(1f).fillMaxHeight().clickable { openSearch() }, contentAlignment = Alignment.Center) {
@@ -661,7 +659,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                             }
                         }
                     }
-                    Spacer(Modifier.height(5.dp))
+                    Spacer(Modifier.height(if (appearance.themePreset == 1) 5.dp else 8.dp))
                 }
             }
             if (editing && !modalPresent) Row(Modifier.fillMaxWidth().statusBarsPadding().padding(top = if (integratedBar) customBarHeight else 0.dp).padding(horizontal = 18.dp),
@@ -702,7 +700,11 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                     Box(Modifier.fillMaxSize().graphicsLayer { alpha = surfaceProgress.floatValue }.background(Color(0xff18202c)))
                 } else {
                     frame?.let { wallpaper -> Image(wallpaper.frosted.asImageBitmap(), null,
-                        Modifier.fillMaxSize().graphicsLayer { alpha = surfaceProgress.floatValue * .92f }, contentScale = ContentScale.Crop) }
+                        Modifier.fillMaxSize().graphicsLayer { alpha = surfaceProgress.floatValue * .92f }
+                            .drawWithContent {
+                                drawContent()
+                                drawRect(Color.Black.copy(alpha = appearance.wallpaperDim))
+                            }, contentScale = ContentScale.Crop) }
                 }
                 Box(Modifier.fillMaxSize().drawBehind {
                     drawRect(Brush.verticalGradient(listOf(Color(0xff141a26).copy(alpha = .27f), Color(0xff0d1623).copy(alpha = .48f))), alpha = surfaceProgress.floatValue)
@@ -764,8 +766,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                             onRemove = { widgets.remove(current.id); closeSurface() },
                             onConfigure = { onConfigureWidget(widgets.host, current.id) {} }, onClose = ::closeSurface,
                             onMoveToday = { widgets.moveInToday(current.id, it); closeSurface() })
-                        Sheet.Notifications -> CompositionLocalProvider(LocalGlass provides LocalGlass.current.copy(
-                            appearance = appearance.copy(frost = maxOf(.88f, appearance.frost)))) {
+                        Sheet.Notifications -> CompositionLocalProvider(LocalGlass provides LocalGlass.current.copy(appearance = controlMaterial)) {
                             NotificationCenter(::closeSurface, {
                                 runCatching { context.startActivity(SystemBridge.accessIntent(context)) }
                                     .onFailure { system(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS) }
@@ -773,7 +774,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                         }
                         Sheet.Licenses -> LicensesSheet(::closeSurface)
                         is Sheet.IconPicker -> IconPickerSheet(model, ui, current.app, ::closeSurface)
-                        Sheet.Controls -> CompositionLocalProvider(LocalGlass provides LocalGlass.current.copy(appearance = appearance.copy(frost = maxOf(.88f, appearance.frost)))) { ControlCenter(ui.layout.appearance, MaterialTheme.colorScheme.background.luminance() < .5f, model::appearance,
+                        Sheet.Controls -> CompositionLocalProvider(LocalGlass provides LocalGlass.current.copy(appearance = controlMaterial)) { ControlCenter(ui.layout.appearance, MaterialTheme.colorScheme.background.luminance() < .5f, model::appearance,
                             ::closeSurface, ::system, ::utility, { pushPage(Sheet.Settings) }, { pushPage(Sheet.Widgets) }, model::message) }
                         is Sheet.Folder -> {
                             val live = ui.layout.home.filterIsInstance<HomeEntry.Folder>().find { it.id == current.id }

@@ -46,7 +46,7 @@ fun FolderSheet(folder: HomeEntry.Folder, apps: Map<String, AppRecord>, onClose:
         Column(Modifier.widthIn(max = 370.dp).fillMaxWidth().padding(horizontal = 25.dp).clickable {}, horizontalAlignment = Alignment.CenterHorizontally) {
             BasicTextField(name, { name = it.take(48); onRename(name) }, singleLine = true,
                 cursorBrush = SolidColor(Color.White),
-                textStyle = TextStyle(color = Color.White, fontSize = 30.sp, textAlign = TextAlign.Center, fontWeight = FontWeight.Medium),
+                textStyle = TextStyle(color = Color.White, fontSize = 32.sp, textAlign = TextAlign.Center, fontWeight = if (LocalCyber.current) FontWeight.Medium else FontWeight.Normal),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp).testTag("folder_name"))
             GlassPanel(Modifier.fillMaxWidth().aspectRatio(.95f).testTag("folder_panel"), radius = 40f,
                 material = GlassMaterial.Regular) {
