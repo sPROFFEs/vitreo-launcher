@@ -1,5 +1,10 @@
 # Cambios
 
+## 0.7.1
+
+- Fix stale glass in App Library while scrolling: moving cards resample the wallpaper without requiring a press. Observe actual placement changes during drawing, retaining cached textures and the existing parent-animation tracking.
+- Add native pixel regressions comparing an untouched, scrolled lens with a fresh lens at the same destination, with full and reduced effects on Android 12 and 15.
+
 ## 0.7.0
 
 - Refine the iOS visual system using six reviewed community repositories and Apple's material / motion guidance. Document pinned source revisions, selected patterns, rejected approximations and Android integration limits.

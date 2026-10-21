@@ -134,3 +134,12 @@ the caller does not read that fraction while composing the whole launcher.
 Glass sampling observes parent motion during drawing and reuses its wallpaper
 textures. No per-frame wallpaper decode, new blur bitmap or resting render loop
 is added. Reduce Motion removes geometry changes.
+
+In 0.7.1, glass also observes the actual screen position reported after layout.
+Lazy grids can reuse the same `LayoutCoordinates` instance while moving a card;
+retaining that instance alone does not invalidate its recorded drawing. Placement
+changes now invalidate only the lens drawing, while parent layer animations still
+sample their current coordinates at draw time. No interaction is needed to refresh
+the wallpaper patch. Native pixel checks scroll an untouched lens and compare it
+with a newly created lens at the same destination, including the cached-texture
+path used by Android 12 and Reduce Effects / Battery Saver.

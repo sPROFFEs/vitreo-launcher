@@ -65,6 +65,7 @@ fun GlassPanel(modifier: Modifier = Modifier, radius: Float = 28f, tint: Float =
     val context = LocalContext.current
     val renderer = remember(context) { GlassRenderer(context) }
     var coordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var placedPosition by remember { mutableStateOf(Offset.Zero) }
     val shape = RoundedCornerShape(radius.dp)
     Box(modifier.then(gesture).shadow(6.dp, shape, clip = false,
         ambientColor = Color.Black.copy(alpha = .10f), spotColor = Color.Black.copy(alpha = .12f)).graphicsLayer {
@@ -73,13 +74,19 @@ fun GlassPanel(modifier: Modifier = Modifier, radius: Float = 28f, tint: Float =
         rotationY = (touch.x - .5f) * light.value * 2.5f
         cameraDistance = 16 * density
     }.clip(RoundedCornerShape(radius.dp))) {
-        Canvas(Modifier.matchParentSize().onGloballyPositioned { coordinates = it }) {
+        Canvas(Modifier.matchParentSize().onGloballyPositioned {
+            coordinates = it
+            // Lazy layouts reuse LayoutCoordinates when a card moves. Observe the
+            // position value as well, so scrolling invalidates its cached drawing.
+            placedPosition = it.positionOnScreen()
+        }) {
             // Subscribe only this drawing to the parent's reveal, not the workspace.
             if (surfaceReveal.value <= 0f) return@Canvas
             glass.motion?.value // Snapshot observation: invalidate drawing when its parent moves.
             // Parent graphics layers can move without a layout pass. Sample the current
             // screen position at draw time so the lens stays attached to the wallpaper.
-            val position = coordinates?.takeIf { it.isAttached }?.positionOnScreen() ?: Offset.Zero
+            val layoutPosition = placedPosition // Subscribe only drawing to placement changes.
+            val position = coordinates?.takeIf { it.isAttached }?.positionOnScreen() ?: layoutPosition
             renderer.configure(glass.frame, glass.viewport, glass.appearance, radius, tint,
                 material == GlassMaterial.Regular, touch.x, touch.y, light.value, foregroundDark = color.luminance() < .4f)
             drawIntoCanvas { renderer.draw(it.nativeCanvas, size.width.toInt(), size.height.toInt(), position.x, position.y) }
