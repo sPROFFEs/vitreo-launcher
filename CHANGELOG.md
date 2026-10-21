@@ -7,6 +7,7 @@
 - Clear glass follows foreground contrast and wallpaper dimming, including the full-screen Control / Notification Center backdrop. Android 12 / Battery Saver blends cached sharp and frosted textures; Android 13+ retains bounded optical refraction, subtle color transmission and illuminated edges. Track parent movement at draw time without rebuilding wallpaper bitmaps.
 - Roomier iOS Control Center modules, readable media typography, animated active states, gentle touch feedback and a restrained module reveal. Brightness / volume capsules resist overscroll while their hit areas and real Android values stay bounded; Reduce Motion disables deformation.
 - App Library previews fit their cards on narrow screens. Refine category grids and centered headings, folder titles, contextual menu lift and interruption / lifecycle handling.
+- A fresh panel gesture starts a new navigation session after dismissal, preventing a closing category from briefly resurfacing; keep the outgoing content intact through its own last frame.
 - Add slider resistance / page-window regression coverage and native verification of actual glass stretch, stable hit regions, endpoint clamping and reduced motion.
 
 ## 0.6.2

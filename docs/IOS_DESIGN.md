@@ -66,7 +66,10 @@ Home still adapts to screen size, font scale, navigation insets and icon size.
 
 Unit coverage exercises page windows and bounded, symmetric slider resistance,
 including non-finite input. Native tests exercise actual slider deformation,
-stationary touch bounds, endpoint values and Reduce Motion. Existing coverage
+stationary touch bounds, endpoint values and Reduce Motion. An interrupted
+category dismissal followed by a new Control Center gesture must retain the
+outgoing category only until that gesture starts, without resurfacing it.
+Existing coverage
 continues to check category gestures, lifted-icon anchoring, interrupted panel
 opening / dismissal, large icons, keyboard recovery and activity lifecycle.
 

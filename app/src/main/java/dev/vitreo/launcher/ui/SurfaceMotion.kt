@@ -37,6 +37,13 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
     val openingProgress = openingState?.value
     var retained by remember { mutableStateOf(target) }
     val displayed = target ?: retained
+    // Keep a closing surface's composition until its last frame, but start a
+    // fresh navigation session when opening again from Home. Otherwise
+    // AnimatedContent can bring back the previous category during a quick pull.
+    val openedSession = remember(target != null) { if (target == null) null else Any() }
+    var retainedSession by remember { mutableStateOf(openedSession) }
+    SideEffect { if (openedSession != null) retainedSession = openedSession }
+    val session = openedSession ?: retainedSession
     val progress = remember { Animatable(0f) }
     var lastOpeningProgress by remember { mutableStateOf<Float?>(null) }
     SideEffect { if (openingProgress != null) lastOpeningProgress = openingProgress }
@@ -186,11 +193,13 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
             }
         }) {
             CompositionLocalProvider(LocalSurfaceReveal provides reveal) {
+            key(session) {
             AnimatedContent(displayed, transitionSpec = {
                 if (reduced) fadeIn(tween(100)) togetherWith fadeOut(tween(100))
                 else (fadeIn(tween(150)) + slideInHorizontally(LauncherMotion.panel(cyber)) { if (forward) it / 7 else -it / 10 }) togetherWith
                     (fadeOut(tween(120)) + slideOutHorizontally(LauncherMotion.close()) { if (forward) -it / 10 else it / 7 })
             }, label = "surface navigation") { content(it) }
+            }
             }
         }
     }

@@ -124,7 +124,10 @@ animation tries to imitate, cover or bypass its authentication UI.
 
 See [the pinned six-repository study](IOS_DESIGN.md). Menus use a more restrained
 spring and retain velocity during interrupted dismissal; stopped activities settle
-their menu surface. Control Center uses one shared reveal with a short module
+their menu surface. Reopening after a dismissal starts a fresh navigation session,
+so an outgoing category cannot reappear during the next panel's entry. Navigation
+within an open session still retains its contextual transition. Control Center
+uses one shared reveal with a short module
 offset, and sliders apply nonlinear visual resistance outside their real range
 without moving the pointer region. Page dots follow fractional pager progress;
 the caller does not read that fraction while composing the whole launcher.

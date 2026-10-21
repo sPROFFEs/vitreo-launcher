@@ -434,8 +434,9 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val drop by rememberUpdatedState<() -> Unit>({
         widgetDrag?.let { session ->
             if (workspaceBounds.contains(session.position)) {
-                val width = workspaceBounds.width - 36 * density.density
-                val column = ((session.position.x - workspaceBounds.left - 18 * density.density) / (width / GRID_COLUMNS)).toInt()
+                val inset = (if (appearance.themePreset == 1) 18f else IosDesign.HomeInset) * density.density
+                val width = workspaceBounds.width - inset * 2
+                val column = ((session.position.x - workspaceBounds.left - inset) / (width / GRID_COLUMNS)).toInt()
                 val row = ((session.position.y - workspaceBounds.top) / (rowHeight * density.density)).toInt()
                 widgets.placeOnHome(session.placement.copy(page = pager.currentPage - 1,
                     column = column.coerceIn(0, GRID_COLUMNS - session.placement.columns), row = row.coerceAtLeast(0)))

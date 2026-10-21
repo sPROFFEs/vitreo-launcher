@@ -502,6 +502,41 @@ class LauncherSmokeTest {
         }
     }
 
+    @Test fun closingCategoryDoesNotResurfaceDuringTheNextPanelGesture() {
+        awaitReady()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val original = model.ui.value.layout.appearance
+        try {
+            compose.runOnUiThread { model.appearance(original.copy(themePreset = 0, reducedEffects = false, controlCenter = true)) }
+            openLibrary()
+            compose.onNodeWithTag("library_category:Suggestions").performClick()
+            compose.onNodeWithTag("category_panel").assertIsDisplayed()
+            compose.mainClock.autoAdvance = false
+            compose.onNodeWithContentDescription("Close").performClick()
+            compose.mainClock.advanceTimeBy(100)
+            compose.onNodeWithTag("category_panel").assertExists() // Preserve the outgoing composition.
+            val root = compose.onNodeWithTag("launcher_root")
+            val top = with(compose.density) { 100.dp.toPx() }
+            val pull = with(compose.density) { 65.dp.toPx() }
+            try {
+                root.performTouchInput {
+                    down(Offset(width * .8f, top))
+                    moveBy(Offset(0f, pull), delayMillis = 150)
+                }
+                compose.mainClock.advanceTimeByFrame()
+                compose.onNodeWithTag("control_center").assertIsDisplayed()
+                compose.onNodeWithTag("category_panel").assertDoesNotExist()
+            } finally {
+                try { root.performTouchInput { up() } } finally { compose.mainClock.autoAdvance = true }
+            }
+            compose.waitForIdle()
+            compose.onNodeWithTag("control_center").assertIsDisplayed()
+        } finally {
+            compose.mainClock.autoAdvance = true
+            compose.runOnUiThread { model.appearance(original) }
+        }
+    }
+
     @Test fun iosSliderStretchKeepsItsHitAreaAndClampsTheRealBrightness() {
         awaitReady()
         val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
