@@ -69,6 +69,11 @@ def release_body(info: dict) -> str:
 - SHA-256: `{info['apkSha256']}`.
 - Signer SHA-256: `{info['signingCertificateSha256']}`.
 
+## New in this release
+Stable GitHub self-updates with daily checks, unmetered downloads and APK checksum/identity/version/signer verification. Android owns installation consent; enable installation permission in Settings → Software Update. Debug and Preview do not self-update.
+Today can optionally show Google News headlines with edition/topic selection, refresh and an offline cache. News is off by default, fetches only while visible and preserves the widgets when switching back.
+The optional Lock Screen shows app-name/count notification cards after Android notification access, hides private content and secret alerts, and opens notifications only after native authentication. A configurable idle handoff returns to Android keyguard so the system can turn the display off normally.
+
 ## Scope and verification
 iOS-inspired Home and optional Cyberpunk HUD theme, four-column grid, Dock, paged folders, Spotlight, categorized App Library, Home/Today widgets and layout backups.
 Themes & Icons supports installed ADW/Nova static icon packs and per-app icon selection. Cyberpunk includes attributed line artwork, native HUD controls and bounded motion effects.
