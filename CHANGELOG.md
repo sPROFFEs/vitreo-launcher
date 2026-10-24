@@ -1,5 +1,18 @@
 # Cambios
 
+## 0.8.0
+
+- Add stable GitHub self-updates with automatic daily checks, unmetered downloads,
+  progress, manual controls and Android installation consent when required.
+  Verify release SHA-256, identity, newer version and installed signing certificate.
+- Add optional Google News in Today, with edition/topic selection, refresh,
+  bounded offline headlines and preserved widget layouts when switching back.
+- Show privacy-preserving lock notification cards independently of Home panels;
+  authenticate with Android before opening a notification.
+- Return the custom lock surface to native keyguard after configurable inactivity
+  and handle notification activity launches correctly on Android 14/15.
+
+
 ## 0.7.1
 
 - Fix stale glass in App Library while scrolling: moving cards resample the wallpaper without requiring a press. Observe actual placement changes during drawing, retaining cached textures and the existing parent-animation tracking.

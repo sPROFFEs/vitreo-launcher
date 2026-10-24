@@ -33,7 +33,11 @@ fun TodayPage(now: Long, widgets: WidgetController, suggestions: List<AppRecord>
     appearance: Appearance, onAppearance: (Appearance) -> Unit, editing: Boolean, onEditing: (Boolean) -> Unit,
     onSearch: () -> Unit, onSettings: () -> Unit,
     onWidgets: () -> Unit, onControls: () -> Unit, onClock: () -> Unit, onCalendar: () -> Unit,
-    onLaunch: (String, Rect?) -> Unit, onEditWidget: (Int) -> Unit) {
+    onLaunch: (String, Rect?) -> Unit, onEditWidget: (Int) -> Unit, active: Boolean = true) {
+    if (appearance.news.enabled) {
+        NewsPage(appearance.news, active, onSettings, { onAppearance(appearance.copy(news = appearance.news.copy(topic = it))) })
+        return
+    }
     var dragging by remember { mutableStateOf<String?>(null) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
     val ink = LocalGlassContentColor.current

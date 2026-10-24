@@ -28,6 +28,30 @@ class LockScreenActivity : ComponentActivity() {
     internal var preview = false
         private set
     private var authenticating = false
+    private var pendingNotice: String? = null
+    private val idleHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val idleReturn = Runnable { if (!preview && !authenticating && !isFinishing && keyguard?.isDeviceLocked == true) finishAndRemoveTask() }
+    private fun resetIdle() {
+        idleHandler.removeCallbacks(idleReturn)
+        if (!preview && !authenticating && !isFinishing && hasWindowFocus() &&
+            lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) &&
+            getSystemService(android.os.PowerManager::class.java).isInteractive) {
+            idleHandler.postDelayed(idleReturn, LockScreenRuntime.appearance.value.lockScreen.sanitized().idleTimeoutSeconds * 1000L)
+        }
+    }
+    private fun completeUnlock() {
+        if (preview || isFinishing || keyguard?.isDeviceLocked != false) return
+        pendingNotice?.let { key ->
+            val notice = dev.vitreo.launcher.data.SystemBridge.state.value.notices.firstOrNull { it.key == key }
+            dev.vitreo.launcher.data.launchNotification(this, notice?.intent)
+        }
+        pendingNotice = null
+        finishAndRemoveTask()
+    }
+    override fun onWindowFocusChanged(hasFocus: Boolean) { super.onWindowFocusChanged(hasFocus); resetIdle() }
+    override fun onUserInteraction() { super.onUserInteraction(); resetIdle() }
+    override fun onPause() { idleHandler.removeCallbacks(idleReturn); super.onPause() }
+
     private var presentReceiver: BroadcastReceiver? = null
     private val keyguard get() = getSystemService(KeyguardManager::class.java)
     private var failure by mutableStateOf<String?>(null)
@@ -41,6 +65,8 @@ class LockScreenActivity : ComponentActivity() {
             finishAndRemoveTask(); return
         }
         enableEdgeToEdge()
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        window.decorView.keepScreenOn = false
         setShowWhenLocked(!preview)
         if (!preview) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         WindowCompat.getInsetsController(window, window.decorView).apply {
@@ -52,9 +78,13 @@ class LockScreenActivity : ComponentActivity() {
             LockScreenRuntime.prepared(this)
             presentReceiver = object : BroadcastReceiver() {
                 override fun onReceive(context: Context, intent: Intent) {
-                    if (intent.action == Intent.ACTION_USER_PRESENT && keyguard?.isDeviceLocked == false) finishAndRemoveTask()
+                    when (intent.action) {
+                        Intent.ACTION_USER_PRESENT -> completeUnlock()
+                        Intent.ACTION_SCREEN_OFF -> { pendingNotice = null; idleHandler.removeCallbacks(idleReturn) }
+                        Intent.ACTION_SCREEN_ON -> resetIdle()
+                    }
                 }
-            }.also { ContextCompat.registerReceiver(this, it, IntentFilter(Intent.ACTION_USER_PRESENT), ContextCompat.RECEIVER_NOT_EXPORTED) }
+            }.also { ContextCompat.registerReceiver(this, it, IntentFilter().apply { addAction(Intent.ACTION_USER_PRESENT); addAction(Intent.ACTION_SCREEN_OFF); addAction(Intent.ACTION_SCREEN_ON) }, ContextCompat.RECEIVER_NOT_EXPORTED) }
         }
         if (!preview) lifecycleScope.launch {
             // Disabling must remove the surface even while keyguard pauses Compose's frame clock.
@@ -73,7 +103,8 @@ class LockScreenActivity : ComponentActivity() {
                 onSystemLock = { finishAndRemoveTask() },
                 onSystemUnlock = { if (preview) previewHint = true else finishAndRemoveTask() },
                 onCamera = { if (preview) previewHint = true else openSecureCamera() },
-                onEmergency = { if (preview) previewHint = true else openEmergency() })
+                onEmergency = { if (preview) previewHint = true else openEmergency() },
+                onNotification = { key -> if (!preview) { pendingNotice = key; unlock() } })
         }
     }
 
@@ -88,23 +119,25 @@ class LockScreenActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         if (!preview && !isFinishing) {
-            if (keyguard?.isDeviceLocked == false || !LockScreenRuntime.enabled.value ||
-                LockScreenRuntime.unavailableReason(this) != null) finishAndRemoveTask()
+            if (keyguard?.isDeviceLocked == false) completeUnlock()
+            else if (!LockScreenRuntime.enabled.value || LockScreenRuntime.unavailableReason(this) != null) finishAndRemoveTask()
+            else resetIdle()
         }
     }
 
     private fun unlock() {
         if (authenticating || isFinishing) return
-        if (keyguard?.isDeviceLocked == false) { finishAndRemoveTask(); return }
+        if (keyguard?.isDeviceLocked == false) { completeUnlock(); return }
+        idleHandler.removeCallbacks(idleReturn)
         authenticating = true; busy = true; failure = null
         keyguard?.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
             override fun onDismissSucceeded() {
                 authenticating = false; busy = false
-                if (keyguard?.isDeviceLocked == false) finishAndRemoveTask()
+                completeUnlock()
             }
-            override fun onDismissCancelled() { authenticating = false; busy = false }
+            override fun onDismissCancelled() { authenticating = false; busy = false; pendingNotice = null; resetIdle() }
             override fun onDismissError() {
-                authenticating = false; busy = false
+                authenticating = false; busy = false; pendingNotice = null; resetIdle()
                 failure = "Use the system lock screen to unlock this device."
             }
         })
@@ -122,6 +155,8 @@ class LockScreenActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        idleHandler.removeCallbacks(idleReturn)
+        pendingNotice = null
         LockScreenRuntime.removed(this)
         presentReceiver?.let { unregisterReceiver(it) }
         super.onDestroy()

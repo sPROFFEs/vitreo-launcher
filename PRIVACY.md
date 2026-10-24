@@ -1,6 +1,6 @@
 # Privacidad — Vitreo
 
-Vitreo no tiene conexión propia a Internet, cuentas, anuncios ni telemetría.
+Vitreo no tiene cuentas, anuncios ni telemetría. Tiene acceso a Internet para comprobar y descargar actualizaciones estables de GitHub y, si lo activas, cargar titulares públicos de Google News. Las funciones locales no envían datos a estos servicios.
 La búsqueda y la clasificación de aplicaciones son locales y se limitan al usuario Android actual.
 El catálogo combina LauncherApps y la consulta MAIN/LAUNCHER para las actividades de inicio que Android pone a disposición del usuario actual; no consulta perfiles ocultos. Los proveedores de widgets se consultan por separado.
 Los menús pueden consultar accesos rápidos de las apps mediante LauncherApps cuando Android reconoce a Vitreo como launcher predeterminado. Se muestran localmente y no se incluyen en las copias exportadas.
@@ -31,15 +31,13 @@ de bloqueo. ACCESS_NETWORK_STATE permite indicar la conexión activa; no consult
 SSID, redes cercanas, ubicación ni intensidad de señal telefónica.
 
 Notification Center y el reproductor conectado requieren autorización explícita
-en la pantalla de acceso a notificaciones de Android. El único servicio declarado
-es un NotificationListenerService no exportado, protegido por
+en la pantalla de acceso a notificaciones de Android. El acceso a notificaciones usa un NotificationListenerService no exportado, protegido por
 BIND_NOTIFICATION_LISTENER_SERVICE y vinculado por el sistema. No hay servicio de
 accesibilidad, overlay, grabación de pantalla ni servicio en primer plano.
 
-Solo con Notification Center activado se leen las notificaciones actuales del
+Solo con Notification Center o las tarjetas/indicador de bloqueo activados se leen las notificaciones actuales del
 usuario Android actual: aplicación, título, texto, hora y acciones. Los resúmenes
-de grupo se omiten y los avisos no borrables se conservan. No se muestra contenido
-mientras el dispositivo indica que está bloqueado. Android puede restringir
+de grupo se omiten y los avisos no borrables se conservan. En el bloqueo solo se muestran el nombre de la app y el número de avisos; el título, texto, imágenes y acciones permanecen ocultos. Los avisos secretos por visibilidad de la app o del canal se excluyen. Android puede restringir
 notificaciones sensibles y perfiles de trabajo. Solo con Connect media player
 activado se consultan sesiones multimedia, metadatos, carátulas (máximo 512 píxeles)
 y acciones compatibles. Los botones usan la sesión real, sin historial de escucha.
@@ -106,9 +104,7 @@ KeyguardManager.requestDismissKeyguard. Vitreo no solicita, intercepta, guarda n
 valida PIN, contraseñas o biometría. No deshabilita el keyguard ni modifica el
 wallpaper de bloqueo del sistema. Emergency y Back devuelven la pantalla nativa.
 La cámara se abre únicamente con el intent de cámara segura. La linterna usa la
-API pública sin capturar imágenes. Los mensajes, nombres de apps, acciones y
-carátulas no se muestran; el indicador opcional solo señala que hay notificaciones,
-si ya autorizaste esa integración en ajustes.
+API pública sin capturar imágenes. Las tarjetas opcionales muestran el nombre de la app y el número de avisos, si autorizas acceso a notificaciones. El título, texto, acciones y carátulas se mantienen ocultos. Al tocar una tarjeta se solicita autenticación a Android antes de abrir el aviso. El indicador opcional es genérico.
 
 No añade permisos, servicio persistente, acceso a accesibilidad, superposición,
 administrador del dispositivo, receptor de arranque ni dependencia de Google.
@@ -117,3 +113,34 @@ activo. En ciclos rápidos puede recuperarla una vez al encender, dentro de 600 
 del apagado observado, comprobando que Android siga bloqueado. No hay reintentos
 tardíos con la pantalla encendida. Si el proceso deja de estar disponible o Android
 aún no ha bloqueado, se mantiene la pantalla nativa.
+
+
+## Actualizaciones de software
+
+La versión firmada de producción comprueba las releases estables públicas de
+`sPROFFEs/vitreo-launcher` mediante HTTPS. GitHub recibe la petición y la dirección
+IP, sin inventario de apps ni contenido del usuario. No se incluyen tokens.
+El instalador valida tamaño, SHA-256 publicado por GitHub, paquete, versión y
+certificado de firma de la app instalada antes de entregar el APK a Android.
+No instala Debug, Preview, versiones antiguas ni prereleases.
+
+Los ajustes de actualización y el APK temporal se guardan en almacenamiento
+privado, fuera del backup JSON. La comprobación usa JobScheduler una vez al día,
+sin servicio permanente, receptor de arranque ni wake lock. Las descargas usan una
+conexión no medida por defecto. Puedes desactivar la actualización automática.
+`REQUEST_INSTALL_PACKAGES` requiere permitir a Vitreo instalar apps en Android;
+`UPDATE_PACKAGES_WITHOUT_USER_ACTION` permite solicitar una actualización propia,
+pero Android conserva el control y puede exigir confirmación. El permiso opcional
+`POST_NOTIFICATIONS` permite avisar de una confirmación pendiente. No se inicia
+una pantalla de confirmación desde el fondo o encima del bloqueo.
+
+## Noticias opcionales
+
+Desactivadas por defecto. Al ver Today en modo News se solicitan titulares RSS a
+`news.google.com` para la edición e idioma elegidos. Google recibe la petición y
+la IP. No se envían ubicación, notificaciones, historial de apps ni distribución.
+No se descargan imágenes ni páginas de los periódicos. Una caché corta guarda
+hasta 50 titulares por edición/tema para mostrar las últimas noticias sin red;
+Android puede eliminarla. Los enlaces se abren por una acción expresa en el
+navegador, sujeto a la política del sitio. No hay consulta periódica de noticias
+en segundo plano. Volver al modo Widgets conserva la configuración local.

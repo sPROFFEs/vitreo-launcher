@@ -51,6 +51,10 @@ object LockScreenRuntime {
     }
 
     fun configure(appearance: Appearance) { style.value = appearance.sanitized() }
+    private fun configureNotifications(context: Context) {
+        val a = style.value
+        dev.vitreo.launcher.data.SystemBridge.configure(context, a.notificationCenter || active.value && (a.lockScreen.showNotifications || a.lockScreen.notificationCount), a.mediaIntegration)
+    }
 
     fun unavailableReason(context: Context): String? = when {
         context.getSystemService(RoleManager::class.java)?.isRoleHeld(RoleManager.ROLE_HOME) != true ->
@@ -70,12 +74,14 @@ object LockScreenRuntime {
             receiver?.let { runCatching { context.applicationContext.unregisterReceiver(it) } }
             receiver = null
             active.value = false
+            configureNotifications(context)
         }
         return null
     }
 
     private fun register(context: Context) {
         active.value = true
+        configureNotifications(context)
         if (receiver != null) return
         receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {

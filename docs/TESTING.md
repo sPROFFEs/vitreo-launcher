@@ -9,7 +9,7 @@ antes de abrir una incidencia. El emulador AOSP no cubre estas diferencias.
 Descarga el asset `.apk` de la release de tu repo, no el ZIP de código fuente.
 Comprueba SHA-256 y la huella de firma de la release. Instálalo mediante el flujo
 normal del sistema, habilitando instalar apps para ese origen solo si lo pide.
-No necesitas Play Services, root, Shizuku, accesibilidad ni permiso de red.
+No necesitas Play Services, root, Shizuku, accesibilidad ni permisos de red adicionales. Internet se usa para las actualizaciones y las noticias opcionales.
 
 Abre Vitreo y entra en **Hoy → Ajustes → App de inicio**, o usa el selector de aplicación
 de inicio en Ajustes de Android. **No deshabilites ni desinstales el launcher de
@@ -171,3 +171,32 @@ launcher. No physical GrapheneOS result is claimed by emulator CI.
 Lock customization evidence also includes the full-screen draft editor and Cyberpunk Home/status, Notification Center and Control Center. Native checks exercise Save / Cancel, height and font persistence without activation; the large-clock preview uses 210% vertical stretch.
 
 Before application tests, the disposable-emulator fixture confirms Android’s immersive tutorial and performs one clean start of the image’s stock Pixel Launcher / Launcher3 after APK-install broadcasts. It requires stable window focus; any subsequent ANR fails preflight. Product ANRs and failed tests are never dismissed or retried. The tutorial setting is restored, and full window / last-ANR diagnostics accompany logcat on failure. Physical devices and unknown launchers are rejected before the stock restart.
+
+
+## Version 0.8 network / lock regression checks
+
+- Software Update: reject prereleases, altered APKs, wrong identity/signature and
+  rollback; retain Android consent. Debug and Preview must schedule no update job.
+- Today: News loads only when visible/resumed/focused; cached stories remain
+  readable offline. Refresh retries. Switching back keeps all Today widget order.
+- Lock: grant Android notification access with Home Notification Center disabled.
+  App-name/count cards appear; private bodies and secret notifications never do.
+  Tap, cancel native authentication, retry with PIN and verify destination opens.
+  Check the configured idle handoff without interaction, screen-off/on and cancel.
+- Manual, disposable-emulator-only positive update probe: build
+  `:app:assembleDebug :app:assembleDebugAndroidTest :app:assembleUpdateFixture`,
+  install Debug and its test APK, then run `python3 scripts/test_self_update.py`.
+  The fixture uses the Debug identity/key but is not debuggable and has version
+  code +1. It is never included in release assets. The probe stages/commits through
+  the same native installer implementation as production. ADB installs only the
+  initial app; the observer requires the actual native version transition. Package
+  replacement intentionally kills instrumentation. Use a disposable emulator;
+  the fixture must be uninstalled before reinstalling the older Debug build.
+- Manual live HTTPS/RSS check: run `adb shell am instrument -w -e mode network
+  dev.vitreo.launcher.debug.test/dev.vitreo.launcher.SelfUpdateProbe`. This explicit
+  probe is not selected by the normal JUnit suite and has no network mocks.
+
+Installer limitations follow the public
+[PackageInstaller contract](https://developer.android.com/reference/android/content/pm/PackageInstaller.SessionParams#setRequireUserAction(int)).
+Notification taps use the public
+[background activity launch opt-in](https://developer.android.com/guide/components/activities/secure-bal).

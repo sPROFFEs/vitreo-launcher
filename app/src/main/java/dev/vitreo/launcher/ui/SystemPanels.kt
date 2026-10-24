@@ -204,7 +204,7 @@ internal fun NotificationCenter(onClose: () -> Unit, onAccess: () -> Unit, onErr
                             GlassPanel(Modifier.fillMaxWidth().testTag("notice:${notice.key}"), radius = 26f, tint = .32f, material = GlassMaterial.Regular) {
                                 Column(Modifier.fillMaxWidth().clickable {
                                     val intent = notice.intent
-                                    if (intent != null) runCatching { intent.send(); onClose() }.onFailure { onError("This notification is no longer available.") }
+                                    if (intent != null) { if(dev.vitreo.launcher.data.launchNotification(context,intent)) onClose() else onError("This notification is no longer available.") }
                                     else expanded = if (notice.key in expanded) expanded - notice.key else expanded + notice.key
                                 }.padding(16.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -225,7 +225,7 @@ internal fun NotificationCenter(onClose: () -> Unit, onAccess: () -> Unit, onErr
                                     Row {
                                         TextButton(onClick = { expanded = if (notice.key in expanded) expanded - notice.key else expanded + notice.key }) { Text(if (notice.key in expanded) "Less" else "More", fontSize = 12.sp) }
                                         if (notice.key in expanded) notice.actions.forEach { action ->
-                                            TextButton(onClick = { runCatching { action.intent.send() }.onFailure { onError("This action is no longer available.") } }) { Text(action.title, fontSize = 12.sp, maxLines = 1) }
+                                            TextButton(onClick = { if(!dev.vitreo.launcher.data.launchNotification(context,action.intent)) onError("This action is no longer available.") }) { Text(action.title, fontSize = 12.sp, maxLines = 1) }
                                         }
                                     }
                                 }

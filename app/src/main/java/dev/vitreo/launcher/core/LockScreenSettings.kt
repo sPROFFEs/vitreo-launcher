@@ -12,12 +12,15 @@ data class LockScreenSettings(
     val showBattery: Boolean = true,
     val showAlarm: Boolean = true,
     val notificationCount: Boolean = false,
+    val showNotifications: Boolean = true,
+    val idleTimeoutSeconds: Int = 10,
     val wallpaper: Int = -1, // Follow Home or a built-in collection item
     val dim: Float = .18f,
     val immersive: Boolean = false,
     val showSystemUnlock: Boolean = false, // Optional shortcut to the real keyguard; never app authentication.
 ) {
     fun sanitized() = copy(theme = theme.coerceIn(0, 2),
+        idleTimeoutSeconds = idleTimeoutSeconds.takeIf { it in listOf(5, 10, 15, 30) } ?: 10,
         clockSize = if (clockSize.isFinite()) clockSize.coerceIn(72f, 132f) else 104f,
         clockStyle = clockStyle.coerceIn(0, 5),
         clockHeight = if (clockHeight.isFinite()) clockHeight.coerceIn(1f, 2.4f) else 1f,

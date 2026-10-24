@@ -21,7 +21,7 @@ recording and test reports for its exact commit.
 
 Install the release APK and select **Vitreo** as your default Home app in Android
 Settings. Keep your system launcher installed so you can switch back at any time.
-Updates use the same app ID and signing key; install the newer APK over the old one.
+Updates use the same app ID and signing key. **Settings → Software Update** checks stable GitHub releases daily, downloads and verifies the APK, then asks Android to install it. Enable installation permission for Vitreo when requested; Android may still require confirmation. Automatic updates and Wi-Fi-only downloads can be changed there. You can also install the newer release APK over the old one.
 Debug and Preview are separate apps with separate data and test signatures.
 
 When Vitreo is the default launcher, **Wallpaper → Sync with Android Home** keeps
@@ -33,6 +33,9 @@ stays on Android's own surface; Reduce Motion removes the icon arrival effect.
 - **Home:** swipe between pages. Four app columns, folders and a four-slot glass dock.
 - **Today:** swipe right from the first Home page for widgets and recent suggestions.
   Tap **Edit** to reorder or remove built-in cards and restore them later.
+  **Settings → Today & News** optionally replaces this page with current Google News
+  headlines, edition/topic selection, pull-to-refresh and an offline cache. Switching
+  back preserves the widgets. News is off by default and fetches only while visible.
 - **Control Center:** swipe down briefly in the upper-right area, below Android's
   status bar, on Home, Today or App Library. Today also has a dedicated button.
   Swipe up from the panel's bottom handle to close it. Enable/disable it in

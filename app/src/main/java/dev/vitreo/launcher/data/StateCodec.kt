@@ -25,6 +25,7 @@ object StateCodec {
             put("knownApps", JSONArray(s.knownApps.sorted()))
             put("appearance", JSONObject().apply {
                 put("lockScreen", LockScreenCodec.encode(s.appearance.lockScreen))
+                put("news", JSONObject().put("enabled",s.appearance.news.enabled).put("market",s.appearance.news.market).put("topic",s.appearance.news.topic))
                 put("iconSize", s.appearance.iconSize.toDouble())
                 put("showLabels", s.appearance.showLabels)
                 put("refraction", s.appearance.refraction.toDouble())
@@ -91,6 +92,7 @@ object StateCodec {
             knownApps = strings(root.optJSONArray("knownApps") ?: JSONArray(), MAX_ITEMS * 4).toSet(),
             appearance = Appearance(
                 lockScreen = LockScreenCodec.decode(a.optJSONObject("lockScreen")),
+                news = a.optJSONObject("news")?.let { NewsSettings(it.optBoolean("enabled",false),it.optString("market","auto"),it.optString("topic","top")) } ?: NewsSettings(),
                 iconSize = a.optDouble("iconSize", 60.0).toFloat(),
                 showLabels = a.optBoolean("showLabels", true),
                 refraction = a.optDouble("refraction", .65).toFloat(),

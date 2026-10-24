@@ -21,9 +21,14 @@ lock screen. Preview never changes the lock state or turns the feature on.
 - Cyberpunk: Classic by default, optional Immersive rain, scan and HUD motion.
   Motion pauses while not resumed, unfocused, screen off, in Battery Saver or with
   Reduce Motion. The surface never wakes the display or holds a wake lock.
-- Notification indicator: optional and generic, using access already enabled in
-  Status Bar & Notifications. No sender, app name, message, artwork or action is
-  displayed; secret-visibility alerts do not trigger the indicator. Full notification interaction stays behind Android authentication.
+- Notifications: optional app-name/count cards after explicit Android notification
+  access, independent of Home Notification Center. Titles, body text, artwork and
+  actions remain hidden; app/channel secret notifications are excluded. Tap a card
+  to open its current notification only after Android authentication succeeds.
+- Idle return: after 5, 10 (default), 15 or 30 seconds without interaction the
+  surface returns to Android keyguard, which owns the actual display timeout.
+  It never holds a wake lock or sets KEEP_SCREEN_ON. Authentication suspends this
+  handoff; cancelling authentication restarts the timer.
 
 Swipe up in the central clock / accessories area or tap **Use PIN or password**.
 The bottom navigation edge is reserved for Android gestures. Android

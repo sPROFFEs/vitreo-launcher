@@ -9,6 +9,7 @@ object LockScreenCodec {
         put("clockHeight", a.clockHeight.toDouble())
         put("clockColor", a.clockColor); put("glassClock", a.glassClock); put("showDate", a.showDate)
         put("showBattery", a.showBattery); put("showAlarm", a.showAlarm)
+        put("showNotifications", a.showNotifications); put("idleTimeoutSeconds", a.idleTimeoutSeconds)
         put("notificationCount", a.notificationCount); put("wallpaper", a.wallpaper)
         put("dim", a.dim.toDouble()); put("immersive", a.immersive)
         put("showSystemUnlock", a.showSystemUnlock)
@@ -20,6 +21,7 @@ object LockScreenCodec {
             clockHeight = a.optDouble("clockHeight", 1.0).toFloat(),
             glassClock = a.optBoolean("glassClock", true), showDate = a.optBoolean("showDate", true),
             showBattery = a.optBoolean("showBattery", true), showAlarm = a.optBoolean("showAlarm", true),
+            showNotifications = a.optBoolean("showNotifications", true), idleTimeoutSeconds = a.optInt("idleTimeoutSeconds", 10),
             notificationCount = a.optBoolean("notificationCount", false), wallpaper = a.optInt("wallpaper", -1),
             dim = a.optDouble("dim", .18).toFloat(), immersive = a.optBoolean("immersive", false),
             showSystemUnlock = a.optBoolean("showSystemUnlock", false)).sanitized()

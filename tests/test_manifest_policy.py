@@ -21,7 +21,7 @@ class ManifestPolicyTests(unittest.TestCase):
         self.manifest.find("application").append(copy.deepcopy(self.manifest.find("application/service")))
         with self.assertRaises(RuntimeError): validate_source(self.manifest)
     def test_extra_permission_is_rejected(self):
-        ET.SubElement(self.manifest, "uses-permission", {ANDROID + "name": "android.permission.INTERNET"})
+        ET.SubElement(self.manifest, "uses-permission", {ANDROID + "name": "android.permission.READ_CONTACTS"})
         with self.assertRaises(RuntimeError): validate_source(self.manifest)
     def test_binary_manifest_requires_binding_export_and_action(self):
         tree = f'''    E: service (line=12)
@@ -33,6 +33,7 @@ class ManifestPolicyTests(unittest.TestCase):
           A: android:name(0x01010003)="{ACTION}"
     E: activity (line=15)
 '''
+        tree += '    E: service (line=16)\n      A: android:name(0x1)="dev.vitreo.launcher.update.UpdateJobService"\n      A: android:permission(0x1)="android.permission.BIND_JOB_SERVICE"\n      A: android:exported(0x1)=(type 0x12)0xffffffff\n'
         validate_apk_services(tree)
         validate_apk_services("\n".join("  " + line for line in tree.splitlines()))
         for bad in (tree.replace('0x12)0x0', '0x12)0xffffffff'), tree.replace(BIND, 'wrong'), tree.replace(ACTION, 'wrong'), tree + tree):
@@ -45,6 +46,21 @@ class ManifestPolicyTests(unittest.TestCase):
             with self.subTest(attribute=attribute), self.assertRaises(RuntimeError): validate_source(manifest)
         ET.SubElement(self.manifest.find("application/activity"), "intent-filter")
         with self.assertRaises(RuntimeError): validate_source(self.manifest)
+
+    def test_update_job_cannot_become_unprotected_or_receive_intents(self):
+        for attribute, value in (("permission", ""), ("exported", "false")):
+            manifest = copy.deepcopy(self.manifest)
+            manifest.findall("application/service")[1].set(ANDROID + attribute, value)
+            with self.assertRaises(RuntimeError): validate_source(manifest)
+        ET.SubElement(self.manifest.findall("application/service")[1], "intent-filter")
+        with self.assertRaises(RuntimeError): validate_source(self.manifest)
+
+    def test_update_callbacks_must_stay_private(self):
+        for kind in ("receiver", "activity"):
+            manifest = copy.deepcopy(self.manifest)
+            target = next(c for c in manifest.findall("application/" + kind) if ".update." in c.get(ANDROID + "name", ""))
+            target.set(ANDROID + "exported", "true")
+            with self.assertRaises(RuntimeError): validate_source(manifest)
 
     def test_compiled_lock_contract(self):
         tree = '''    E: activity (line=12)

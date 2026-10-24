@@ -25,7 +25,8 @@ import kotlinx.coroutines.flow.asStateFlow
 data class NoticeAction(val title: String, val intent: PendingIntent)
 data class Notice(val key: String, val packageName: String, val app: String, val title: String,
     val text: String, val time: Long, val clearable: Boolean, val intent: PendingIntent?,
-    val actions: List<NoticeAction> = emptyList(), val visibility: Int = Notification.VISIBILITY_PRIVATE)
+    val actions: List<NoticeAction> = emptyList(), val visibility: Int = Notification.VISIBILITY_PRIVATE,
+    val channelVisibility: Int = NotificationListenerService.Ranking.VISIBILITY_NO_OVERRIDE)
 data class NowPlaying(val packageName: String = "", val title: String = "Not Playing", val artist: String = "",
     val artwork: Bitmap? = null, val playing: Boolean = false, val actions: Long = 0,
     val position: Long = 0, val duration: Long = 0, val updatedAt: Long = 0, val speed: Float = 0f) {
@@ -75,7 +76,7 @@ object SystemBridge {
         service = listener
         mutable.value = mutable.value.copy(connected = true)
         if (configured) configure(listener, notifications, media)
-        else { val a = StateStore(listener).load().state.appearance; configure(listener, a.notificationCenter, a.mediaIntegration) }
+        else { val a = StateStore(listener).load().state.appearance; configure(listener, a.notificationCenter || dev.vitreo.launcher.lock.LockScreenRuntime.enabled.value && (a.lockScreen.showNotifications || a.lockScreen.notificationCount), a.mediaIntegration) }
     }
     internal fun disconnect(listener: VitreoNotificationListener) {
         if (service !== listener) return
@@ -98,7 +99,9 @@ object SystemBridge {
                         n.actions.orEmpty().filter { it.remoteInputs.isNullOrEmpty() }.take(3).mapNotNull {
                             val intent = it.actionIntent ?: return@mapNotNull null
                             NoticeAction(it.title?.toString()?.take(80).orEmpty(), intent)
-                        }, visibility = n.visibility)
+                        }, visibility = n.visibility, channelVisibility = NotificationListenerService.Ranking().let { ranking ->
+                            if (listener.currentRanking.getRanking(sbn.key, ranking)) ranking.channel?.lockscreenVisibility ?: NotificationListenerService.Ranking.VISIBILITY_NO_OVERRIDE else NotificationListenerService.Ranking.VISIBILITY_NO_OVERRIDE
+                        })
                 }.toList()
         }.getOrDefault(emptyList())
         mutable.value = mutable.value.copy(notices = notices)
@@ -196,5 +199,6 @@ class VitreoNotificationListener : NotificationListenerService() {
     override fun onListenerDisconnected() = SystemBridge.disconnect(this)
     override fun onNotificationPosted(sbn: StatusBarNotification?) = SystemBridge.refresh()
     override fun onNotificationRemoved(sbn: StatusBarNotification?) = SystemBridge.refresh()
+    override fun onNotificationRankingUpdate(rankingMap: RankingMap?) = SystemBridge.refresh()
     override fun onDestroy() { SystemBridge.disconnect(this); super.onDestroy() }
 }

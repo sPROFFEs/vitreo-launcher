@@ -46,7 +46,7 @@ import kotlin.math.roundToInt
 
 private enum class SettingsPage(val title: String) {
     Root("Settings"), Home("Home Screen"), Wallpaper("Wallpaper"), Glass("Motion & Glass"),
-    Backup("Layout & Backup"), About("About Vitreo"), Themes("Themes & Icons"), Controls("Control Center"), Lock("Lock Screen")
+    Backup("Layout & Backup"), About("About Vitreo"), Themes("Themes & Icons"), Controls("Control Center"), Lock("Lock Screen"), Today("Today & News"), Updates("Software Update")
 }
 
 @Composable
@@ -101,6 +101,8 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                         IosSectionLabel("Personalization")
                         IosGroup {
                             IosRow("Themes & Icons", if (a.themePreset == 1) "Cyberpunk" else "iOS") { page = SettingsPage.Themes }; IosDivider()
+                            IosRow("Today & News", if(a.news.enabled) "News" else "Widgets") { page = SettingsPage.Today }; IosDivider()
+                            IosRow("Software Update", BuildConfig.VERSION_NAME) { page = SettingsPage.Updates }; IosDivider()
                             IosRow("Home Screen", "Icons & appearance") { page = SettingsPage.Home }; IosDivider()
                             IosRow("Wallpaper", if (a.usePhoto) "Photo" else "Collection") { page = SettingsPage.Wallpaper }; IosDivider()
                             IosRow("Lock Screen", "Optional") { page = SettingsPage.Lock }; IosDivider()
@@ -154,6 +156,8 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                         }
                         SettingsFootnote("Press and hold an app to rearrange Home, create folders or move apps to the dock.")
                     }
+                    SettingsPage.Today -> NewsSettingsPage(a, onAppearance)
+                    SettingsPage.Updates -> UpdatesSettings()
                     SettingsPage.Lock -> LockScreenSettingsPage(a, onAppearance, onSetHome)
                     SettingsPage.Controls -> {
                         IosSectionLabel("Access")

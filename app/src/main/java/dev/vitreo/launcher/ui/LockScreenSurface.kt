@@ -57,7 +57,8 @@ import kotlin.math.roundToInt
 fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message: String?,
     onUnlock: () -> Unit, onSystemLock: () -> Unit, onCamera: () -> Unit, onEmergency: () -> Unit,
     onEditClock: (() -> Unit)? = null, onClockHeight: ((Float) -> Unit)? = null,
-    editorHeader: (@Composable () -> Unit)? = null, onSystemUnlock: (() -> Unit)? = null) {
+    editorHeader: (@Composable () -> Unit)? = null, onSystemUnlock: (() -> Unit)? = null,
+    onNotification: (String) -> Unit = {}) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var interactive by remember { mutableStateOf(context.getSystemService(PowerManager::class.java).isInteractive) }
@@ -153,6 +154,7 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
     DisposableEffect(controller) { onDispose { controller.stop() } }
     val device = controller.state
     val bridge by SystemBridge.state.collectAsState()
+    val notices = remember(bridge.notices) { dev.vitreo.launcher.data.lockNotices(bridge.notices) }
     val alarm = remember(now / 60_000) { context.getSystemService(AlarmManager::class.java).nextAlarmClock?.triggerTime }
     var localMessage by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(message) { localMessage = message }
@@ -170,11 +172,12 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                 Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)), horizontalAlignment = Alignment.CenterHorizontally) {
                     if (editorHeader != null) editorHeader() else LockScreenStatusBar(preview, onSystemLock, Modifier.graphicsLayer { alpha = arrival.value })
                     BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().then(unlockGesture).testTag("lock_swipe").padding(horizontal = 22.dp)) {
+                      val lockContentHeight = maxHeight
                       val tall = !cyber && options.clockHeight > 1.05f
                       var clockPixels by remember { mutableIntStateOf(0) }
                       var accessoryPixels by remember { mutableIntStateOf(0) }
                       val availableGap = with(metrics) { (maxHeight.toPx() - clockPixels - accessoryPixels).coerceAtLeast(0f).toDp() }
-                      val accessoryGap by animateDpAsState(if (tall && clockPixels > 0 && accessoryPixels > 0) availableGap else 0.dp,
+                      val accessoryGap by animateDpAsState(if (tall && !(options.showNotifications && notices.isNotEmpty()) && clockPixels > 0 && accessoryPixels > 0) availableGap else 0.dp,
                           if (appearance.reducedEffects) tween(0) else tween(240), label = "Lock accessories position")
                       Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState(), enabled = onEditClock != null).heightIn(min = maxHeight).graphicsLayer {
                           translationY = (-drag.value * .65f + (1f - arrival.value) * 16f) * metrics.density
@@ -215,12 +218,17 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                             }
                         }
                         Spacer(Modifier.height(28.dp))
-                        if (options.notificationCount && bridge.access && bridge.connected && home.notificationCenter) {
+                        if (options.showNotifications && bridge.access && bridge.connected && notices.isNotEmpty()) {
+                            LockNotificationCards(notices, Modifier.heightIn(max = minOf(240.dp,
+                                (lockContentHeight - with(metrics) { clockPixels.toDp() } - 128.dp).coerceAtLeast(0.dp)))) {
+                                if (!preview) onNotification(it) else localMessage = "Unlock to view notifications."
+                            }
+                        } else if (options.notificationCount && bridge.access && bridge.connected) {
                             GlassPanel(Modifier.fillMaxWidth().testTag("lock_notifications"), radius = 24f, tint = .22f) {
                                 Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
                                     LauncherSymbol(Icons.Outlined.NotificationsNone, null, tint = Color.White)
                                     Column(Modifier.padding(start = 12.dp)) {
-                                        Text(if (bridge.notices.none { it.visibility != android.app.Notification.VISIBILITY_SECRET }) "No notifications" else "Notifications available", color = Color.White, fontWeight = FontWeight.SemiBold)
+                                        Text(if (notices.isEmpty()) "No notifications" else "Notifications available", color = Color.White, fontWeight = FontWeight.SemiBold)
                                         Text("Unlock to view", color = Color.White.copy(alpha = .7f), fontSize = 13.sp)
                                     }
                                 }

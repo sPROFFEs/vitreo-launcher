@@ -79,6 +79,9 @@ class LockScreenDeviceTest {
                 shell("settings put secure lockscreen.power_button_instantly_locks 1")
                 shell("cmd package set-home-activity ${context.packageName}/dev.vitreo.launcher.MainActivity")
                 check(shell("pm install -r -t /data/local/tmp/vitreo-uninstall-fixture.apk").contains("Success"))
+                shell("cmd notification allow_listener ${context.packageName}/dev.vitreo.launcher.data.VitreoNotificationListener")
+                shell("pm grant dev.vitreo.fixture.uninstall android.permission.POST_NOTIFICATIONS")
+                shell("am start -W -n dev.vitreo.fixture.uninstall/.MainActivity --ez postNotifications true")
                 shell("am start -W -a android.intent.action.MAIN -c android.intent.category.HOME")
             }
             override fun after() {
@@ -103,6 +106,7 @@ class LockScreenDeviceTest {
                         else -> error("Unexpected immersive tutorial fixture state")
                     }
                     home?.let { shell("cmd package set-home-activity $it") }
+                    shell("cmd notification disallow_listener ${context.packageName}/dev.vitreo.launcher.data.VitreoNotificationListener")
                     shell("pm uninstall dev.vitreo.fixture.uninstall")
                     instrumentation.runOnMainSync {
                         Stage.values().flatMap { ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(it) }
@@ -126,7 +130,7 @@ class LockScreenDeviceTest {
     private fun prepareAndWake(fromPreview: Boolean = false, quick: Boolean = false, systemUnlock: Boolean = false) {
         instrumentation.runOnMainSync {
             LockScreenRuntime.configure(Appearance(reducedEffects = true, lockScreen =
-                dev.vitreo.launcher.core.LockScreenSettings(showSystemUnlock = systemUnlock)))
+                dev.vitreo.launcher.core.LockScreenSettings(showSystemUnlock = systemUnlock, idleTimeoutSeconds = 30)))
             assertNull(LockScreenRuntime.setEnabled(context, true))
         }
         shell("am start -W -n dev.vitreo.fixture.uninstall/.MainActivity")
@@ -179,6 +183,19 @@ class LockScreenDeviceTest {
         await("return to previous app") {
             instrumentation.uiAutomation.windows.any { it.isFocused && it.root?.packageName?.toString() == "dev.vitreo.fixture.uninstall" }
         }
+        prepareAndWake(quick = true)
+        await("lock notification available independently of Home Notification Center") {
+            dev.vitreo.launcher.data.lockNotices(dev.vitreo.launcher.data.SystemBridge.state.value.notices).isNotEmpty()
+        }
+        compose.onNodeWithText("A real Android notification displayed by Vitreo.").assertDoesNotExist()
+        compose.onNodeWithTag("lock_notifications").onChildren().onFirst().performClick()
+        awaitSystemAuth()
+        enterPin()
+        await("authenticated notification destination survives private lock task removal") {
+            !keyguard.isDeviceLocked && lockActivity() == null &&
+                instrumentation.uiAutomation.windows.any { it.isFocused && it.root?.findAccessibilityNodeInfosByText("Opened from notification")?.isNotEmpty() == true }
+        }
+
     }
     @Test fun cancellingAuthenticationAndDisablingPreserveNativeKeyguard() {
         prepareAndWake(fromPreview = true, quick = true, systemUnlock = true)
@@ -199,6 +216,11 @@ class LockScreenDeviceTest {
         await("cancel returns to custom screen") { lockActivity()?.hasWindowFocus() == true }
         assertTrue(keyguard.isDeviceLocked)
         compose.onNodeWithTag("lock_unlock").assertIsEnabled()
+        instrumentation.runOnMainSync { LockScreenRuntime.configure(Appearance(reducedEffects = true,
+            lockScreen = dev.vitreo.launcher.core.LockScreenSettings(idleTimeoutSeconds = 5))) }
+        shell("input tap 20 200") // Explicit interaction restarts the new configured idle deadline.
+        await("idle surface returns to native keyguard") { lockActivity() == null }
+        assertTrue("Idle handoff must not unlock Android", keyguard.isDeviceLocked)
         instrumentation.runOnMainSync { assertNull(LockScreenRuntime.setEnabled(context, false)) }
         await("disabled custom screen removed") { lockActivity() == null }
         assertTrue("Turning appearance off must never dismiss keyguard", keyguard.isDeviceLocked)

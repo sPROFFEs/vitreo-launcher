@@ -50,6 +50,12 @@ android {
             applicationIdSuffix = ".debug"
             manifestPlaceholders["appLabel"] = "Vitreo Debug"
         }
+        // Local-only positive self-update fixture. Never published by CI.
+        create("updateFixture") {
+            initWith(getByName("debug"))
+            isDebuggable = false
+            matchingFallbacks += "debug"
+        }
         create("preview") {
             initWith(getByName("release"))
             applicationIdSuffix = ".preview"
@@ -94,4 +100,13 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
+}
+
+androidComponents {
+    onVariants(selector().withBuildType("updateFixture")) { variant ->
+        variant.outputs.forEach {
+            it.versionCode.set(appVersion.getProperty("VERSION_CODE").toInt() + 1)
+            it.versionName.set(appVersion.getProperty("VERSION_NAME").substringBeforeLast('.') + "." + (appVersion.getProperty("VERSION_NAME").substringAfterLast('.').toInt() + 1))
+        }
+    }
 }

@@ -1,4 +1,4 @@
-# Arquitectura de Vitreo 0.5.x
+# Arquitectura de Vitreo
 
 ## Flujo de datos
 
@@ -99,7 +99,7 @@ la linterna no abre una sesión de captura. TorchCallback confirma el estado y e
 volumen se vuelve a leer después de escribirlo. Los servicios pueden rechazar una
 operación: la UI conserva el estado real y muestra un mensaje. El brillo se prueba
 en la ventana durante el arrastre y se guarda al soltar, sin escribir Settings.System.
-No se añaden permisos de cámara, red, notificaciones o modificación global de ajustes.
+El panel no requiere permisos de cámara ni modificación global de ajustes. Internet y los avisos de actualización se declaran por separado para las funciones descritas más abajo.
 
 ## Material de cristal
 
@@ -162,3 +162,21 @@ State consumed by SurfaceHost; blur/scrim progress is read in drawing layers so
 finger movement does not recompose the Home grid every frame. The retained modal
 uses one continuous progress for entry, interruption, cancellation and dismissal.
 Android still owns its physical edge and all SystemUI outside Vitreo's window.
+
+
+## Network features
+
+`net/HttpsClient` bounds responses, permits HTTPS only and validates every redirect
+against a per-purpose hostname allowlist. There are no cookies, account tokens or
+network libraries. `update` separates strict stable-release metadata parsing, APK
+identity/checksum/signer validation and native PackageInstaller session handling.
+A protected JobService performs daily checks; a private receiver handles installer
+status. Android consent is presented only after an explicit user action. Local
+updater preferences and temporary APKs never enter portable layout backups.
+
+`news` parses bounded public RSS with external entities disabled and caches at most
+50 headlines per sanitized edition/topic using AtomicFile. The optional Today view
+loads only while active, resumed and focused. It preserves the widget host and
+layout when switching modes. `LockNotice` is a redacted projection with no message
+fields or PendingIntents. Notification launches look up the current live notice
+only after native keyguard dismissal and use Android's explicit sender opt-in.

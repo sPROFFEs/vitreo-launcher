@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-permission android:name="android.permission.INTERNET" />
+  <instrumentation android:name="androidx.test.runner.AndroidJUnitRunner" android:targetPackage="dev.vitreo.launcher.debug" />
+  <instrumentation android:name="dev.vitreo.launcher.SelfUpdateProbe" android:targetPackage="dev.vitreo.launcher.debug" />
   <application>
     <receiver android:name="dev.vitreo.launcher.WidgetFixtureProvider" android:label="Vitreo Test Widget"
         android:enabled="false" android:exported="true">

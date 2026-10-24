@@ -323,13 +323,15 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         sheet == null && lightWallpaper
     val integratedBar = appearance.homeStatusBar && !opaqueScreen
     val customBarHeight = statusBandHeight(appearance)
-    LaunchedEffect(ui.ready, appearance.notificationCenter, appearance.mediaIntegration) {
-        if (ui.ready) SystemBridge.configure(context, appearance.notificationCenter, appearance.mediaIntegration)
+    val lockEnabled by dev.vitreo.launcher.lock.LockScreenRuntime.enabled.collectAsState()
+    val readNotices = appearance.notificationCenter || lockEnabled && (appearance.lockScreen.showNotifications || appearance.lockScreen.notificationCount)
+    LaunchedEffect(ui.ready, readNotices, appearance.mediaIntegration) {
+        if (ui.ready) SystemBridge.configure(context, readNotices, appearance.mediaIntegration)
     }
     val currentReady by rememberUpdatedState(ui.ready)
-    DisposableEffect(lifecycle, appearance.notificationCenter, appearance.mediaIntegration) {
+    DisposableEffect(lifecycle, readNotices, appearance.mediaIntegration) {
         val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME && currentReady)
-            SystemBridge.configure(context, appearance.notificationCenter, appearance.mediaIntegration) }
+            SystemBridge.configure(context, readNotices, appearance.mediaIntegration) }
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }
     }
@@ -613,7 +615,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                                 onSettings = { sheet = Sheet.Settings }, onWidgets = { widgetGalleryHomePage = null; sheet = Sheet.Widgets },
                                 onControls = { if (appearance.controlCenter) sheet = Sheet.Controls },
                                 onClock = { system(AlarmClock.ACTION_SHOW_ALARMS) },
-                                onCalendar = ::openCalendar, onLaunch = ::launch, onEditWidget = { sheet = Sheet.Widget(it) })
+                                onCalendar = ::openCalendar, onLaunch = ::launch, onEditWidget = { sheet = Sheet.Widget(it) }, active = pager.currentPage == 0 && !modalPresent && !launching)
                             homePages + 1 -> AppLibrary(ui.apps, apps, suggestions, { openSearch(alphabetical = true) }, ::launch,
                                 ::actions, { title, records, bounds -> folderAnchor = origin(bounds); sheet = Sheet.Category(title, records) })
                             else -> {

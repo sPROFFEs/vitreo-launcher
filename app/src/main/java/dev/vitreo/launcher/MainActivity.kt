@@ -54,6 +54,7 @@ class MainActivity : ComponentActivity() {
     }
     override fun onResume() {
         super.onResume()
+        dev.vitreo.launcher.update.AppUpdates.onForeground()
         if (leftForApp) { leftForApp = false; appReturnSerial++ }
         revealHomeWhenFocused()
         defaultHome = isDefaultHome()

@@ -42,6 +42,7 @@ fun LockScreenSettingsPage(a: Appearance, onAppearance: (Appearance) -> Unit, on
     val enabled by LockScreenRuntime.enabled.collectAsState()
     val options = a.lockScreen
     var error by remember { mutableStateOf<String?>(null) }
+    var idleChoice by remember { mutableStateOf(false) }
     var editing by rememberSaveable { mutableStateOf(false) }
     fun change(value: LockScreenSettings) { onAppearance(a.copy(lockScreen = value.sanitized())) }
     if (editing) LockScreenEditor(a, onCancel = { editing = false }, onSave = { change(it); editing = false })
@@ -66,6 +67,14 @@ fun LockScreenSettingsPage(a: Appearance, onAppearance: (Appearance) -> Unit, on
         IosRow("Choose default launcher", onClick = onSetHome); IosDivider()
         IosRow("Android security settings", onClick = { runCatching { context.startActivity(Intent(Settings.ACTION_SECURITY_SETTINGS)) } })
     }
+    IosGroup {
+        IosRow("Return to Android after", "${options.idleTimeoutSeconds} seconds idle") { idleChoice = true }
+    }
+    LockFootnote("Returns to Android's secure lock screen after inactivity so the system can turn off the display normally. No wake lock or keep-screen-on flag is used.")
+    if (idleChoice) AlertDialog(onDismissRequest = { idleChoice = false }, title = { Text("Idle lock screen") },
+        text = { Column { listOf(5, 10, 15, 30).forEach { seconds -> TextButton(onClick = {
+            change(options.copy(idleTimeoutSeconds = seconds)); idleChoice = false
+        }) { Text("$seconds seconds") } } } }, confirmButton = { TextButton(onClick = { idleChoice = false }) { Text("Done") } })
     IosSectionLabel("Style")
     IosGroup {
         IosSegmented(listOf("Follow Home", "iOS", "Cyberpunk"), options.theme, Modifier.padding(12.dp)) { change(options.copy(theme = it)) }
@@ -109,13 +118,19 @@ fun LockScreenSettingsPage(a: Appearance, onAppearance: (Appearance) -> Unit, on
         LockSlider("Dim", options.dim, "${(options.dim * 100).roundToInt()}%", 0f..0.65f) { change(options.copy(dim = it)) }
     }
     LockFootnote("Follow Home includes your photo and its crop. This changes Vitreo's surface only; your system lock wallpaper stays under Android's control.")
+    IosSectionLabel("Notifications")
+    IosGroup {
+        IosToggleRow("Show notifications", options.showNotifications) { change(options.copy(showNotifications = it)) }; IosDivider()
+        IosRow("Android notification access") { runCatching { context.startActivity(dev.vitreo.launcher.data.SystemBridge.accessIntent(context)) } }
+    }
+    LockFootnote("Shows app names and notification counts after you grant access. Message text, titles, artwork and actions stay hidden. Notifications marked secret by the app or channel are excluded. Tap a card to open it after Android authentication.")
     IosSectionLabel("Widgets & privacy")
     IosGroup {
         IosToggleRow("Battery", options.showBattery) { change(options.copy(showBattery = it)) }; IosDivider()
         IosToggleRow("Next alarm", options.showAlarm) { change(options.copy(showAlarm = it)) }; IosDivider()
         IosToggleRow("Notification indicator", options.notificationCount) { change(options.copy(notificationCount = it)) }
     }
-    LockFootnote("The indicator uses the notification access already enabled in Status Bar & Notifications. Names, message text, artwork and actions remain hidden until you unlock. Third-party widgets are kept on Home and Today to protect private content.")
+    LockFootnote("The indicator and lock cards use Android notification access independently of Home Notification Center. Message text, artwork and actions remain hidden until you unlock. Third-party widgets are kept on Home and Today to protect private content.")
     IosSectionLabel("Pixel & GrapheneOS")
     LockFootnote("Use Vitreo as your default Home and keep a secure Android lock enabled. The surface is prepared when you turn the display off after Android locks. Swipe up in the central clock / widget area or tap Use PIN or password to use Android authentication. The bottom edge stays free for Android gestures. The lock button, Back and Emergency always give you a route to the system screen.")
     LockFootnote("After a restart, if Android stops Vitreo, during delayed locking, or while another app needs the lock screen, Android's native screen remains available. No Google Play services, overlay, accessibility or device-admin access is needed. Activation stays on this device and is never enabled by importing a backup.")
