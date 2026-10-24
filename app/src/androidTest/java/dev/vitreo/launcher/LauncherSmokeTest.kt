@@ -377,7 +377,7 @@ class LauncherSmokeTest {
             compose.onNodeWithTag("app_library").assertIsDisplayed()
             returnHome()
             openSettings()
-            compose.onNodeWithText("Control Center").performClick()
+            compose.onNodeWithText("Control Center").performScrollTo().performClick()
             compose.onNodeWithTag("control_center_switch").performClick()
             assertTrue(!model.ui.value.layout.appearance.controlCenter)
             compose.onNodeWithText("Done").performClick()

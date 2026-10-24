@@ -162,14 +162,18 @@ class LockScreenDeviceTest {
         assertTrue("Gesture starts below system status / camera band", gesture.top >= header.bottom)
         assertTrue("Gesture ends above bottom controls and Android navigation", gesture.bottom < shortcuts.top)
         val density = context.resources.displayMetrics.density
+        val clock = compose.onNodeWithTag("lock_clock").fetchSemanticsNode().boundsInRoot
+        // The notification stack scrolls independently. Exercise the documented clock-area
+        // unlock gesture, keeping its entire path away from Android's navigation edges.
+        val startY = (clock.bottom - gesture.top - 4f * density).coerceAtLeast(161f * density)
         compose.onNodeWithTag("lock_swipe").performTouchInput {
-            val start = Offset(center.x * .5f, center.y)
+            val start = Offset(center.x * .5f, startY)
             swipe(start, start - Offset(0f, 30f * density), 350)
         }
         assertTrue(lockActivity()?.hasWindowFocus() == true)
         assertTrue(keyguard.isDeviceLocked)
         compose.onNodeWithTag("lock_swipe").performTouchInput {
-            val start = Offset(center.x * .5f, center.y)
+            val start = Offset(center.x * .5f, startY)
             swipe(start, start - Offset(0f, 160f * density), 500)
         }
         awaitSystemAuth()
