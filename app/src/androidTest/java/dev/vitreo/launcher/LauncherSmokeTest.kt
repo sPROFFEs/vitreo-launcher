@@ -1397,7 +1397,7 @@ class LauncherSmokeTest {
     @Test fun widgetsOpenedFromSettingsReturnToSettings() {
         awaitReady()
         openSettings()
-        compose.onNodeWithText("Widgets").performClick()
+        compose.onNode(hasText("Widgets") and hasClickAction() and !hasText("Today & News")).performScrollTo().performClick()
         compose.onNodeWithTag("widgets_title").assertIsDisplayed()
         compose.onNodeWithText("Done").performClick()
         compose.onNodeWithTag("settings_title").assertTextEquals("Settings")
