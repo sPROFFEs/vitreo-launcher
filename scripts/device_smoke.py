@@ -104,6 +104,15 @@ def tap_node(root: ET.Element, attribute: str, value: str) -> None:
     left, top, right, bottom = map(int, bounds.groups())
     adb("shell", "input", "tap", str((left + right) // 2), str((top + bottom) // 2))
 
+def tap_settings_row(root: ET.Element, title: str) -> None:
+    # Match the row title, not a detail value such as Today & News → Widgets.
+    rows = [node for node in root.iter("node") if node.get("package") == PACKAGE
+            and node.get("clickable") == "true"
+            and next((child.get("text") for child in node.iter("node") if child.get("text")), None) == title]
+    if len(rows) != 1:
+        raise RuntimeError(f"Expected exactly one settings row titled {title!r}.")
+    tap_node(rows[0], "clickable", "true")
+
 def collect_native_screens(output: Path, names: list[str]) -> None:
     for name in names:
         image = output / f"native-{name}.png"
@@ -264,19 +273,19 @@ def main() -> None:
         tap_node(today, "content-desc", "Settings")
         time.sleep(.7)
         settings = capture_screen(output, "settings", "Settings")
-        tap_node(settings, "text", "Motion & Glass")
+        tap_settings_row(settings, "Motion & Glass")
         time.sleep(.7)
         capture_screen(output, "glass-settings", "Motion & Glass")
         adb("shell", "input", "keyevent", "KEYCODE_BACK")
         time.sleep(.7)
         settings = capture_screen(output, "settings", "Settings")
-        tap_node(settings, "text", "Wallpaper")
+        tap_settings_row(settings, "Wallpaper")
         time.sleep(.7)
         capture_screen(output, "wallpaper-settings", "Wallpaper")
         adb("shell", "input", "keyevent", "KEYCODE_BACK")
         time.sleep(.7)
         settings = capture_screen(output, "settings", "Settings")
-        tap_node(settings, "text", "Widgets")
+        tap_settings_row(settings, "Widgets")
         time.sleep(.7)
         capture_screen(output, "widgets", "Add what matters")
         adb("shell", "input", "swipe", str(width // 2), str(int(height * .75)), str(width // 2), str(int(height * .3)), "350")
