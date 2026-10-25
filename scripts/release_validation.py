@@ -63,6 +63,8 @@ def validate_assets(dist: Path, version: str, commit: str) -> dict:
     for name, expected_hash in sums.items():
         if hashlib.sha256((dist / name).read_bytes()).hexdigest() != expected_hash:
             raise ValueError(f"Release asset hash mismatch: {name}.")
+    if "apkSize" in info and info["apkSize"] != (dist / apk).stat().st_size:
+        raise ValueError("APK length differs from build metadata.")
     if info["apkSha256"] != sums[apk]:
         raise ValueError("APK digest differs from build metadata.")
     return info

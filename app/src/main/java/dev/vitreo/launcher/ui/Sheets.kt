@@ -3,6 +3,9 @@ package dev.vitreo.launcher.ui
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -38,29 +41,27 @@ fun SheetAction(text: String, enabled: Boolean = true, onClick: () -> Unit) = Io
 
 @Composable
 fun FolderSheet(folder: HomeEntry.Folder, apps: Map<String, AppRecord>, onClose: () -> Unit,
-    onLaunch: (String, androidx.compose.ui.geometry.Rect?) -> Unit, onActions: (String, androidx.compose.ui.geometry.Rect?) -> Unit, onRename: (String) -> Unit) {
-    val count = pageCount(folder.apps.size, 9)
+    onLaunch: (String, androidx.compose.ui.geometry.Rect?) -> Unit, onActions: (String, androidx.compose.ui.geometry.Rect?) -> Unit, onRename: (String) -> Unit, iconSize: Float = LocalGlass.current.appearance.iconSize) {
+    val available = minOf(androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.toFloat(), 430f) - 80f
+    val columns = appGridColumns(available, iconSize)
+    val pageSize = columns * 3
+    val count = pageCount(folder.apps.size, pageSize)
     val pager = rememberPagerState(pageCount = { count })
     var name by remember(folder.id) { mutableStateOf(folder.title) }
     Box(Modifier.fillMaxSize().clickable(onClick = onClose).safeDrawingPadding(), contentAlignment = Alignment.Center) {
-        Column(Modifier.widthIn(max = 370.dp).fillMaxWidth().padding(horizontal = 25.dp).clickable {}, horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.widthIn(max = 430.dp).fillMaxWidth().padding(horizontal = 25.dp).clickable {}, horizontalAlignment = Alignment.CenterHorizontally) {
             BasicTextField(name, { name = it.take(48); onRename(name) }, singleLine = true,
                 cursorBrush = SolidColor(Color.White),
                 textStyle = TextStyle(color = Color.White, fontSize = 32.sp, textAlign = TextAlign.Center, fontWeight = if (LocalCyber.current) FontWeight.Medium else FontWeight.Normal),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp).testTag("folder_name"))
-            GlassPanel(Modifier.fillMaxWidth().aspectRatio(.95f).testTag("folder_panel"), radius = 40f,
+            GlassPanel(Modifier.fillMaxWidth().heightIn(max = (3 * (iconSize + 42f) + 30f).dp).weight(1f, fill = false).testTag("folder_panel"), radius = 40f,
                 material = GlassMaterial.Regular) {
                 HorizontalPager(pager, Modifier.fillMaxSize()) { page ->
-                    Column(Modifier.fillMaxSize().padding(15.dp), verticalArrangement = Arrangement.SpaceEvenly) {
-                        repeat(3) { row ->
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                repeat(3) { column ->
-                                    val id = folder.apps.getOrNull(page * 9 + row * 3 + column)
-                                    if (id == null) Spacer(Modifier.weight(1f).height(86.dp))
-                                    else LauncherTile(HomeEntry.App(id), apps, 58.dp, true, Modifier.weight(1f),
-                                        onClick = { onLaunch(id, it) }, onActions = { onActions(id, it) })
-                                }
-                            }
+                    LazyVerticalGrid(GridCells.Fixed(columns), Modifier.fillMaxSize().padding(15.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 5.dp)) {
+                        items(folder.apps.drop(page * pageSize).take(pageSize), key = { it }) { id ->
+                            LauncherTile(HomeEntry.App(id), apps, iconSize.dp, true,
+                                onClick = { onLaunch(id, it) }, onActions = { onActions(id, it) })
                         }
                     }
                 }

@@ -225,3 +225,28 @@ Notification taps use the public
   an offline refresh against the persisted cache. Repeat with US, FR and DE and
   Google without `-e images true` (Google RSS omits article photographs). This
   manual check is separate from deterministic CI and makes no physical Pixel claim.
+
+
+## Groups, icon dimensions, Classic and direct updates (0.9.0)
+
+- Hold an app on Home and move it without entering Edit first. Hold over another
+  app/folder: hover outline, then the ready outline after 500 ms. Release to group.
+  Release early to reorder; cancel without changing the layout. A stationary hold
+  still opens app actions. Drag from Dock, check full folders and page edges.
+- Open the resulting folder and compare actual icon bounds with Home at 60 and
+  100 dp. Library mirrors Home by default; choose its independent 100 dp setting
+  and inspect category/alpha lists. Narrow windows should fit previews and adapt
+  expanded columns. Check large fonts and each folder page without clipping.
+- Select iOS 16 in Themes & Icons, return Home, open categories/controls and inspect
+  uniform frost, quiet corners/shadows and original color icons. Return to iOS 26;
+  layout, wallpaper and saved optical preferences must remain. Classic's Frost
+  control works across its range; Refraction explicitly requires iOS 26.
+- The uniform glass pixel case runs on API 33+, using actual hardware AGSL. Existing
+  checkerboard and moving-lens cases remain required. Retain both full/reduced captures.
+- Run `adb shell am instrument -w -e mode updates-web
+  dev.vitreo.launcher.debug.test/dev.vitreo.launcher.SelfUpdateProbe` for a live,
+  explicit website-only metadata check (no API request, no installation). It also
+  exercises HEAD compatibility with releases before apkSize metadata was published.
+- JVM cases inject API rate limiting, enforce the server retry deadline, validate
+  direct metadata/checksums and reject altered identity/version/length/path data.
+  Cancellation/invalid API metadata must not silently switch verification paths.

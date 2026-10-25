@@ -77,11 +77,12 @@ fun Spotlight(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestion
         if (results.isEmpty()) Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.TopCenter) {
             Text("No Results", color = Color.White.copy(alpha = .7f), modifier = Modifier.padding(top = 40.dp))
         } else if (alphabetical) AlphabeticalApps(results, apps, onLaunch, onActions)
-        else GlassPanel(Modifier.fillMaxWidth().heightIn(max = 370.dp), radius = 27f, material = GlassMaterial.Regular) {
+        else GlassPanel(Modifier.fillMaxWidth().heightIn(max = 470.dp), radius = 27f, material = GlassMaterial.Regular) {
             LazyVerticalGrid(GridCells.Fixed(4), Modifier.fillMaxWidth().padding(10.dp),
                 verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 items(results, key = { it.id }) { app ->
-                    LauncherTile(HomeEntry.App(app.id), apps, 53.dp, true, Modifier.height(92.dp).testTag("search_entry:${app.id}"),
+                    val icon = libraryIconSize(LocalGlass.current.appearance, LocalConfiguration.current.screenWidthDp.toFloat()).dp
+                    LauncherTile(HomeEntry.App(app.id), apps, minOf(icon, ((LocalConfiguration.current.screenWidthDp - 64) / 4f - 8).dp), true, Modifier.height(icon + 40.dp).testTag("search_entry:${app.id}"),
                         onClick = { onLaunch(app.id, it) }, onActions = { onActions(app.id, it) })
                 }
             }
@@ -117,7 +118,7 @@ private fun ColumnScope.AlphabeticalApps(records: List<AppRecord>, apps: Map<Str
                         Row(Modifier.fillMaxWidth().heightIn(min = 62.dp).testTag("alphabetical_entry:${app.id}")
                             .combinedClickable(onClick = { onLaunch(app.id, bounds) }, onLongClick = { onActions(app.id, bounds) })
                             .padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            EntryIcon(HomeEntry.App(app.id), apps, 43.dp, Modifier.onGloballyPositioned { bounds = it.boundsInRoot() })
+                            EntryIcon(HomeEntry.App(app.id), apps, libraryIconSize(LocalGlass.current.appearance, LocalConfiguration.current.screenWidthDp.toFloat()).dp, Modifier.onGloballyPositioned { bounds = it.boundsInRoot() })
                             Text(app.label, Modifier.padding(start = 13.dp), fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
@@ -164,7 +165,9 @@ fun AppLibrary(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestio
                         .clickable { onCategory(title, group, cardBounds) }, radius = if (cyber) 29f else IosDesign.CardRadius, tint = .18f, interactive = true) {
                         BoxWithConstraints(Modifier.fillMaxSize().padding(10.dp)) {
                             val cell = minOf(maxWidth / 2, maxHeight / 2)
-                            val icon = (cell - 14.dp).coerceIn(24.dp, 56.dp)
+                            val desired = libraryIconSize(LocalGlass.current.appearance, LocalConfiguration.current.screenWidthDp.toFloat())
+                            val base = (cell - 14.dp).coerceIn(24.dp, 56.dp)
+                            val icon = (base * (desired / 60f)).coerceIn(24.dp, (cell - 4.dp).coerceAtLeast(24.dp))
                             Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceEvenly) {
                                 repeat(2) { row ->
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -205,9 +208,10 @@ fun AppLibrary(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestio
 fun CategoryScreen(title: String, records: List<AppRecord>, apps: Map<String, AppRecord>,
     onClose: () -> Unit, onLaunch: (String, Rect?) -> Unit, onActions: (String, Rect?) -> Unit) {
     val screenWidth = LocalConfiguration.current.screenWidthDp
-    val columns = ((screenWidth - 68) / 76).coerceIn(1, if (screenWidth < 600) 3 else 6)
+    val icon = libraryIconSize(LocalGlass.current.appearance, screenWidth.toFloat())
+    val columns = appGridColumns(screenWidth - 68f, icon, if (screenWidth < 600) 3 else 6)
     val rows = (records.size + columns - 1) / columns
-    val panelHeight = rows * (60f + 20f * LocalDensity.current.fontScale + 12f) + (rows - 1).coerceAtLeast(0) * 12f + 40f
+    val panelHeight = rows * (icon + 20f * LocalDensity.current.fontScale + 12f) + (rows - 1).coerceAtLeast(0) * 12f + 40f
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(20.dp)) {
         Box(Modifier.fillMaxWidth().padding(top = 16.dp).heightIn(min = 52.dp), contentAlignment = Alignment.Center) {
             Text(title, Modifier.padding(horizontal = 44.dp), color = Color.White, fontSize = 30.sp,
@@ -222,7 +226,7 @@ fun CategoryScreen(title: String, records: List<AppRecord>, apps: Map<String, Ap
             LazyVerticalGrid(GridCells.Fixed(columns), Modifier.fillMaxWidth().padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 6.dp)) {
                 items(records, key = { it.id }) { app ->
-                    LauncherTile(HomeEntry.App(app.id), apps, 60.dp, true, Modifier.testTag("category_entry:${app.id}"),
+                    LauncherTile(HomeEntry.App(app.id), apps, icon.dp, true, Modifier.testTag("category_entry:${app.id}"),
                         onClick = { onLaunch(app.id, it) }, onActions = { onActions(app.id, it) })
                 }
             }

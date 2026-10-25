@@ -26,12 +26,13 @@ object HttpsClient {
         if (millis <= 0) throw SocketTimeoutException("Request timed out.")
         return millis.coerceAtMost(8_000).toInt()
     }
-    private fun open(url: String, hosts: Set<String>, deadline: Long = 0): HttpsURLConnection {
+    private fun open(url: String, hosts: Set<String>, deadline: Long = 0, method: String = "GET"): HttpsURLConnection {
         var next = url
         repeat(6) {
             require(allowed(next, hosts)) { "Untrusted download address." }
             val c = URL(next).openConnection() as HttpsURLConnection
             c.instanceFollowRedirects = false
+            c.requestMethod = method
             c.connectTimeout = if (deadline == 0L) 12_000 else remaining(deadline)
             c.readTimeout = if (deadline == 0L) 20_000 else remaining(deadline)
             c.setRequestProperty("User-Agent", "Vitreo/${BuildConfig.VERSION_NAME}")
@@ -48,8 +49,10 @@ object HttpsClient {
             } else {
                 if (code != 200) {
                     val rateLimited = code == 429 || code == 403 && c.getHeaderField("X-RateLimit-Remaining") == "0"
+                    val retryAt = c.getHeaderField("X-RateLimit-Reset")?.toLongOrNull()?.times(1000)
+                        ?: c.getHeaderField("Retry-After")?.toLongOrNull()?.let { System.currentTimeMillis() + it.coerceIn(60,86400)*1000 }
                     c.disconnect()
-                    if (rateLimited) throw RateLimitedException()
+                    if (rateLimited) throw RateLimitedException(retryAt ?: System.currentTimeMillis() + 60*60*1000L)
                     throw HttpStatusException(code)
                 }
                 return c
@@ -59,6 +62,13 @@ object HttpsClient {
     }
     suspend fun text(url: String, hosts: Set<String>, maxBytes: Int = 2 * 1024 * 1024): String =
         bytes(url, hosts, maxBytes).toString(Charsets.UTF_8)
+
+    suspend fun length(url: String): Long = withContext(Dispatchers.IO) {
+        currentCoroutineContext().ensureActive()
+        val connection = open(url, githubHosts, method = "HEAD")
+        try { connection.contentLengthLong.also { require(it in 1..64L*1024*1024) { "Invalid APK length." } } }
+        finally { connection.disconnect() }
+    }
 
     suspend fun bytes(url: String, hosts: Set<String>, maxBytes: Int, image: Boolean = false): ByteArray = withContext(Dispatchers.IO) {
         currentCoroutineContext().ensureActive()
@@ -106,5 +116,5 @@ object HttpsClient {
     }
 }
 
-class RateLimitedException : IOException("The server is temporarily limiting requests.")
+class RateLimitedException(val retryAt: Long = System.currentTimeMillis() + 60*60*1000L) : IOException("The server is temporarily limiting requests.")
 class HttpStatusException(val code: Int) : IOException("Server returned HTTP $code.")

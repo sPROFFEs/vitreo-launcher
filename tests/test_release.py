@@ -144,6 +144,10 @@ class PublishTests(unittest.TestCase):
         api=FakeGitHub()
         with self.assertRaises((RuntimeError, ValueError)): self.run_publish(api)
         self.assertEqual(api.calls,[])
+    def test_wrong_published_apk_size_is_rejected_even_with_valid_checksums(self):
+        self.info["apkSize"]=(self.dist/self.info["apk"]).stat().st_size+1
+        self.rehash()
+        with self.assertRaises(ValueError): self.run_publish(FakeGitHub())
     def test_private_asset_refused(self):
         (self.dist/"release.p12").write_text("fake key")
         api=FakeGitHub()

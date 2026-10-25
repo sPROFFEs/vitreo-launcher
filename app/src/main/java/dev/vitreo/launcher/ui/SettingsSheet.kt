@@ -46,7 +46,7 @@ import kotlin.math.roundToInt
 
 private enum class SettingsPage(val title: String) {
     Root("Settings"), Home("Home Screen"), Wallpaper("Wallpaper"), Glass("Motion & Glass"),
-    Backup("Layout & Backup"), About("About Vitreo"), Themes("Themes & Icons"), Controls("Control Center"), Lock("Lock Screen"), Today("Today & News"), Updates("Software Update")
+    Backup("Layout & Backup"), About("About Vitreo"), Themes("Themes & Icons"), Controls("Control Center"), Lock("Lock Screen"), Today("Today & News"), Updates("Software Update"), Library("App Library")
 }
 
 @Composable
@@ -100,10 +100,11 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                         }
                         IosSectionLabel("Personalization")
                         IosGroup {
-                            IosRow("Themes & Icons", if (a.themePreset == 1) "Cyberpunk" else "iOS") { page = SettingsPage.Themes }; IosDivider()
+                            IosRow("Themes & Icons", if (a.themePreset == 1) "Cyberpunk" else if (a.iosClassic) "iOS 16" else "iOS 26") { page = SettingsPage.Themes }; IosDivider()
                             IosRow("Today & News", if(a.news.enabled) "News" else "Widgets") { page = SettingsPage.Today }; IosDivider()
                             IosRow("Software Update", BuildConfig.VERSION_NAME) { page = SettingsPage.Updates }; IosDivider()
                             IosRow("Home Screen", "Icons & appearance") { page = SettingsPage.Home }; IosDivider()
+                            IosRow("App Library", "Icons & size") { page = SettingsPage.Library }; IosDivider()
                             IosRow("Wallpaper", if (a.usePhoto) "Photo" else "Collection") { page = SettingsPage.Wallpaper }; IosDivider()
                             IosRow("Lock Screen", "Optional") { page = SettingsPage.Lock }; IosDivider()
                             IosRow("Motion & Glass") { page = SettingsPage.Glass }; IosDivider()
@@ -129,7 +130,7 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                         IosSectionLabel("App icons")
                         IosGroup {
                             if (a.themePreset == 0) {
-                            IosSegmented(listOf("Light", "Dark", "Tinted", "Clear"), a.iconStyle, Modifier.padding(12.dp)) { onAppearance(a.copy(iconStyle = it)) }
+                            if (!a.iosClassic) IosSegmented(listOf("Light", "Dark", "Tinted", "Clear"), a.iconStyle, Modifier.padding(12.dp)) { onAppearance(a.copy(iconStyle = it)) }
                             IosToggleRow("iOS-style icons", a.iosIcons) { onAppearance(a.copy(iosIcons = it)) }
                             if (a.iconStyle == 2) Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                                 listOf(0xff8fbfff, 0xffe6b4f3, 0xffe9c68e, 0xffa5dfbb, 0xfff4b4bb).forEachIndexed { index, color ->
@@ -144,7 +145,7 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                             }
                             IosToggleRow("Show app names", a.showLabels, modifier = Modifier.testTag("labels_switch")) { onAppearance(a.copy(showLabels = it)) }
                             IosDivider()
-                            SettingsSlider("Icon size", a.iconSize, "${a.iconSize.roundToInt()} pt", MIN_ICON_SIZE..MAX_ICON_SIZE) { onAppearance(a.copy(iconSize = it)) }
+                            SettingsSlider("Icon size", a.iconSize, "${a.iconSize.roundToInt()} dp", MIN_ICON_SIZE..MAX_ICON_SIZE) { onAppearance(a.copy(iconSize = it)) }
                         }
                         SettingsFootnote(if (a.themePreset == 1) "Cyberpunk uses Arcticons line artwork and HUD frames. Choose an installed icon pack in Themes & Icons. Credits are in Open source licenses."
                             else "iOS app artwork from SVG Stack, with live Clock and Calendar. Other apps keep their own icons. Credits are in Open source licenses.")
@@ -155,6 +156,19 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                             IosToggleRow("Clock & Calendar on Home", a.showWidgets) { onAppearance(a.copy(showWidgets = it)) }
                         }
                         SettingsFootnote("Press and hold an app to rearrange Home, create folders or move apps to the dock.")
+                    }
+                    SettingsPage.Library -> {
+                        IosSectionLabel("App Library icons")
+                        IosGroup {
+                            IosToggleRow("Match Home icon size", a.libraryIconSize == 0f, modifier = Modifier.testTag("library_match_home")) {
+                                onAppearance(a.copy(libraryIconSize = if (it) 0f else a.iconSize))
+                            }
+                            if (a.libraryIconSize > 0f) {
+                                IosDivider()
+                                SettingsSlider("Library icon size", a.libraryIconSize, "${a.libraryIconSize.roundToInt()} dp", MIN_ICON_SIZE..MAX_ICON_SIZE) { onAppearance(a.copy(libraryIconSize = it)) }
+                            }
+                        }
+                        SettingsFootnote("Applies to App Library, opened categories and alphabetical lists. Category previews fit the available card space. Expanded grids adapt their columns for larger icons. Home folders always follow Home's icon size.")
                     }
                     SettingsPage.Today -> NewsSettingsPage(a, onAppearance)
                     SettingsPage.Updates -> UpdatesSettings()
@@ -184,6 +198,7 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                         } else {
                         GlassPreview()
                         SettingsFootnote(when {
+                            a.iosClassic && a.themePreset == 0 -> "iOS 16 uses uniform frosted surfaces. Choose iOS 26 in Themes & Icons for Liquid Glass refraction."
                             a.opaquePanels -> "Solid panels are on. Turn off Reduce Transparency to see glass."
                             ui.powerSaver -> "Frosted glass is active while Battery Saver is on."
                             reduced -> "Frosted glass is active while Reduce Motion is on."
@@ -196,7 +211,7 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                             SettingsSlider("Frost", a.frost, "${(a.frost * 100).roundToInt()}%", enabled = !a.opaquePanels) { onAppearance(a.copy(frost = it)) }
                             IosDivider()
                             SettingsSlider("Refraction", a.refraction, "${(a.refraction * 100).roundToInt()}%",
-                                enabled = !a.opaquePanels && !reduced && android.os.Build.VERSION.SDK_INT >= 33) { onAppearance(a.copy(refraction = it)) }
+                                enabled = !a.iosClassic && !a.opaquePanels && !reduced && android.os.Build.VERSION.SDK_INT >= 33) { onAppearance(a.copy(refraction = it)) }
                         }
                         SettingsFootnote("Controls catch light at their curved edges. Folders and app lists use a denser material to keep names easy to read.")
                         }

@@ -18,6 +18,14 @@ class SelfUpdateProbe : Instrumentation() {
     override fun onCreate(arguments:Bundle?) { super.onCreate(arguments); args=arguments ?: Bundle(); start() }
     override fun onStart() {
         try {
+            if(args.getString("mode")=="updates-web") {
+                runBlocking {
+                    val release=ReleaseFetcher().fetch(Long.MAX_VALUE)
+                    check(StableRelease.parse(release.raw)==release)
+                    finish(0,Bundle().apply { putString("websiteHttps","passed");putString("stableVersion",release.version);putLong("apkBytes",release.size);putString("sha256",release.sha256) })
+                }
+                return
+            }
             if(args.getString("mode") in setOf("network","news")) {
                 runBlocking {
                     val release=if(args.getString("mode")=="network") StableRelease.parse(HttpsClient.text(StableRelease.API,HttpsClient.githubHosts)) else null

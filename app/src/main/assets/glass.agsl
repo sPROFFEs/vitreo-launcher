@@ -25,7 +25,9 @@ half4 main(float2 position) {
     float2 p = position - halfSize;
     float distance = roundedDistance(p, halfSize, r);
     float rimWidth = max(min(r * 0.58, pixelDensity * 16.0), pixelDensity * 6.0);
-    float edge = 1.0 - smoothstep(0.0, rimWidth, max(-distance, 0.0));
+    // C2-continuous edge-to-centre transition; no inset lighting contour.
+    float t = clamp(max(-distance, 0.0) / rimWidth, 0.0, 1.0);
+    float edge = 1.0 - t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
     // Analytic rounded-rect normal: one distance evaluation instead of five per pixel.
     float2 q = abs(p) - halfSize + float2(r);
     float2 outside = max(q, float2(0.0));
@@ -53,9 +55,7 @@ half4 main(float2 position) {
     float lighting = dot(normal, lightDirection);
     float fresnel = pow(edge, 5.0);
     float rim = exp(-abs(distance + pixelDensity * 0.9) / max(pixelDensity * 0.8, 1.0));
-    float innerRim = exp(-abs(distance + rimWidth * 0.8) / max(pixelDensity * 1.2, 1.0)) * strength;
-    float specular = pow(max(lighting, 0.0), 3.0) * (fresnel * 0.34 + rim * 0.22)
-        + max(-lighting, 0.0) * innerRim * 0.075;
+    float specular = pow(max(lighting, 0.0), 3.0) * (fresnel * 0.34 + rim * 0.22);
     float innerShade = max(-lighting, 0.0) * bend * 0.11;
     float touchGlow = exp(-length(position - touchPoint) / max(length(resolution) * 0.35, 1.0)) * pressed * 0.14;
     color = color + half3(specular - innerShade + touchGlow);

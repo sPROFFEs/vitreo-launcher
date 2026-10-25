@@ -228,6 +228,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val s = if (first in _ui.value.layout.dock) LayoutOps.addToHome(_ui.value.layout, first) else _ui.value.layout
         commit(LayoutOps.folder(s, first, second, "folder:${UUID.randomUUID()}"))
     }
+    fun createFolder(appIds: List<String>, title: String) = commit(LayoutOps.createFolder(_ui.value.layout,
+        appIds.filter { id -> _ui.value.apps.any { it.id == id } }, title, "folder:${UUID.randomUUID()}"))
     fun recordLaunch(id: String) {
         if (_ui.value.apps.none { it.id == id }) return
         val recent = (listOf(id) + _ui.value.recentApps).distinct().take(16)

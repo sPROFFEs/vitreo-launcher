@@ -29,7 +29,7 @@ internal fun HomeWorkspace(page: HomeGridPage, rows: Int, rowHeight: Float, icon
     editing: Boolean, draggedApp: String?, draggedWidget: Int?, apps: Map<String, AppRecord>, widgets: WidgetController,
     now: Long, onClock: () -> Unit, onCalendar: () -> Unit, onOpen: (HomeEntry, Rect?) -> Unit,
     onActions: (HomeEntry, Rect?) -> Unit, onRemove: (HomeEntry) -> Unit, onEditWidget: (Int) -> Unit,
-    onBounds: (String, Rect?) -> Unit) {
+    onBounds: (String, Rect?) -> Unit, groupingHover: String? = null, groupingTarget: String? = null) {
     val density = LocalDensity.current
     val reduced = LocalGlass.current.appearance.reducedEffects
     val cyber = LocalCyber.current
@@ -54,7 +54,7 @@ internal fun HomeWorkspace(page: HomeGridPage, rows: Int, rowHeight: Float, icon
                             with(density) { iconSize.dp.toPx() })).testTag("home_entry:${cell.entry.id}"),
                     editing, draggedApp == cell.entry.id, onClick = { onOpen(cell.entry, it) },
                     onActions = { onActions(cell.entry, it) }, onBounds = { onBounds(cell.entry.id, it) },
-                    onRemove = { onRemove(cell.entry) })
+                    onRemove = { onRemove(cell.entry) }, groupingHover = groupingHover == cell.entry.id, groupingTarget = groupingTarget == cell.entry.id)
                 DisposableEffect(cell.entry.id) { onDispose { onBounds(cell.entry.id, null) } }
             } }
             page.widgets.forEach { placement -> key("widget:${placement.id}") {

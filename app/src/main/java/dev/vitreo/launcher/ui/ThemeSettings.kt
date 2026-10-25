@@ -35,17 +35,21 @@ import kotlinx.coroutines.withContext
 @Composable
 fun ThemeSettings(ui: LauncherViewModel.UiState, onAppearance: (Appearance) -> Unit) {
     val a = ui.layout.appearance
-    listOf("iOS" to "Liquid Glass and soft, continuous corners", "Cyberpunk" to "Dark HUD, red frames and cyan line icons").forEachIndexed { preset, (name, subtitle) ->
+    listOf(Triple("iOS 26", "Liquid Glass and soft, continuous corners", false),
+        Triple("iOS 16", "Classic frosted surfaces, quiet shadows and original colorful icons", true),
+        Triple("Cyberpunk", "Dark HUD, red frames and cyan line icons", false)).forEachIndexed { index, (name, subtitle, classic) ->
+        val preset = if (index == 2) 1 else 0
+        val chosen = a.themePreset == preset && (preset == 1 || a.iosClassic == classic)
         val glass = LocalGlass.current
-        CompositionLocalProvider(LocalGlass provides glass.copy(appearance = glass.appearance.copy(themePreset = preset))) {
+        CompositionLocalProvider(LocalGlass provides glass.copy(appearance = glass.appearance.copy(themePreset = preset, iosClassic = classic))) {
             VitreoTheme(a.interfaceStyle, preset) {
                 GlassPanel(Modifier.fillMaxWidth().padding(bottom = 14.dp).height(158.dp)
-                    .testTag("theme_$preset").selectable(a.themePreset == preset, role = Role.RadioButton,
-                        onClick = { onAppearance(a.copy(themePreset = preset)) }), material = GlassMaterial.Regular) {
+                    .testTag(if (classic) "theme_ios16" else "theme_$preset").selectable(chosen, role = Role.RadioButton,
+                        onClick = { onAppearance(a.copy(themePreset = preset, iosClassic = if (preset == 1) a.iosClassic else classic)) }), material = GlassMaterial.Regular) {
                     Column(Modifier.fillMaxSize().padding(17.dp), verticalArrangement = Arrangement.SpaceBetween) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(name, Modifier.weight(1f), fontSize = 25.sp, fontWeight = FontWeight.SemiBold)
-                            RadioButton(a.themePreset == preset, onClick = null)
+                            RadioButton(chosen, onClick = null)
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(13.dp)) {
                             listOf(R.drawable.cyber_phone, R.drawable.cyber_messages, R.drawable.cyber_camera).forEachIndexed { index, icon ->
@@ -168,7 +172,7 @@ fun IconPickerSheet(model: LauncherViewModel, ui: LauncherViewModel.UiState, app
         Text("Change Icon", fontSize = 30.sp, fontWeight = FontWeight.Bold)
         Text(ui.apps.find { it.id == appId }?.label.orEmpty(), Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
         IosGroup { IosRow("Icon source", if (selectedPack == THEME_ICON_PACK) "Current theme" else packs.find { it.packageName == selectedPack }?.label ?: "Choose", onClick = { choosingPack = true }) }
-        Text("Choose any built-in icon for this app. Theme icons follow iOS or Cyberpunk when you switch themes.", Modifier.padding(top = 10.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Choose any built-in icon for this app. Theme icons follow iOS 26, iOS 16 or Cyberpunk when you switch themes.", Modifier.padding(top = 10.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedTextField(query, { query = it.take(80) }, Modifier.fillMaxWidth().padding(vertical = 12.dp).testTag("icon_search"),
             label = { Text("Search icons") }, singleLine = true)
         when {

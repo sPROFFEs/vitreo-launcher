@@ -134,6 +134,14 @@ pero Android conserva el control y puede exigir confirmación. El permiso opcion
 `POST_NOTIFICATIONS` permite avisar de una confirmación pendiente. No se inicia
 una pantalla de confirmación desde el fondo o encima del bloqueo.
 
+La consulta de actualizaciones conserva la API de GitHub y añade una vía directa
+HTTPS a `github.com/.../releases/latest/download/build-info.json`, seguida de
+`SHA256SUMS` de la versión exacta. En releases antiguas sin tamaño publicado se
+consulta únicamente la longitud del APK con HEAD. No se scrapea HTML ni se añaden
+tokens. Se respeta el plazo de reintento de la API y se mantienen las verificaciones
+de SHA-256, paquete, versión y certificado instalado. Solo se usan los dominios
+GitHub/CDN ya permitidos para actualizaciones.
+
 ## Noticias opcionales
 
 Desactivadas por defecto. Publisher RSS es la fuente inicial y consulta directamente

@@ -70,9 +70,10 @@ def release_body(info: dict) -> str:
 - Signer SHA-256: `{info['signingCertificateSha256']}`.
 
 ## New in this release
-Illustrated Today news now defaults to public publisher RSS: BBC News (English), EL PAÍS (Spanish), Le Monde (French) or tagesschau (German), selected by edition. No Google account, Play Services or Google News app is required.
-Google News remains optional, with a configurable independent publisher fallback and clear source attribution. Its RSS does not include article photos; Publisher RSS provides a cover story and thumbnails. Show article images can be disabled to save data.
-News loads only while visible, preserves cached headlines/photos offline and reports network permission, DNS, timeout, TLS and HTTP errors with retry and settings actions. On GrapheneOS, allow Network for Vitreo in Android app settings. News remains off by default; switching back preserves widgets.
+GitHub update checks now fall back to verified release files over HTTPS if the API is unavailable or rate limited. Server API retry deadlines are retained; APK checksum, package, version and signing-certificate checks remain mandatory.
+Home icon preferences now reach 100 dp. Opened folders use the actual Home icon size. App Library follows Home by default or uses its own size; expanded grids adapt their columns and previews fit their cards.
+Hold and drag an app over another app or folder, wait for the ready outline, then release to group them. A stationary hold keeps the context menu. Edit Home also includes Create Folder with multiple app selection.
+iOS 16 Classic is a separate optional appearance with uniform frosted surfaces, quieter shadows and original colored icons. iOS 26 retains Liquid Glass and its saved settings. Remove the synthetic internal glass rim and smooth the lens transition without disabling refraction.
 
 ## Scope and verification
 iOS-inspired Home and optional Cyberpunk HUD theme, four-column grid, Dock, paged folders, Spotlight, categorized App Library, Home/Today widgets and layout backups.

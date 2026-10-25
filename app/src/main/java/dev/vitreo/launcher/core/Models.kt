@@ -8,7 +8,7 @@ const val MAX_ITEMS = 2000
 const val MAX_FOLDER_APPS = 100
 const val MAX_FOLDER_ID_LENGTH = 128
 const val MIN_ICON_SIZE = 40f
-const val MAX_ICON_SIZE = 84f
+const val MAX_ICON_SIZE = 100f
 
 private val APP_ID_PATTERN = Regex("[A-Za-z][A-Za-z0-9_.]*/[A-Za-z_.$][A-Za-z0-9_.$]*")
 fun isFolderId(value: String): Boolean = value.startsWith("folder:") &&
@@ -26,6 +26,8 @@ sealed interface HomeEntry {
 data class Appearance(
     val iconSize: Float = 60f,
     val showLabels: Boolean = true,
+    val libraryIconSize: Float = 0f, // 0 follows Home; positive values are an independent size.
+    val iosClassic: Boolean = false,
     val refraction: Float = .65f,
     val frost: Float = .38f,
     val reducedEffects: Boolean = false,
@@ -64,6 +66,7 @@ data class Appearance(
         lockScreen = lockScreen.sanitized(),
         news = news.sanitized(),
         iconSize = if (iconSize.isFinite()) iconSize.coerceIn(MIN_ICON_SIZE, MAX_ICON_SIZE) else 60f,
+        libraryIconSize = if (libraryIconSize == 0f || !libraryIconSize.isFinite()) 0f else libraryIconSize.coerceIn(MIN_ICON_SIZE, MAX_ICON_SIZE),
         refraction = if (refraction.isFinite()) refraction.coerceIn(0f, 1f) else .65f,
         frost = if (frost.isFinite()) frost.coerceIn(0f, 1f) else .38f,
         palette = palette.coerceIn(0, WALLPAPER_NAMES.lastIndex),

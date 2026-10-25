@@ -122,6 +122,19 @@ object LayoutOps {
         return state.copy(home = result).sanitized()
     }
 
+    /** One atomic edit preserves selection order, app identities and every unselected position. */
+    fun createFolder(state: LauncherState, selected: List<String>, title: String, folderId: String): LauncherState {
+        val ids = selected.distinct()
+        if (ids.size !in 2..MAX_FOLDER_APPS || ids.any { !isAppId(it) || !canPlace(state, it) } ||
+            !isFolderId(folderId) || state.home.any { it.id == folderId }) return state
+        if ((state.placedApps().toSet() + ids).size > MAX_ITEMS) return state
+        val insertion = state.home.takeWhile { it.id !in ids }.size
+        val stripped = ids.fold(state) { current, id -> withoutApp(current, id) }
+        val entries = stripped.home.toMutableList()
+        entries.add(insertion.coerceAtMost(entries.size), HomeEntry.Folder(folderId, title, ids))
+        return stripped.copy(home = entries).sanitized()
+    }
+
     fun addToFolder(state: LauncherState, app: String, folderId: String): LauncherState {
         val folder = state.home.filterIsInstance<HomeEntry.Folder>().find { it.id == folderId } ?: return state
         if (!isAppId(app) || !canPlace(state, app) || app in folder.apps || folder.apps.size >= MAX_FOLDER_APPS) return state

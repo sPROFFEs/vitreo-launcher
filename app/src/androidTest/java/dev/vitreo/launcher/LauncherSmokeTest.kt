@@ -979,13 +979,82 @@ class LauncherSmokeTest {
         openSettings()
         compose.onNodeWithTag("settings_title").assertExists()
     }
+    @Test fun draggingAppOntoAnotherCreatesFolderAndKeepsTheHomeIconSize() {
+        awaitReady()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val original = model.ui.value.layout.appearance
+        val ids = model.ui.value.layout.home.filterIsInstance<dev.vitreo.launcher.core.HomeEntry.App>().take(2).map { it.id }
+        var created: String? = null
+        try {
+            compose.runOnUiThread { model.appearance(original.copy(showWidgets = false, iconSize = 100f)) }
+            compose.waitForIdle()
+            val target = compose.onNodeWithTag("home_entry:${ids[1]}").fetchSemanticsNode().boundsInRoot
+            val icon = compose.onNodeWithTag("icon_art:${ids[0]}", useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+            val destination = Offset(target.center.x, icon.center.y)
+            compose.onNodeWithTag("launcher_root").performTouchInput {
+                down(icon.center); advanceEventTime(700)
+                moveTo(icon.center + Offset(20f, 0f), delayMillis=50)
+                moveTo(destination, delayMillis=300)
+            }
+            compose.waitUntil(7000) { compose.onAllNodesWithTag("folder_drop_ready",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithTag("launcher_root").performTouchInput { up() }
+            compose.waitUntil(5000) { model.ui.value.layout.home.any { it is dev.vitreo.launcher.core.HomeEntry.Folder && ids.all(it.apps::contains) } }
+            val folder = model.ui.value.layout.home.filterIsInstance<dev.vitreo.launcher.core.HomeEntry.Folder>().single { ids.all(it.apps::contains) }
+            created = folder.id
+            compose.onNodeWithTag("edit_done").performClick()
+            compose.onNodeWithTag("home_entry:${folder.id}").performClick()
+            compose.onNodeWithTag("folder_panel",useUnmergedTree=true).assertIsDisplayed()
+            val inside = compose.onNode(hasTestTag("icon_art:${ids[0]}") and hasAnyAncestor(hasTestTag("folder_panel")),useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+            assertEquals("Folder apps must use the actual Home artwork size",icon.width,inside.width,1.5f)
+            captureEvidence("folder-matched-icons")
+        } finally {
+            runCatching { compose.onNodeWithTag("launcher_root").performTouchInput { cancel() } }
+            returnHome()
+            compose.runOnUiThread { created?.let(model::dissolve); model.appearance(original) }
+        }
+    }
+
+    @Test fun appLibraryUsesIndependentLargeIconsAndAdaptsItsExpandedGrid() {
+        awaitReady()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val original = model.ui.value.layout.appearance
+        try {
+            compose.runOnUiThread { model.appearance(original.copy(iconSize=50f, libraryIconSize=100f)) }
+            repeat(10) { if(!compose.onNodeWithTag("app_library").isDisplayed()) compose.onNodeWithTag("home_workspace").performTouchInput { swipeLeft() } }
+            compose.onNodeWithTag("library_category:Suggestions").performTouchInput { click(center) }
+            compose.onNodeWithTag("category_panel").assertIsDisplayed()
+            val nodes=compose.onAllNodes(SemanticsMatcher("category artwork") {
+                it.config.getOrNull(SemanticsProperties.TestTag)?.startsWith("icon_art:")==true
+            } and hasAnyAncestor(hasTestTag("category_panel")),useUnmergedTree=true).fetchSemanticsNodes()
+            assertTrue(nodes.isNotEmpty())
+            nodes.forEach { assertEquals(100f,it.boundsInRoot.width/compose.activity.resources.displayMetrics.density,1f) }
+            captureEvidence("library-large-icons")
+        } finally { returnHome(); compose.runOnUiThread { model.appearance(original) } }
+    }
+
+    @Test fun ios16IsASeparateSelectableThemeAndRetainsLayoutAndLiquidPreferences() {
+        awaitReady()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val original = model.ui.value.layout.appearance
+        val placed = model.ui.value.layout.placedApps()
+        try {
+            openSettings(); compose.onNodeWithText("Themes & Icons").performClick()
+            compose.onNodeWithTag("theme_ios16").performScrollTo().performClick()
+            assertTrue(model.ui.value.layout.appearance.iosClassic)
+            assertEquals(original.refraction,model.ui.value.layout.appearance.refraction)
+            assertEquals(placed,model.ui.value.layout.placedApps())
+            captureEvidence("theme-ios16-settings")
+            compose.onNodeWithText("Done").performClick(); returnHome(); captureEvidence("theme-ios16-home")
+        } finally { returnHome(); compose.runOnUiThread { model.appearance(original) } }
+    }
+
     @Test fun largerIconsFitTheDockAndPreserveTheLayout() {
         awaitReady()
         val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
         val original = model.ui.value.layout.appearance
         val placed = model.ui.value.layout.placedApps()
         try {
-            compose.runOnUiThread { model.appearance(original.copy(iconSize = 84f)) }
+            compose.runOnUiThread { model.appearance(original.copy(iconSize = 100f)) }
             compose.waitForIdle()
             val dock = compose.onNodeWithTag("dock").fetchSemanticsNode().boundsInRoot
             val id = model.ui.value.layout.dock.first()

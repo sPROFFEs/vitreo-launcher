@@ -78,3 +78,38 @@ Use real screenshots and motion recording to review the renderer on API 31 and
 Android / GrapheneOS still owns app windows, Recents, native authentication and
 system gestures. Vitreo does not copy SpringBoard transition hooks or insert an
 unsynchronized fingerprint scan animation.
+
+
+## iOS 16 Classic and continuous glass — 0.9.0
+
+Reviewed 2026-10-25. Apple documents held-app dragging, grouping by dropping one
+app over another, additional folder contents and stationary context menus in
+[Move apps and create folders](https://support.apple.com/en-ie/108307). Vitreo now
+supports starting that drag directly, highlighting the artwork target, arming it
+after 500 ms and grouping on release. Existing Edit mode remains available. Opened
+folders use the resolved Home icon size, not a hard-coded smaller constant.
+Library can mirror Home or select its own 40–100 dp size. Expanded grids reduce
+columns when needed; category thumbnails deliberately remain fitted previews.
+
+[Apple system material](https://developer.apple.com/documentation/uikit/uiblureffect/style/systemmaterial)
+and the [materials guidance](https://developer.apple.com/design/human-interface-guidelines/materials)
+inform the new optional iOS 16 Classic: uniform cached diffusion, quiet shadows,
+less bulbous panels and original colored app artwork. It is separate from the
+iOS 26 lens and retains the user's Liquid Glass settings when switching back.
+Refraction controls are disabled for Classic; Frost continues to affect diffusion.
+No Apple fonts or kit assets are bundled.
+
+The supplied [Material Components for iOS](https://github.com/material-components/material-components-ios)
+repository describes Google's Material components, rather than Apple's native iOS
+16 interface; it is archived and is not imported. The supplied
+[Figma community kit](https://www.figma.com/community/file/1488553609521283714/ios-16-ui-kit)
+could not be fetched in this environment, so no claim of inspecting/copying that
+file or exact Figma fidelity is made. The implementation is original Compose code.
+
+The hardware lens removes the separate Gaussian lighting contour inside the rim
+and uses a C2-continuous edge-to-centre taper. Cached Android 12/reduced glass also
+removes its second inset stroke. The actual optical displacement, chromatic edge,
+outer lip and stable central sample remain. A uniform-wallpaper pixel regression
+compares 0/100% refraction at 0/50/100% frost to detect an artificial inset contour.
+The existing high-contrast wallpaper test still requires visible refraction and a
+stable centre; moving a lens must match a fresh lens without a touch.

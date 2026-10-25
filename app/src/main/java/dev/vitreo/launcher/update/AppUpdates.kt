@@ -105,7 +105,7 @@ object AppUpdates {
             val cached = release
             val fresh = System.currentTimeMillis() - prefs.getLong("checked",0) in 0 until DAY
             val found = if (!manual && cached != null && fresh) cached
-                else StableRelease.parse(HttpsClient.text(StableRelease.API,HttpsClient.githubHosts))
+                else ReleaseFetcher().fetch(prefs.getLong("apiRetryAt",0)) { retryAt -> prefs.edit { putLong("apiRetryAt",retryAt) } }
             val old = release
             if (old?.code != found.code || old.sha256 != found.sha256) { apk.delete(); partial.delete() }
             prefs.edit { putString("release",found.raw); putLong("checked",if (!manual && cached != null && fresh) prefs.getLong("checked",0) else System.currentTimeMillis()); remove("failed") }

@@ -28,6 +28,8 @@ object StateCodec {
                 put("news", JSONObject().put("enabled",s.appearance.news.enabled).put("market",s.appearance.news.market).put("topic",s.appearance.news.topic)
                     .put("provider",s.appearance.news.provider).put("fallback",s.appearance.news.fallback).put("images",s.appearance.news.images))
                 put("iconSize", s.appearance.iconSize.toDouble())
+                put("libraryIconSize", s.appearance.libraryIconSize.toDouble())
+                put("iosClassic", s.appearance.iosClassic)
                 put("showLabels", s.appearance.showLabels)
                 put("refraction", s.appearance.refraction.toDouble())
                 put("frost", s.appearance.frost.toDouble())
@@ -96,6 +98,8 @@ object StateCodec {
                 news = a.optJSONObject("news")?.let { NewsSettings(it.optBoolean("enabled",false),it.optString("market","auto"),it.optString("topic","top"),
                     it.optString("provider","direct"),it.optBoolean("fallback",true),it.optBoolean("images",true)) } ?: NewsSettings(),
                 iconSize = a.optDouble("iconSize", 60.0).toFloat(),
+                libraryIconSize = a.optDouble("libraryIconSize", 0.0).toFloat(),
+                iosClassic = a.optBoolean("iosClassic", false),
                 showLabels = a.optBoolean("showLabels", true),
                 refraction = a.optDouble("refraction", .65).toFloat(),
                 frost = a.optDouble("frost", .38).toFloat(),

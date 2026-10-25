@@ -40,7 +40,7 @@ fun UpdatesSettings() {
         IosToggleRow("Automatic updates",state.automatic) { AppUpdates.automatic(it) }; IosDivider()
         IosToggleRow("Download on Wi-Fi only",state.wifiOnly) { AppUpdates.wifiOnly(it) }
     }
-    UpdateFootnote("Checks daily for stable releases on GitHub. Downloads use an unmetered connection by default. The APK checksum, app identity, version and signing certificate are verified before installation.")
+    UpdateFootnote("Checks daily for stable releases on GitHub. If the API is unavailable or rate limited, verified release files are fetched directly over HTTPS. Downloads use an unmetered connection by default. The APK checksum, app identity, version and signing certificate are verified before installation.")
     IosGroup {
         IosRow("Allow installing updates",if(allowed) "Allowed" else "Open Android settings") {
             runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,Uri.parse("package:${context.packageName}"))) }

@@ -74,7 +74,7 @@ def main() -> None:
     (output / "signing-certificate.txt").write_text(certificate)
     info = {"app": "Vitreo", "versionName": version, "versionCode": code, "applicationId": expected_id,
         "buildType": args.mode, "commit": revision, "builtAtUtc": datetime.now(timezone.utc).isoformat(),
-        "minSdk": 31, "targetSdk": 35, "apk": name, "apkSha256": hashlib.sha256(apk.read_bytes()).hexdigest(),
+        "minSdk": 31, "targetSdk": 35, "apk": name, "apkSize": apk.stat().st_size, "apkSha256": hashlib.sha256(apk.read_bytes()).hexdigest(),
         "signingCertificateSha256": fingerprint.group(1).lower(), "requestedPermissions": requested,
         "physicalGrapheneOsTested": False, "instrumentationTestsInThisWorkflow": bool(evidence), "deviceTests": evidence,
         "deviceTestsBuildType": "debug", "optimizedSmokeBuildType": "preview",

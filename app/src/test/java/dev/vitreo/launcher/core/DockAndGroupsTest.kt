@@ -39,9 +39,9 @@ class DockAndGroupsTest {
     }
 
     @Test fun largeIconsUseTheAvailableColumnsAndKeepEveryAppReachable() {
-        val large = workspaceGeometry(375f, 540f, LayoutPreset(iconSize = MAX_ICON_SIZE))
+        val large = workspaceGeometry(480f, 700f, LayoutPreset(iconSize = MAX_ICON_SIZE))
         val narrow = workspaceGeometry(280f, 240f, LayoutPreset(iconSize = MAX_ICON_SIZE), 2f)
-        assertEquals(84f, large.iconSize, .01f)
+        assertEquals(100f, large.iconSize, .01f)
         assertTrue(narrow.iconSize < 84f)
         assertTrue(narrow.iconSize < narrow.cells.cellWidth)
         val pages = ids.chunked(narrow.pageSize)

@@ -1,7 +1,7 @@
 # Vitreo Launcher
 
 An Android home screen inspired by iOS, with glass surfaces, a four-column grid,
-App Library, an optional Cyberpunk HUD theme and native Android widgets. Android 12 or newer. English by default;
+App Library, optional iOS 16 Classic and Cyberpunk HUD themes and native Android widgets. Android 12 or newer. English by default;
 no accounts, ads, analytics, root or accessibility service.
 
 [Download the signed APK](https://github.com/sPROFFEs/vitreo-launcher/releases/latest)
@@ -22,6 +22,7 @@ recording and test reports for its exact commit.
 Install the release APK and select **Vitreo** as your default Home app in Android
 Settings. Keep your system launcher installed so you can switch back at any time.
 Updates use the same app ID and signing key. **Settings → Software Update** checks stable GitHub releases daily, downloads and verifies the APK, then asks Android to install it. Enable installation permission for Vitreo when requested; Android may still require confirmation. Automatic updates and Wi-Fi-only downloads can be changed there. You can also install the newer release APK over the old one.
+If the API is rate limited or unavailable, the updater reads release metadata and checksums directly over HTTPS. API retry deadlines are respected; downloaded APKs still require the installed signing identity.
 Debug and Preview are separate apps with separate data and test signatures.
 
 When Vitreo is the default launcher, **Wallpaper → Sync with Android Home** keeps
@@ -30,7 +31,11 @@ Cyberpunk styling. This is enabled by default and can be turned off. Returning
 from Recents brings Home icons inward from the screen edges while the wallpaper
 stays on Android's own surface; Reduce Motion removes the icon arrival effect.
 
-- **Home:** swipe between pages. Four app columns, folders and a four-slot glass dock.
+- **Home:** swipe between pages. Four app columns, folders and a four-slot dock.
+  Hold an app and start dragging it over another app or folder. Wait for the target
+  outline to brighten, then release to group them. Holding without moving keeps
+  the app menu available. Edit Home also offers **Create Folder** with multi-selection.
+  Opened folders use the same actual artwork size as Home, with adaptive columns.
 - **Today:** swipe right from the first Home page for widgets and recent suggestions.
   Tap **Edit** to reorder or remove built-in cards and restore them later.
   **Settings → Today & News** optionally replaces this page with illustrated news,
@@ -48,10 +53,16 @@ stays on Android's own surface; Reduce Motion removes the icon arrival effect.
   **Settings → Control Center**.
 - **Search:** tap Search or swipe down. Search locally by app name or package.
 - **App Library:** swipe past the last Home page. Open a category or use the alphabetical index.
+  **Settings → App Library** follows Home icon size by default or accepts its own
+  40–100 dp setting. Opened categories adapt their columns; miniature previews fit their cards.
 - **Uninstalling:** confirmed removals clear Home, Dock, folders and suggestions automatically. APK updates preserve placement.
 - **App actions:** hold an icon for shortcuts, folders, Dock and Edit Home Screen.
 - **Settings:** use the gear in Today or in Edit Home Screen. Choose icon size up to
-  84 dp, icon artwork/treatment, appearance, wallpaper and Motion & Glass options.
+  100 dp, icon artwork/treatment, appearance, wallpaper and Motion & Glass options.
+  Home keeps four columns and fits icons to the available width; dp measures layout
+  space, so extra display pixels alone do not increase usable width.
+  **Themes & Icons → iOS 16** selects uniform frosted surfaces, quiet shadows and
+  original colorful icons. iOS 26 keeps Liquid Glass and the saved optical preferences.
 - **Wallpaper:** use a built-in background or a local photo. Pinch, pan, Fit, Fill and
   Reset let you frame it before saving; the original remains available for later edits.
 

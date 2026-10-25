@@ -65,7 +65,7 @@ fun EntryIcon(entry: HomeEntry, apps: Map<String, AppRecord>, size: Dp, modifier
             val themeKind = override?.takeIf { it.isTheme }?.drawable
             val bundled = if (cyber) cyberArtwork(themeKind ?: commonIconKind(app?.packageName.orEmpty())) else null
             val kind = themeKind ?: if (appearance.iosIcons) commonIconKind(app?.packageName.orEmpty()) else null
-            val style = appearance.iconStyle
+            val style = if (appearance.iosClassic) 0 else appearance.iconStyle
             if (external != null) {
                 Image(external.asImageBitmap(), null, Modifier.fillMaxSize().padding(if (cyber) size * .08f else 0.dp)
                     .testTag("external_icon:${entry.id}"), contentScale = ContentScale.Fit)
@@ -101,7 +101,7 @@ fun EntryIcon(entry: HomeEntry, apps: Map<String, AppRecord>, size: Dp, modifier
 @Composable
 fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, labels: Boolean,
     modifier: Modifier = Modifier, editing: Boolean = false, dragging: Boolean = false,
-    onClick: (Rect?) -> Unit, onActions: (Rect?) -> Unit, onBounds: (Rect) -> Unit = {}, onRemove: (() -> Unit)? = null) {
+    onClick: (Rect?) -> Unit, onActions: (Rect?) -> Unit, onBounds: (Rect) -> Unit = {}, onRemove: (() -> Unit)? = null, groupingHover: Boolean = false, groupingTarget: Boolean = false) {
     val appearance = LocalGlass.current.appearance
     val cyber = LocalCyber.current
     val angle: State<Float> = if (editing && !appearance.reducedEffects && !cyber) {
@@ -115,6 +115,8 @@ fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, l
     var iconBounds by remember { mutableStateOf<Rect?>(null) }
     val scale = animateFloatAsState(if (pressed && !editing && !appearance.reducedEffects) (if (cyber) .97f else .94f) else 1f,
         if (appearance.reducedEffects) tween(0) else if (cyber) tween(90) else spring(dampingRatio = .72f, stiffness = 650f), label = "icon press")
+    val groupScale by animateFloatAsState(if (groupingTarget) 1.13f else if (groupingHover) 1.06f else 1f,
+        if (appearance.reducedEffects) tween(0) else spring(dampingRatio = .86f, stiffness = 550f), label = "folder drop target")
     val contentColor = LocalGlassContentColor.current
     Column(modifier.onGloballyPositioned { onBounds(it.boundsInRoot()) }
         .semantics {
@@ -125,9 +127,12 @@ fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, l
         .alpha(if (dragging) .2f else if (entry is HomeEntry.App && apps[entry.id] == null) .5f else 1f)
         .padding(top = 7.dp, bottom = 5.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.onGloballyPositioned { iconBounds = it.boundsInRoot() }.graphicsLayer {
-            rotationZ = angle.value; scaleX = scale.value; scaleY = scale.value
+            rotationZ = if (groupingHover) 0f else angle.value; scaleX = scale.value * groupScale; scaleY = scale.value * groupScale
         }) {
             EntryIcon(entry, apps, iconSize)
+            if (groupingHover) Box(Modifier.matchParentSize().border(if (groupingTarget) 3.dp else 1.dp,
+                if (cyber) CyberColors.Cyan else Color.White.copy(alpha = if (groupingTarget) .95f else .5f),
+                if (cyber) CyberShape else IconShape).testTag(if (groupingTarget) "folder_drop_ready" else "folder_drop_hover"))
             if (editing && onRemove != null) Box(Modifier.offset((-5).dp, (-5).dp).size(23.dp)
                 .background(Color(0xffd5d7db), CircleShape).clickable(onClick = onRemove), contentAlignment = Alignment.Center) {
                 Icon(Icons.Outlined.Remove, "Remove $label", Modifier.size(17.dp), tint = Color(0xff303238))

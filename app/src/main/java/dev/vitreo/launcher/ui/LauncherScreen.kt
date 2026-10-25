@@ -93,6 +93,7 @@ private sealed interface Sheet {
     data class IconPicker(val app: String) : Sheet
     data class Folder(val id: String) : Sheet
     data class Category(val title: String, val apps: List<AppRecord>) : Sheet
+    data object NewFolder : Sheet
     data class PairWith(val app: String) : Sheet
     data class AddToFolder(val app: String) : Sheet
 }
@@ -316,7 +317,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         val app = ui.apps.firstOrNull { "calendar" in it.packageName || "calendario" in searchKey(it.label) }
         if (app != null) launch(app.id, null) else model.message("No calendar app is installed.")
     }
-    val opaqueScreen = sheet == Sheet.Settings || sheet == Sheet.Widgets || sheet is Sheet.Widget || sheet is Sheet.IconPicker || sheet == Sheet.Licenses || sheet == Sheet.Wallpaper ||
+    val opaqueScreen = sheet == Sheet.NewFolder || sheet == Sheet.Settings || sheet == Sheet.Widgets || sheet is Sheet.Widget || sheet is Sheet.IconPicker || sheet == Sheet.Licenses || sheet == Sheet.Wallpaper ||
         sheet is Sheet.PairWith || sheet is Sheet.AddToFolder
     val lightWallpaper = appearance.themePreset != 1 && (frame?.brightness ?: 0f) * (1f - appearance.wallpaperDim) > .62f
     val lightChrome = opaqueScreen && sheet != Sheet.Wallpaper && MaterialTheme.colorScheme.background.luminance() > .5f ||
@@ -411,14 +412,15 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     }
     val hovered = drag?.let { session ->
         if (session.entry !is HomeEntry.App) null else ui.layout.home.firstOrNull { entry ->
-            entry.id != session.entry.id && cellBounds[entry.id]?.let { rect ->
-                (rect.center - session.position).getDistance() < minOf(rect.width, rect.height) * .32f
+            entry.id != session.entry.id && (entry !is HomeEntry.Folder || entry.apps.size < MAX_FOLDER_APPS) && cellBounds[entry.id]?.let { rect ->
+                val iconCenter = Offset(rect.center.x, rect.top + (7f + geometry.iconSize / 2) * density.density)
+                (iconCenter - session.position).getDistance() < folderHoverRadius(geometry.iconSize) * density.density
             } == true
         }?.id
     }
     LaunchedEffect(hovered, drag?.entry?.id) {
         folderTarget = null
-        if (hovered != null) { delay(650); folderTarget = hovered; haptic.performHapticFeedback(HapticFeedbackType.LongPress) }
+        if (hovered != null) { delay(500); folderTarget = hovered; haptic.performHapticFeedback(HapticFeedbackType.LongPress) }
     }
     val dragPosition = drag?.position ?: widgetDrag?.position
     val edge = dragPosition?.let {
@@ -510,12 +512,30 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
             var pulling = false
             var distanceY = 0f
             var released = false
+            var iconDragging = false
+            val startedOnIcon = cellBounds.any { (id, bounds) -> !id.startsWith("widget:") && bounds.contains(down.position + rootPosition) }
             try {
                 while (true) {
                     val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: break
                     tracker.addPosition(change.uptimeMillis, change.position)
-                    if (!change.pressed) { released = true; if (pulling) change.consume(); break }
+                    if (!change.pressed) {
+                        released = true
+                        if (iconDragging) { change.consume(); drop(); editing = true }
+                        else if (pulling) change.consume()
+                        break
+                    }
                     val distance = change.position - down.position
+                    if (!pulling && startedOnIcon && (iconDragging || change.uptimeMillis - down.uptimeMillis >= viewConfiguration.longPressTimeoutMillis && distance.getDistance() > viewConfiguration.touchSlop)) {
+                        if (!iconDragging) {
+                            actionTarget = null; choiceSheet = null; actionReturn = null
+                            startDrag(down.position); iconDragging = drag != null
+                        }
+                        if (iconDragging) {
+                            change.consume()
+                            drag = drag?.copy(position = change.position + rootPosition)
+                            continue
+                        }
+                    }
                     if (!pulling && abs(distance.x) > viewConfiguration.touchSlop && abs(distance.x) > abs(distance.y)) break
                     distanceY = distance.y
                     if (panel != null && (pulling || distance.y > 24.dp.toPx() && distance.y > abs(distance.x))) {
@@ -531,6 +551,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                     }
                 }
             } finally {
+                if (iconDragging && !released) { drag = null; folderTarget = null }
                 if (pulling) {
                     val velocity = if (released) tracker.calculateVelocity().y / density.density else 0f
                     if (!released || !shouldOpenHomePanel(distanceY / density.density, velocity)) sheet = null
@@ -622,12 +643,13 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                                 val grid = homeGrid.getOrNull(page - 1) ?: HomeGridPage(emptyList(), emptyList(), false)
                                 Box(Modifier.fillMaxSize().padding(bottom = footerHeight)) {
                                     HomeWorkspace(grid, geometry.rows, rowHeight, geometry.iconSize, appearance.showLabels,
-                                    editing, drag?.entry?.id, widgetDrag?.placement?.id, apps, widgets, now,
+                                    editing || drag != null, drag?.entry?.id, widgetDrag?.placement?.id, apps, widgets, now,
                                     { system(AlarmClock.ACTION_SHOW_ALARMS) }, ::openCalendar, openEntry,
                                     { entry, bounds -> actionTarget = AppActionTarget(entry, bounds) },
                                     { entry -> if (entry is HomeEntry.App) model.removeApp(entry.id) else model.dissolve(entry.id) },
                                     { sheet = Sheet.Widget(it) },
-                                    { id, bounds -> if (bounds == null) cellBounds.remove(id) else cellBounds[id] = bounds })
+                                    { id, bounds -> if (bounds == null) cellBounds.remove(id) else cellBounds[id] = bounds },
+                                    groupingHover = hovered, groupingTarget = folderTarget)
                                 }
                             }
                         }
@@ -670,6 +692,9 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                 GlassPanel(radius = 20f) { Text("Add Widgets", color = Color.White, fontSize = 13.sp,
                     modifier = Modifier.testTag("add_home_widgets").clickable { widgetGalleryHomePage = pager.currentPage - 1; sheet = Sheet.Widgets }.padding(horizontal = 14.dp, vertical = 10.dp)) }
                 Row {
+                    IconButton(onClick = { sheet = Sheet.NewFolder }, modifier = Modifier.testTag("create_home_folder")) {
+                        LauncherSymbol(Icons.Outlined.CreateNewFolder, "Create Folder", tint = LocalGlassContentColor.current)
+                    }
                     IconButton(onClick = { sheet = Sheet.Settings }, modifier = Modifier.testTag("settings_button")) { LauncherSymbol(Icons.Outlined.Settings, "Settings", tint = LocalGlassContentColor.current) }
                     GlassPanel(radius = 20f) { Text("Done", color = Color.White, fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.testTag("edit_done").clickable { editing = false }.padding(horizontal = 17.dp, vertical = 10.dp)) }
@@ -785,9 +810,12 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                             SideEffect { if (live != null) snapshot = live }
                             LaunchedEffect(live) { if (live == null && sheet == current) sheet = null }
                             val folder = live ?: snapshot
-                            if (folder != null) FolderSheet(folder, apps, { sheet = null }, ::launch, ::actions, { model.renameFolder(folder.id, it) })
+                            if (folder != null) FolderSheet(folder, apps, { sheet = null }, ::launch, ::actions, { model.renameFolder(folder.id, it) }, iconSize = geometry.iconSize)
                         }
                         is Sheet.Category -> CategoryScreen(current.title, current.apps.mapNotNull { apps[it.id] }, apps, { sheet = null }, ::launch, ::actions)
+                        Sheet.NewFolder -> NewFolderSheet(ui.apps, ::closeSurface) { ids, title ->
+                            model.createFolder(ids, title); closeSurface()
+                        }
                         is Sheet.PairWith, is Sheet.AddToFolder -> Unit
                     }
                 }

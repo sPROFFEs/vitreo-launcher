@@ -185,6 +185,42 @@ class GlassRenderingDeviceTest {
         assertEquals("none", GlassDiagnostics.lastFailure)
     }
 
+    @SdkSuppress(minSdkVersion = 33)
+    @Test fun uniformGlassHasNoInsetRefractionContourAtAnyFrostSetting() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        val texture=Bitmap.createBitmap(720,1600,Bitmap.Config.ARGB_8888).apply { eraseColor(AndroidColor.rgb(75,95,115)) }
+        val frame=WallpaperStore(context).frame(texture)
+        var strength by mutableFloatStateOf(0f)
+        var frost by mutableFloatStateOf(0f)
+        compose.setContent {
+            var viewport by remember { mutableStateOf(Viewport()) }
+            VitreoTheme(1) {
+                Box(Modifier.fillMaxSize().onGloballyPositioned {
+                    val p=it.positionOnScreen();viewport=Viewport(it.size.width.toFloat(),it.size.height.toFloat(),p.x,p.y)
+                }) {
+                    CompositionLocalProvider(LocalGlass provides GlassEnvironment(frame,viewport,Appearance(refraction=strength,frost=frost))) {
+                        GlassPanel(Modifier.align(Alignment.Center).size(280.dp,160.dp).testTag("no-inset"),radius=32f) {}
+                    }
+                }
+            }
+        }
+        val density=context.resources.displayMetrics.density
+        for(value in listOf(0f,.5f,1f)) {
+            compose.runOnIdle { frost=value;strength=0f };compose.waitForIdle()
+            val before=capture("no-inset","flat-$value")
+            compose.runOnIdle { strength=1f };compose.waitForIdle()
+            val after=capture("no-inset","refracted-$value")
+            var maximum=0
+            for(dp in 7..22) for(y in before.height/3 until before.height*2/3) {
+                val x=before.width-1-(dp*density).toInt()
+                val a=before.getPixel(x,y);val b=after.getPixel(x,y)
+                maximum=maxOf(maximum,abs(AndroidColor.red(a)-AndroidColor.red(b)),abs(AndroidColor.green(a)-AndroidColor.green(b)),abs(AndroidColor.blue(a)-AndroidColor.blue(b)))
+            }
+            assertTrue("Uniform wallpaper must not gain an internal outline at frost=$value: $maximum",maximum<=2)
+        }
+        assertTrue(GlassDiagnostics.hardwareRefractionDrawn)
+    }
+
     private fun capture(tag: String, suffix: String): Bitmap {
         val bitmap = compose.onNodeWithTag(tag).captureToImage().asAndroidBitmap().copy(Bitmap.Config.ARGB_8888, false)
         val context = InstrumentationRegistry.getInstrumentation().targetContext

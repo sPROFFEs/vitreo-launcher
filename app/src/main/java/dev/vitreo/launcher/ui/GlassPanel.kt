@@ -40,6 +40,8 @@ fun GlassPanel(modifier: Modifier = Modifier, radius: Float = 28f, tint: Float =
     material: GlassMaterial = GlassMaterial.Clear, interactive: Boolean = false, contentColor: Color? = null, content: @Composable BoxScope.() -> Unit) {
     if (LocalCyber.current) { CyberPanel(modifier, content); return }
     val glass = LocalGlass.current
+    val classic = glass.appearance.iosClassic
+    val visualRadius = if (classic) minOf(radius, 28f) else radius
     val surfaceReveal = LocalSurfaceReveal.current
     var pressed by remember { mutableStateOf(false) }
     var touch by remember { mutableStateOf(Offset(.5f, .5f)) }
@@ -66,14 +68,14 @@ fun GlassPanel(modifier: Modifier = Modifier, radius: Float = 28f, tint: Float =
     val renderer = remember(context) { GlassRenderer(context) }
     var coordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var placedPosition by remember { mutableStateOf(Offset.Zero) }
-    val shape = RoundedCornerShape(radius.dp)
-    Box(modifier.then(gesture).shadow(6.dp, shape, clip = false,
+    val shape = RoundedCornerShape(visualRadius.dp)
+    Box(modifier.then(gesture).shadow(if (classic) 1.dp else 6.dp, shape, clip = false,
         ambientColor = Color.Black.copy(alpha = .10f), spotColor = Color.Black.copy(alpha = .12f)).graphicsLayer {
-        scaleX = 1f + light.value * .008f; scaleY = scaleX
-        rotationX = (touch.y - .5f) * light.value * -2.5f
-        rotationY = (touch.x - .5f) * light.value * 2.5f
+        scaleX = 1f + light.value * if (classic) .003f else .008f; scaleY = scaleX
+        rotationX = if (classic) 0f else (touch.y - .5f) * light.value * -2.5f
+        rotationY = if (classic) 0f else (touch.x - .5f) * light.value * 2.5f
         cameraDistance = 16 * density
-    }.clip(RoundedCornerShape(radius.dp))) {
+    }.clip(shape)) {
         Canvas(Modifier.matchParentSize().onGloballyPositioned {
             coordinates = it
             // Lazy layouts reuse LayoutCoordinates when a card moves. Observe the
@@ -87,7 +89,7 @@ fun GlassPanel(modifier: Modifier = Modifier, radius: Float = 28f, tint: Float =
             // screen position at draw time so the lens stays attached to the wallpaper.
             val layoutPosition = placedPosition // Subscribe only drawing to placement changes.
             val position = coordinates?.takeIf { it.isAttached }?.positionOnScreen() ?: layoutPosition
-            renderer.configure(glass.frame, glass.viewport, glass.appearance, radius, tint,
+            renderer.configure(glass.frame, glass.viewport, glass.appearance, visualRadius, tint,
                 material == GlassMaterial.Regular, touch.x, touch.y, light.value, foregroundDark = color.luminance() < .4f)
             drawIntoCanvas { renderer.draw(it.nativeCanvas, size.width.toInt(), size.height.toInt(), position.x, position.y) }
         }

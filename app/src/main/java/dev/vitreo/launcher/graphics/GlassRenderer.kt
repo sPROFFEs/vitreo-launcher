@@ -46,7 +46,6 @@ class GlassRenderer(private val context: Context) {
     private val bounds = RectF()
     private var borderWidth = 0
     private var borderHeight = 0
-    private val innerBorder = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
 
     fun configure(frame: WallpaperFrame?, viewport: Viewport, appearance: Appearance, radius: Float, tint: Float,
         regular: Boolean = false, touchX: Float = .5f, touchY: Float = .5f, pressed: Float = 0f, foregroundDark: Boolean = false) {
@@ -83,10 +82,11 @@ class GlassRenderer(private val context: Context) {
         val f = frame
         val dark = appearance.interfaceStyle == 2 || appearance.interfaceStyle == 0 &&
             context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        val classic = appearance.iosClassic && appearance.themePreset != 1
         val materialDark = if (regular) dark else !foregroundDark
         val backdropBrightness = (f?.brightness ?: 0f) * (1f - appearance.wallpaperDim)
         val opacity = if (regular) max(panelTint, if (dark) .60f else .66f)
-            else max(panelTint, if (foregroundDark) .18f else if (backdropBrightness > .65f) .35f else .13f)
+            else max(panelTint, if (classic) .30f else if (foregroundDark) .18f else if (backdropBrightness > .65f) .35f else .13f)
         val materialColor = if (materialDark) Color.rgb(23, 25, 32) else Color.rgb(248, 249, 253)
         if (appearance.opaquePanels || f == null || viewport.width <= 1f) {
             paint.shader = null; paint.color = materialColor
@@ -96,7 +96,7 @@ class GlassRenderer(private val context: Context) {
         val x = screenX - viewport.screenX
         val y = screenY - viewport.screenY
         var usedAgsl = false
-        if (Build.VERSION.SDK_INT >= 33 && canvas.isHardwareAccelerated && !appearance.reducedEffects && !shaderFailed) {
+        if (Build.VERSION.SDK_INT >= 33 && canvas.isHardwareAccelerated && !appearance.reducedEffects && !classic && !shaderFailed) {
             try {
                 if (runtime == null) runtime = Agsl.create(context)
                 align(sharp!!, f.sharp); align(frosted!!, f.frosted)
@@ -120,7 +120,7 @@ class GlassRenderer(private val context: Context) {
             align(fallbackSharp!!, f.sharp, x, y)
             paint.shader = fallbackSharp; paint.color = Color.WHITE
             canvas.drawRoundRect(bounds, radius, radius, paint)
-            val frost = if (regular) max(.78f, appearance.frost) else appearance.frost
+            val frost = if (classic) (if (regular) .85f + .15f * appearance.frost else .72f + .28f * appearance.frost) else if (regular) max(.78f, appearance.frost) else appearance.frost
             align(fallback!!, f.frosted, x, y)
             paint.shader = fallback; paint.alpha = (frost * 255).toInt()
             canvas.drawRoundRect(bounds, radius, radius, paint)
@@ -139,18 +139,12 @@ class GlassRenderer(private val context: Context) {
             borderWidth = width; borderHeight = height
             border.shader = LinearGradient(0f, 0f, width.toFloat(), height.toFloat(),
                 intArrayOf(0x9cffffff.toInt(), 0x16ffffff, 0x09ffffff, 0x60ffffff), null, Shader.TileMode.CLAMP)
-            innerBorder.shader = LinearGradient(0f, 0f, width.toFloat(), height.toFloat(),
-                intArrayOf(0x24ffffff, 0x03ffffff, 0x1b000000, 0x2affffff), null, Shader.TileMode.CLAMP)
         }
+        if (classic) return
         border.strokeWidth = density * .65f
         bounds.inset(border.strokeWidth * .5f, border.strokeWidth * .5f)
         canvas.drawRoundRect(bounds, max(0f, radius - .4f * density), max(0f, radius - .4f * density), border)
-        if (!usedAgsl) {
-            // The cached Android 12 / reduced-effects material still has depth at the rim.
-            innerBorder.strokeWidth = density * 2f
-            bounds.inset(density * 2f, density * 2f)
-            canvas.drawRoundRect(bounds, max(0f, radius - 2.4f * density), max(0f, radius - 2.4f * density), innerBorder)
-        }
+
     }
 }
 

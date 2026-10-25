@@ -1,5 +1,19 @@
 # Cambios
 
+## 0.9.0
+
+- Add direct HTTPS release-file fallback for unavailable/rate-limited GitHub API,
+  server retry deadlines, pinned metadata/checksums and legacy APK-length lookup.
+- Raise icon preferences to 100 dp. Opened folders match actual Home icons; App
+  Library defaults to matching Home and offers its own size with adaptive grids.
+- Drag a held app directly over another app/folder without first entering Edit;
+  show hover/readiness feedback before grouping and retain the stationary app menu.
+- Add an explicit multi-app folder creator in Edit Home.
+- Add optional iOS 16 Classic with uniform frosted panels, restrained shadows and
+  original colored icons; retain iOS 26 optical preferences when switching back.
+- Remove the artificial inset rim in hardware and cached glass. Smooth the optical
+  transition while retaining visible edge refraction and a stable text-bearing centre.
+
 ## 0.8.1
 
 - Default Today News to direct publisher RSS, without Google services or accounts;

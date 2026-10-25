@@ -193,3 +193,17 @@ also respect that gate and the image preference. It preserves the widget host an
 layout when switching modes. `LockNotice` is a redacted projection with no message
 fields or PendingIntents. Notification launches look up the current live notice
 only after native keyguard dismissal and use Android's explicit sender opt-in.
+
+
+`ReleaseFetcher` retains the API path and falls back only on transport/rate-limit
+failure. It skips the API until its saved retry deadline, requests the latest
+build-info asset over HTTPS, then pins checksums and APK to that version's immutable
+release path. Metadata SHA-256, APK digest, identity, numeric version/code, size and
+certificate format are checked before the existing APK/signature verifier runs.
+Pre-apkSize releases use a bounded HEAD length lookup. No HTML scraping or token
+is needed. Cancellation and invalid API metadata fail closed.
+
+`Appearance.iosClassic` is a separate iOS material preference, preserving existing
+numeric iOS/Cyberpunk theme IDs. `libraryIconSize == 0` follows the resolved Home
+size; a positive size is independent. Expanded folder/category grids choose fitting
+columns. Portable backups keep these choices without changing the schema.
