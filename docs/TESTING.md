@@ -102,7 +102,7 @@ APKs; JUnit XML and full logcat are retained in instrumentation artifacts.
 
 CI first runs the application suite with AndroidJUnitRunner's `notClass` filter
 for `HomeIntegrationTest`, then the optimized Preview walkthrough. It runs the
-two real Home/Recents tests last, in a separate instrumentation process with the
+three real Home/Recents/overlay tests last, in a separate instrumentation process with the
 `class` filter. Changing the global HOME role and Quickstep state must not leak
 into subsequent ActivityScenario windows. Both phases are mandatory, independently
 parsed for failures/skips, and their exact combined count is checked before

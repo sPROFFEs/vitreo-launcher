@@ -6,6 +6,8 @@ from pathlib import Path
 import re
 
 REQUIRED_APIS = {31, 35}
+REQUIRED_HOME_TESTS = 3
+REQUIRED_LOCK_TESTS = 2
 
 def device_evidence(directory: Path, commit: str) -> list[dict]:
     records = []
@@ -20,7 +22,7 @@ def device_evidence(directory: Path, commit: str) -> list[dict]:
         phases = value.get("debugTestPhases", {})
         if (type(phases) is not dict or set(phases) != {"application", "systemHome", "systemLock"}
                 or any(type(v) is not int or v < 1 for v in phases.values())
-                or phases["systemHome"] != 2 or phases["systemLock"] != 2
+                or phases["systemHome"] != REQUIRED_HOME_TESTS or phases["systemLock"] != REQUIRED_LOCK_TESTS
                 or sum(phases.values()) != value["debugTestsPassed"]):
             raise ValueError("Complete app, real Home and secure keyguard phases are required.")
         records.append(value)

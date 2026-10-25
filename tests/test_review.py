@@ -114,8 +114,8 @@ class DeviceEvidenceTests(unittest.TestCase):
         self.commit = "a"*40
     def write(self, api, **overrides):
         path = self.root/str(api); path.mkdir(exist_ok=True)
-        value = dict(api=api, commit=self.commit, status="passed", debugTestsPassed=5, optimizedPreviewStarted=True,
-                     debugTestPhases={"application": 1, "systemHome": 2, "systemLock": 2})
+        value = dict(api=api, commit=self.commit, status="passed", debugTestsPassed=6, optimizedPreviewStarted=True,
+                     debugTestPhases={"application": 1, "systemHome": 3, "systemLock": 2})
         value.update(overrides)
         (path/"smoke-result.json").write_text(json.dumps(value))
     def test_matching_matrix(self):
@@ -144,10 +144,11 @@ class DeviceEvidenceTests(unittest.TestCase):
         (duplicate/"smoke-result.json").write_text((self.root/"31/smoke-result.json").read_text())
         with self.assertRaises(ValueError): device_evidence(self.root,self.commit)
     def test_secure_keyguard_phase_and_exact_accounting_are_required(self):
-        for phases in ({}, {"application": 3, "systemHome": 2},
-                       {"application": 2, "systemHome": 2, "systemLock": 1},
+        for phases in ({}, {"application": 3, "systemHome": 3},
+                       {"application": 2, "systemHome": 3, "systemLock": 1},
+                       {"application": 2, "systemHome": 3, "systemLock": 2},
                        {"application": 2, "systemHome": 2, "systemLock": 2},
-                       {"application": True, "systemHome": 2, "systemLock": 2}):
+                       {"application": True, "systemHome": 3, "systemLock": 2}):
             with self.subTest(phases=phases):
                 self.write(31); self.write(35, debugTestPhases=phases)
                 with self.assertRaises(ValueError): device_evidence(self.root, self.commit)
