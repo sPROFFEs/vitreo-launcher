@@ -133,12 +133,15 @@ class NotificationIslandDeviceTest {
 
     @Test fun openNotificationWorksAboveAnotherAppWithoutForegroundHome() {
         val packageName=context.packageName
-        val stockHome=context.packageManager.resolveActivity(android.content.Intent(android.content.Intent.ACTION_MAIN)
-            .addCategory(android.content.Intent.CATEGORY_HOME),android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
-        check(stockHome?.activityInfo?.packageName!=packageName) { "This phase requires the stock emulator launcher." }
+        val stockHome=listOf("com.google.android.apps.nexuslauncher","com.android.launcher3").firstNotNullOfOrNull { pkg ->
+            shell("cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME -p $pkg")
+                .lineSequence().map { it.trim() }.firstOrNull { it.matches(Regex(Regex.escape(pkg)+"/[A-Za-z0-9_.$]+")) }
+        }
+        checkNotNull(stockHome) { "A pinned emulator stock launcher is required." }
         // A third UID in front, with both Vitreo and the notification creator in the background.
+        // Resolve/open it explicitly: first installation can select Vitreo as default Home.
         // Protected Android Settings deliberately hides overlays and is not a valid host.
-        shell("input keyevent KEYCODE_HOME")
+        shell("am start -W -a android.intent.action.MAIN -c android.intent.category.HOME -n $stockHome")
         try {
             post("Open-from-island")
             await { NotificationIsland.status.value.visible && node("Expand Uninstall fixture notification")!=null }
