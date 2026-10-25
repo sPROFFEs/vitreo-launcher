@@ -26,7 +26,10 @@ explicit. Choose whether to move below a music island or pause while it is activ
 manual reservation supports other overlays. See [setup and coexistence](docs/NOTIFICATION_ISLAND.md).
 The island disappears on lock and screen-off. Closing Aoede or another floating
 panel on Home preserves the icon layout without replaying the app-return animation.
-
+The capsule opens and closes horizontally from its centre, matching Aoede.
+**Dynamic Island → Configure Android banners** opens category settings to disable
+only Android's floating pop-ups while retaining notifications. It also includes
+an optional ADB guide for system-wide banner control.
 
 Install the release APK and select **Vitreo** as your default Home app in Android
 Settings. Keep your system launcher installed so you can switch back at any time.

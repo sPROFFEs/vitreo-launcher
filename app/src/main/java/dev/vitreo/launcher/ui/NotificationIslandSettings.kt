@@ -27,7 +27,7 @@ import dev.vitreo.launcher.island.NotificationIsland
 import kotlin.math.roundToInt
 
 @Composable
-internal fun NotificationIslandSettings() {
+internal fun NotificationIslandSettings(onAndroidBanners:()->Unit) {
     val context=LocalContext.current
     val enabled by NotificationIsland.enabled.collectAsStateWithLifecycle()
     val a by NotificationIsland.layout.collectAsStateWithLifecycle()
@@ -60,6 +60,9 @@ internal fun NotificationIslandSettings() {
     }
     IslandFootnote("Both permissions are required for incoming alerts. The island disappears on lock, screen-off, access revocation or when disabled. Content stays in memory; it is never backed up or uploaded. Android notification banners remain controlled by Android.")
     hint?.let { IslandFootnote(it) }
+    IosSectionLabel("Android pop-up banners")
+    IosGroup { IosRow("Configure Android banners", "Keep notifications") { onAndroidBanners() } }
+    IslandFootnote("For island-only pop-ups, turn off ‘Pop on screen’ in Android’s notification categories. Notifications can stay enabled with sound, vibration and entries in the notification panel.")
     IosSectionLabel("Placement preview")
     IslandPlacementPreview(a,status.peerActive)
     IslandFootnote("Black: capsule · cyan: touch area · gray: handle. Values are in dp, measured from the top of the screen. The interaction area stays below the camera and status bar. Use ± for one-dp adjustments; Preview shows the actual position on your device.")

@@ -16,6 +16,52 @@ Outside taps and Back collapse without passing the same tap to the app beneath.
 Open rechecks the live notification and native keyguard; Dismiss uses Android's
 notification listener. Reading time respects Android's accessibility timeout.
 Reduce Motion and Battery Saver remove the geometry animation.
+The capsule opens horizontally from its centre in 280 ms and closes in 180 ms,
+using Aoede's curves. Offset handles and touch areas do not move that centre.
+Replacing an alert keeps the current capsule, while expanding/collapsing retains
+the card morph. Closing releases input immediately; lock and permission loss
+remove both active and retiring windows without waiting for animation.
+
+## Use the island instead of Android's pop-up banners
+
+Open **Dynamic Island → Configure Android banners**. Vitreo can open a recent
+notification's exact category, or Android's complete app-notification settings.
+On Pixel / GrapheneOS, leave the category enabled and turn off **Pop on screen**
+(called **Show as pop-up** on some devices). Leave **Alerting** selected if you
+want sound/vibration. The notification remains in Android's panel and reaches
+Vitreo. Choosing **Silent** also mutes it; disabling the category prevents delivery.
+Individual conversations can have separate settings.
+
+Android owns other applications' category settings; an ordinary launcher cannot
+change them. Vitreo does not cancel/repost incoming notifications, modify Do Not
+Disturb or ask for privileged settings access. See
+[Android notification controls](https://support.google.com/android/answer/9079661?hl=en)
+and [channel settings](https://developer.android.com/develop/ui/views/notifications/channels).
+
+For all apps at once, **All apps via ADB** shows an optional manual alternative.
+From a computer authorized for USB debugging, first record the existing value:
+
+```sh
+adb shell settings get global heads_up_notifications_enabled
+adb shell settings put global heads_up_notifications_enabled 0
+```
+
+Restore the recorded value to undo it (normally `1`). If it was `null`, delete the
+setting instead:
+
+```sh
+adb shell settings put global heads_up_notifications_enabled 1
+# Use this instead if the original value was null:
+adb shell settings delete global heads_up_notifications_enabled
+```
+
+This is a system-wide Android change and persists if Vitreo is disabled or
+uninstalled. It leaves categories and sound/vibration settings intact. Bubbles,
+full-screen calls/alarms and apps' own banners are separate mechanisms. Support
+can vary by device/version. GrapheneOS's
+[heads-up suppressor](https://github.com/GrapheneOS/platform_frameworks_base/blob/00b2ff99f28b9b5862514b0a25c265b51c59a8fb/packages/SystemUI/src/com/android/systemui/statusbar/notification/interruption/CommonVisualInterruptionSuppressors.kt)
+observes this setting specifically for `PEEK` interruptions. Vitreo never applies
+these commands itself.
 
 ## Placement, matching Aoede
 

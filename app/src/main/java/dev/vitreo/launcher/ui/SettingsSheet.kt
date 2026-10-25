@@ -46,7 +46,7 @@ import kotlin.math.roundToInt
 
 private enum class SettingsPage(val title: String) {
     Root("Settings"), Home("Home Screen"), Wallpaper("Wallpaper"), Glass("Motion & Glass"),
-    Backup("Layout & Backup"), About("About Vitreo"), Themes("Themes & Icons"), Controls("Control Center"), Lock("Lock Screen"), Today("Today & News"), Updates("Software Update"), Library("App Library"), Notifications("Status Bar & Notifications"), Island("Dynamic Island")
+    Backup("Layout & Backup"), About("About Vitreo"), Themes("Themes & Icons"), Controls("Control Center"), Lock("Lock Screen"), Today("Today & News"), Updates("Software Update"), Library("App Library"), Notifications("Status Bar & Notifications"), Island("Dynamic Island"), Banners("Android Banners")
 }
 
 @Composable
@@ -64,18 +64,19 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
     var confirmation by remember { mutableStateOf<String?>(null) }
     val a = ui.layout.appearance
     val reduced = LocalGlass.current.appearance.reducedEffects
-    BackHandler(page != SettingsPage.Root) { page = SettingsPage.Root }
+    fun back() { page=if(page==SettingsPage.Banners) SettingsPage.Island else SettingsPage.Root }
+    BackHandler(page != SettingsPage.Root) { back() }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).safeDrawingPadding()) {
         Row(Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { if (page == SettingsPage.Root) onClose() else page = SettingsPage.Root }) {
+            TextButton(onClick = { if (page == SettingsPage.Root) onClose() else back() }) {
                 LauncherSymbol(Icons.Outlined.ChevronLeft, null, Modifier.size(22.dp))
-                Text(if (page == SettingsPage.Root) "Home" else "Settings")
+                Text(if (page == SettingsPage.Root) "Home" else if(page==SettingsPage.Banners) "Dynamic Island" else "Settings")
             }
             Spacer(Modifier.weight(1f))
             TextButton(onClick = onClose) { Text("Done", fontWeight = FontWeight.SemiBold) }
         }
         AnimatedContent(page, modifier = Modifier.weight(1f), transitionSpec = {
-            val direction = if (targetState == SettingsPage.Root) -1 else 1
+            val direction = if (targetState == SettingsPage.Root || initialState==SettingsPage.Banners && targetState==SettingsPage.Island) -1 else 1
             if (reduced) EnterTransition.None togetherWith ExitTransition.None
             else (slideInHorizontally(spring(dampingRatio = 1f, stiffness = 480f)) { it * direction / 5 } + fadeIn(tween(180)))
                 .togetherWith(slideOutHorizontally(tween(180)) { -it * direction / 8 } + fadeOut(tween(130)))
@@ -178,7 +179,8 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                     SettingsPage.Updates -> UpdatesSettings()
                     SettingsPage.Lock -> LockScreenSettingsPage(a, onAppearance, onSetHome)
                     SettingsPage.Notifications -> SystemIntegrationSettings(a, onAppearance)
-                    SettingsPage.Island -> NotificationIslandSettings()
+                    SettingsPage.Island -> NotificationIslandSettings { page=SettingsPage.Banners }
+                    SettingsPage.Banners -> NotificationBannerSettings()
                     SettingsPage.Controls -> {
                         IosSectionLabel("Access")
                         IosGroup {

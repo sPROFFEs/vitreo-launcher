@@ -9,6 +9,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import dev.vitreo.launcher.core.Appearance
 import dev.vitreo.launcher.core.IslandLayout
 import dev.vitreo.launcher.data.SystemBridge
+import dev.vitreo.launcher.data.NotificationSettingsNavigation
 import dev.vitreo.launcher.island.NotificationIsland
 import dev.vitreo.launcher.lock.LockScreenActivity
 import org.junit.*
@@ -26,6 +27,7 @@ class NotificationIslandDeviceTest {
     private var oldEnabled=false
     private var oldLayout=IslandLayout()
     private var oldMode="default"
+    private var oldAnimatorScale="1"
     private fun shell(cmd:String)=automation.executeShellCommand(cmd).use { java.io.FileInputStream(it.fileDescriptor).bufferedReader().use { r -> r.readText() } }
     private fun main(action:()->Unit)=instrumentation.runOnMainSync(action)
     private fun <T> inspect(action:()->T):T {
@@ -70,6 +72,7 @@ class NotificationIslandDeviceTest {
     }
     @Before fun prepare() {
         check(shell("getprop ro.kernel.qemu").trim()=="1")
+        oldAnimatorScale=shell("settings get global animator_duration_scale").trim()
         val info=checkNotNull(automation.serviceInfo)
         info.flags=info.flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
         automation.serviceInfo=info
@@ -92,7 +95,87 @@ class NotificationIslandDeviceTest {
         shell("pm uninstall dev.vitreo.fixture.uninstall")
         if(!oldAccess) shell("cmd notification disallow_listener ${SystemBridge.component(context).flattenToString()}")
         shell("appops set ${context.packageName} SYSTEM_ALERT_WINDOW $oldMode")
+        if(oldAnimatorScale=="null") shell("settings delete global animator_duration_scale")
+        else shell("settings put global animator_duration_scale $oldAnimatorScale")
         main { NotificationIsland.setEnabled(context,oldEnabled) }
+    }
+    @Test fun capsuleOpensAndClosesHorizontallyFromItsOwnCentre() {
+        shell("settings put global animator_duration_scale 3")
+        await { inspect { android.animation.ValueAnimator.areAnimatorsEnabled() } }
+        // Offset the handle and touch region: the enclosing window's centre is different.
+        main {
+            NotificationIsland.update(IslandLayout(horizontal=-35,handleHorizontal=80,touchHorizontal=65,duration=15))
+            assertTrue(NotificationIsland.preview(context))
+        }
+        // addView returns before WindowManager attaches the native root on its next frame.
+        await { inspect { islandView()?.let { it.isLaidOut && it.scaleX in .02f..0.9f }==true } }
+        inspect {
+            val view=checkNotNull(islandView())
+            assertEquals(1f,view.scaleY,0f)
+        }
+        await { inspect { islandView()?.let { it.isLaidOut && it.scaleX==1f && it.alpha==1f }==true } }
+        inspect {
+            val view=checkNotNull(islandView())
+            val capsule=checkNotNull(view.findViewWithTag<android.view.View>("vitreo-island-card"))
+            assertEquals(capsule.left+capsule.width/2f,view.pivotX,1f)
+            assertTrue(kotlin.math.abs(view.pivotX-view.width/2f)>10)
+        }
+        post("Centre-close")
+        await { SystemBridge.state.value.notices.any { it.title=="Centre-close" } }
+        val exiting=inspect { checkNotNull(islandView()) }
+        shell("am broadcast -n dev.vitreo.fixture.uninstall/.OverlayReceiver --es operation notice --ez cancel true")
+        await { !NotificationIsland.status.value.visible }
+        await { inspect { exiting.isAttachedToWindow && exiting.scaleX in .03f..0.95f } }
+        inspect {
+            assertEquals(1f,exiting.scaleY,0f)
+            val flags=(exiting.layoutParams as android.view.WindowManager.LayoutParams).flags
+            assertTrue(flags and android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE!=0)
+            assertTrue(flags and android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE!=0)
+        }
+        // A replacement during exit must remove the retiring surface before attaching its own.
+        main { assertTrue(NotificationIsland.preview(context));assertFalse(exiting.isAttachedToWindow) }
+        shell("input keyevent KEYCODE_SLEEP")
+        try { await { !NotificationIsland.status.value.visible && inspect {
+            android.view.inspector.WindowInspector.getGlobalWindowViews().none {
+                it.isAttachedToWindow && (it.layoutParams as? android.view.WindowManager.LayoutParams)?.title?.toString()=="Vitreo notification island"
+            }
+        } } }
+        finally { shell("input keyevent KEYCODE_WAKEUP");shell("input keyevent KEYCODE_MENU") }
+    }
+
+    @Test fun reduceMotionSkipsCentreAnimationAndRemovesDismissedWindowImmediately() {
+        shell("settings put global animator_duration_scale 3")
+        main { NotificationIsland.configure(Appearance(reducedEffects=true));assertTrue(NotificationIsland.preview(context)) }
+        await { islandReady() }
+        inspect { val view=checkNotNull(islandView());assertEquals(1f,view.scaleX,0f);assertEquals(1f,view.alpha,0f) }
+        post("Reduced-motion")
+        await { SystemBridge.state.value.notices.any { it.title=="Reduced-motion" } }
+        val old=inspect { checkNotNull(islandView()) }
+        shell("am broadcast -n dev.vitreo.fixture.uninstall/.OverlayReceiver --es operation notice --ez cancel true")
+        await { !NotificationIsland.status.value.visible }
+        assertFalse(inspect { old.isAttachedToWindow })
+    }
+
+    @Test fun channelSettingsShortcutPreservesNotificationAndCategoryIdentity() {
+        post("Banner-settings")
+        await { SystemBridge.state.value.notices.any { it.title=="Banner-settings" } }
+        val notice=SystemBridge.state.value.notices.first { it.title=="Banner-settings" }
+        assertEquals("island",notice.channelId)
+        assertTrue(notice.channelName.isNotBlank())
+        val intent=NotificationSettingsNavigation.category(notice.packageName,notice.channelId)
+        assertEquals(android.provider.Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS,intent.action)
+        assertEquals(notice.packageName,intent.getStringExtra(android.provider.Settings.EXTRA_APP_PACKAGE))
+        assertEquals(notice.channelId,intent.getStringExtra(android.provider.Settings.EXTRA_CHANNEL_ID))
+        assertEquals(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS,
+            NotificationSettingsNavigation.category(notice.packageName,"").action)
+        try {
+            main { assertTrue(NotificationSettingsNavigation.open(compose.activity,notice.packageName,notice.channelId)) }
+            await { automation.windows.any { it.isFocused && it.root?.packageName?.toString()=="com.android.settings" &&
+                it.root?.findAccessibilityNodeInfosByText(notice.channelName)?.any { node -> node.isVisibleToUser }==true } }
+            assertTrue(SystemBridge.state.value.notices.any { it.key==notice.key })
+        } finally {
+            shell("am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n ${context.packageName}/dev.vitreo.launcher.MainActivity")
+        }
     }
     @Test fun realAlertHasActualAppIconExpandsCollapsesAndDismisses() {
         post("Island-alert")

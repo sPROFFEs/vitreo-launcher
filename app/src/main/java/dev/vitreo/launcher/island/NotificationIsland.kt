@@ -46,6 +46,7 @@ object NotificationIsland {
     private val windows get()=overlayContext.getSystemService(WindowManager::class.java)
     private var root:IslandWindow?=null
     private var card:FrameLayout?=null
+    private val exitingWindows=mutableSetOf<IslandWindow>()
     private var animator:ValueAnimator?=null
     private var current:Notice?=null
     private var sample=false
@@ -120,7 +121,7 @@ object NotificationIsland {
     private fun unlocked()=app.getSystemService(PowerManager::class.java).isInteractive &&
         app.getSystemService(KeyguardManager::class.java).let { !it.isKeyguardLocked && !it.isDeviceLocked }
     private fun syncRegistration() {
-        val needed=active.value && connected || sample
+        val needed=active.value && connected || sample || exitingWindows.isNotEmpty()
         if(needed && !registered) {
             ContextCompat.registerReceiver(app,screen,IntentFilter().apply {
                 addAction(Intent.ACTION_SCREEN_OFF);addAction(Intent.ACTION_SCREEN_ON);addAction(Intent.ACTION_USER_PRESENT)
@@ -182,7 +183,16 @@ object NotificationIsland {
         } else null
         val target=if(open) IslandRect((metric.bounds.width()-expandedWidth)/2,expandedTop,
             (metric.bounds.width()+expandedWidth)/2,expandedTop+checkNotNull(expandedContent).measuredHeight) else bounds.capsule
+        val entering=root==null
+        val modeChanged=status.value.expanded!=open
+        if(entering) clearExitingWindows()
         val view=root ?: IslandWindow(overlayContext)
+        if(modeChanged) {
+            view.animate().cancel();view.scaleX=1f;view.scaleY=1f;view.alpha=1f
+        }
+        if(!full) view.pivotX=(bounds.capsule.left+bounds.capsule.right)/2f-bounds.window.left
+        val centerEntrance=entering && !open && animate && !reduced
+        if(centerEntrance) { view.scaleX=.02f;view.alpha=0f }
         view.removeAllViews()
         view.importantForAccessibility=if(open) View.IMPORTANT_FOR_ACCESSIBILITY_NO else View.IMPORTANT_FOR_ACCESSIBILITY_YES
         view.contentDescription=if(open) null else "Expand ${notice.app} notification"
@@ -229,7 +239,11 @@ object NotificationIsland {
             root=view;mutableStatus.value=status.value.copy(visible=true,expanded=open,overlayPermission=true)
         } catch(_:RuntimeException) { hide(false);return }
         lastBounds=target
-        if(animate && !reduced) {
+        if(centerEntrance) {
+            // Aoede's compact entrance: full height, opening horizontally from the capsule centre.
+            view.animate().scaleX(1f).alpha(1f).setDuration(280)
+                .setInterpolator(android.view.animation.PathInterpolator(.16f,1f,.3f,1f)).start()
+        } else if(animate && !reduced) {
             val content=tile.getChildAt(0);content.alpha=0f
             animator=ValueAnimator.ofFloat(0f,1f).apply {
                 duration=if(open) 360 else 280;interpolator=android.view.animation.PathInterpolator(.22f,.8f,.18f,1f)
@@ -302,17 +316,42 @@ object NotificationIsland {
             })
         },FrameLayout.LayoutParams(-1,-2))
     }
+    private fun removeExitingWindow(view:IslandWindow) {
+        exitingWindows.remove(view)
+        view.animate().withEndAction(null).cancel()
+        runCatching { windows.removeViewImmediate(view) }
+    }
+    private fun clearExitingWindows() {
+        exitingWindows.toList().forEach(::removeExitingWindow)
+    }
     private fun hide(animate:Boolean) {
+        val animated=animate && !reduced
+        if(!animated) clearExitingWindows()
+        // Close the compact capsule, as in Aoede, instead of scaling a fullscreen input window.
+        if(animated && status.value.expanded && root!=null) render(false,false)
         handler.removeCallbacks(expire);animator?.cancel();animator=null
         val old=root;root=null;card=null;lastBounds=null;current=null;sample=false
         mutableStatus.value=status.value.copy(visible=false,expanded=false)
-        // Remove input immediately, then finish a short visual exit. Never leave a fullscreen touch shield.
         if(old!=null) {
-            if(animate && !reduced && old.isAttachedToWindow) {
-                runCatching { val lp=old.layoutParams as WindowManager.LayoutParams;lp.flags=lp.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;lp.alpha=.8f;windows.updateViewLayout(old,lp) }
-                old.animate().alpha(0f).setDuration(140).withEndAction { runCatching { windows.removeViewImmediate(old) } }.start()
+            old.animate().cancel()
+            if(animated && old.isAttachedToWindow) {
+                old.importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+                val released=runCatching {
+                    val lp=old.layoutParams as WindowManager.LayoutParams
+                    lp.flags=lp.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                    lp.alpha=.8f // Android 12 permits touches through the non-interactive exit window.
+                    windows.updateViewLayout(old,lp)
+                }.isSuccess
+                if(released) {
+                    exitingWindows.add(old)
+                    old.animate().scaleX(.02f).alpha(0f).setDuration(180)
+                        .setInterpolator(android.view.animation.PathInterpolator(.4f,0f,1f,1f))
+                        .withEndAction { removeExitingWindow(old);syncRegistration() }.start()
+                } else runCatching { windows.removeViewImmediate(old) }
             } else runCatching { windows.removeViewImmediate(old) }
         }
+        // Keep screen/permission observers until an exit completes, so revocation or lock
+        // also removes windows whose disappearance animation has already started.
         syncRegistration()
     }
     private class IslandWindow(context:Context):FrameLayout(context) {

@@ -255,7 +255,10 @@ Notification island coverage uses a second-UID native overlay fixture to verify
 that focus loss and outside dismissal preserve Home's arrival serial. Real native
 notification posts cover identity icons, expansion, outside collapse, dismissal,
 permission revocation, no inbox replay, media coexistence, screen-off cleanup and
-the shared Home/Lock Screen status-bar switch. The final Home phase requires all
+the shared Home/Lock Screen status-bar switch. A slowed native animator verifies
+horizontal centre entrance/exit with offset handles, immediate input release,
+replacement cleanup and Reduce Motion. Channel shortcuts open actual Android
+category settings without removing the notification. The final Home phase requires all
 three tests, including the foreign-overlay regression. Pure dp geometry tests
 exercise all twelve Aoede controls, safe insets, narrow/landscape screens and yield
 policies. Preview permission grants are confined to guarded disposable emulators.

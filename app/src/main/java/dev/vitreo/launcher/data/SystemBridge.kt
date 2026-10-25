@@ -27,7 +27,8 @@ data class Notice(val key: String, val packageName: String, val app: String, val
     val text: String, val time: Long, val clearable: Boolean, val intent: PendingIntent?,
     val actions: List<NoticeAction> = emptyList(), val visibility: Int = Notification.VISIBILITY_PRIVATE,
     val channelVisibility: Int = NotificationListenerService.Ranking.VISIBILITY_NO_OVERRIDE,
-    val appIcon: Bitmap? = null, val ongoing: Boolean = false, val mediaNotice: Boolean = false)
+    val appIcon: Bitmap? = null, val ongoing: Boolean = false, val mediaNotice: Boolean = false,
+    val channelId: String = "", val channelName: String = "")
 data class NowPlaying(val packageName: String = "", val title: String = "Not Playing", val artist: String = "",
     val artwork: Bitmap? = null, val playing: Boolean = false, val actions: Long = 0,
     val position: Long = 0, val duration: Long = 0, val updatedAt: Long = 0, val speed: Float = 0f) {
@@ -98,6 +99,9 @@ object SystemBridge {
                 .filter { it.user == Process.myUserHandle() && it.notification.flags and Notification.FLAG_GROUP_SUMMARY == 0 }
                 .sortedByDescending { it.postTime }.take(100).map { sbn ->
                     val n = sbn.notification
+                    val channel = NotificationListenerService.Ranking().let { ranking ->
+                        if (listener.currentRanking.getRanking(sbn.key, ranking)) ranking.channel else null
+                    }
                     val app = runCatching { listener.packageManager.getApplicationLabel(
                         listener.packageManager.getApplicationInfo(sbn.packageName, 0)).toString() }.getOrDefault(sbn.packageName)
                     Notice(sbn.key, sbn.packageName, app.take(160), n.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.take(256).orEmpty(),
@@ -106,9 +110,8 @@ object SystemBridge {
                         n.actions.orEmpty().filter { it.remoteInputs.isNullOrEmpty() }.take(3).mapNotNull {
                             val intent = it.actionIntent ?: return@mapNotNull null
                             NoticeAction(it.title?.toString()?.take(80).orEmpty(), intent)
-                        }, ongoing = sbn.isOngoing, mediaNotice = n.extras.containsKey(Notification.EXTRA_MEDIA_SESSION), appIcon = NoticeIcons.load(listener, sbn.packageName, n.smallIcon), visibility = n.visibility, channelVisibility = NotificationListenerService.Ranking().let { ranking ->
-                            if (listener.currentRanking.getRanking(sbn.key, ranking)) ranking.channel?.lockscreenVisibility ?: NotificationListenerService.Ranking.VISIBILITY_NO_OVERRIDE else NotificationListenerService.Ranking.VISIBILITY_NO_OVERRIDE
-                        })
+                        }, ongoing = sbn.isOngoing, mediaNotice = n.extras.containsKey(Notification.EXTRA_MEDIA_SESSION), appIcon = NoticeIcons.load(listener, sbn.packageName, n.smallIcon), visibility = n.visibility, channelVisibility = channel?.lockscreenVisibility ?: NotificationListenerService.Ranking.VISIBILITY_NO_OVERRIDE,
+                        channelId = n.channelId.orEmpty(), channelName = channel?.name?.toString()?.take(160).orEmpty())
                 }.toList()
         }.getOrDefault(emptyList())
         mutable.value = mutable.value.copy(notices = notices)

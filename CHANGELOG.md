@@ -1,5 +1,17 @@
 # Cambios
 
+## 0.10.1
+
+- Match Aoede's centre-opening/closing notification capsule: 280 ms horizontal
+  entrance and 180 ms exit, anchored to the capsule even with offset handles.
+- Release input immediately on exit; remove retiring windows on replacement,
+  screen-off and permission loss. Keep Reduce Motion / Battery Saver immediate.
+- Add Android banner setup under Dynamic Island, with recent app/category
+  shortcuts and an optional, reversible ADB guide for system-wide heads-up control.
+  Notifications remain enabled; no notification cancellation or new permissions.
+- Verify real native motion, interruption cleanup, reduced motion and category
+  navigation while preserving notification delivery.
+
 ## 0.10.0
 
 - Preserve Home when dismissing Aoede and other floating panels; only real app or

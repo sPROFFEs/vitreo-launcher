@@ -152,3 +152,11 @@ actual unfocused HOME intent or Android's Overview handoff arms the next arrival
 The radial icon animation and system-wallpaper surface are unchanged. The
 notification island interpolates capsule/card bounds for expansion and collapse,
 consumes outside taps, and respects reduced motion and accessibility timeouts.
+Its initial capsule opens horizontally from 2% to full width in 280 ms using
+Aoede's `(0.16, 1, 0.3, 1)` curve. Disappearance reverses to 2% in 180 ms with
+`(0.4, 0, 1, 1)`, fading with the horizontal motion and retaining full height.
+The pivot follows the capsule's centre rather than the enclosing touch/handle
+window. Expansion cancels the entrance before morphing; repeated data updates
+do not replay the entrance. Exit releases input immediately, and a replacement,
+lock or permission loss removes any retiring surface. Reduce Motion, disabled
+system animators and Battery Saver skip these transitions.
