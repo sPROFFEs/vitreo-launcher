@@ -170,7 +170,22 @@ class HomeIntegrationTest {
                 shell("am broadcast -n dev.vitreo.fixture.uninstall/.OverlayReceiver")
                 compose.waitUntil(10_000) { !main.hasWindowFocus() && automation.windows.any { it.isFocused && it.root?.packageName?.toString()=="dev.vitreo.fixture.uninstall" } }
                 assertEquals("A floating island leaves Home resumed", Lifecycle.State.RESUMED, main.lifecycle.currentState)
-                shell("input tap 100 450")
+                // Focus can be reported before SurfaceFlinger publishes the overlay's
+                // input region. UiAutomation synchronizes that transaction; shell input
+                // can hit Home instead and leave the foreign window open on API 31.
+                val down=android.os.SystemClock.uptimeMillis()
+                for(action in listOf(android.view.MotionEvent.ACTION_DOWN,android.view.MotionEvent.ACTION_UP)) {
+                    val event=android.view.MotionEvent.obtain(down,android.os.SystemClock.uptimeMillis(),action,100f,450f,0)
+                    event.source=android.view.InputDevice.SOURCE_TOUCHSCREEN
+                    try {
+                        val dispatched=automation.injectInputEvent(event,true)
+                        // The fixture removes itself on DOWN, cancelling this gesture's
+                        // target. UP still finishes input, but may have no recipient.
+                        if(action==android.view.MotionEvent.ACTION_DOWN)
+                            assertTrue("Foreign overlay receives native DOWN",dispatched)
+                    }
+                    finally { event.recycle() }
+                }
                 awaitReady()
                 assertEquals("Closing an overlay must not animate a new Home arrival",before,
                     compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[HomeRevealSerialKey])

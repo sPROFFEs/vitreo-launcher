@@ -268,3 +268,5 @@ UiAutomation input injection, which synchronizes Android's native input-window
 transactions. Layout completion alone does not guarantee a newly attached overlay
 can receive a shell-injected tap. The clock editor waits for dialog focus before
 testing its font panel. These checks use actual input and retain all assertions.
+Foreign-overlay dismissal uses the same synchronized native input: focus alone
+does not ensure its input region has reached SurfaceFlinger on Android 12.
