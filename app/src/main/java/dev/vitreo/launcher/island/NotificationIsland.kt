@@ -204,6 +204,7 @@ object NotificationIsland {
             tile.addView(compact(notice),FrameLayout.LayoutParams(-1,-1))
             fun hit(rect:IslandRect,handle:Boolean=false) {
                 view.addView(FrameLayout(overlayContext).apply {
+                    tag=if(handle) "vitreo-island-handle" else "vitreo-island-touch"
                     if(handle) { background=shape(dp(7).toFloat());addView(View(overlayContext).apply { background=shape(dp(1).toFloat()).apply { setColor(0xffa8a8ad.toInt()) } },
                         FrameLayout.LayoutParams(dp(14),dp(2),Gravity.CENTER)) }
                     importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_NO;setOnClickListener { render(true,true);deadline() }
@@ -215,7 +216,7 @@ object NotificationIsland {
         }
         val params=WindowManager.LayoutParams(if(full) -1 else bounds.window.width,if(full) -1 else bounds.window.height,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_SECURE or
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                 if(open) WindowManager.LayoutParams.FLAG_DIM_BEHIND else WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT).apply {
             gravity=Gravity.TOP or Gravity.LEFT;x=originX;y=originY;dimAmount=if(open) .18f else 0f
@@ -321,8 +322,9 @@ object NotificationIsland {
         override fun dispatchTouchEvent(e:MotionEvent):Boolean {
             if(e.actionMasked==MotionEvent.ACTION_DOWN) {
                 deadline();swallow=false
-                // Yield if Android reports another overlay touching our interaction surface.
-                if(e.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED)!=0) {
+                // Yield only when the actual touch is obscured. Partial-window coverage also
+                // describes our capsule sitting under Android's status/camera band.
+                if(e.flags and MotionEvent.FLAG_WINDOW_IS_OBSCURED!=0) {
                     hide(false);swallow=true
                 } else if(status.value.expanded) {
                     val r=Rect();card?.getHitRect(r)

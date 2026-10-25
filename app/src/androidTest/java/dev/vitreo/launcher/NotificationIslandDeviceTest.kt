@@ -28,10 +28,43 @@ class NotificationIslandDeviceTest {
     private var oldMode="default"
     private fun shell(cmd:String)=automation.executeShellCommand(cmd).use { java.io.FileInputStream(it.fileDescriptor).bufferedReader().use { r -> r.readText() } }
     private fun main(action:()->Unit)=instrumentation.runOnMainSync(action)
+    private fun <T> inspect(action:()->T):T {
+        var result:Result<T>?=null
+        main { result=runCatching(action) }
+        return checkNotNull(result).getOrThrow()
+    }
     private fun await(test:()->Boolean)=compose.waitUntil(15_000,test)
-    private fun node(text:String)=automation.windows.asSequence().mapNotNull { it.root }.flatMap { it.findAccessibilityNodeInfosByText(text).asSequence() }
-        .firstOrNull { it.isVisibleToUser && it.packageName?.toString()==context.packageName &&
-            (it.text?.toString()==text || it.contentDescription?.toString()==text) }
+    private fun islandView():android.view.ViewGroup? = android.view.inspector.WindowInspector.getGlobalWindowViews()
+        .lastOrNull {
+            val lp=it.layoutParams as? android.view.WindowManager.LayoutParams
+            it.isAttachedToWindow && lp?.title?.toString()=="Vitreo notification island" && lp.flags and android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE==0
+        } as? android.view.ViewGroup
+    private fun descendants(view:android.view.View):List<android.view.View> = listOf(view) +
+        if(view is android.view.ViewGroup) (0 until view.childCount).flatMap { descendants(view.getChildAt(it)) } else emptyList()
+    private fun islandReady()=inspect { islandView()?.let { it.isShown && it.isLaidOut && it.width>0 && it.height>0 }==true }
+    private fun tapView(select:(android.view.ViewGroup)->android.view.View?) {
+        await { inspect { islandView()?.let(select)?.let {
+            val visible=android.graphics.Rect()
+            it.isShown && it.width>0 && it.height>0 && it.getGlobalVisibleRect(visible) && visible.width()>=it.width && visible.height()>=it.height
+        }==true } }
+        val point=inspect {
+            val v=checkNotNull(select(checkNotNull(islandView())))
+            IntArray(2).also { v.getLocationOnScreen(it);it[0]+=v.width/2;it[1]+=v.height/2 }
+        }
+        // UiAutomation synchronizes native input-window transactions before injecting DOWN.
+        // A shell tap can arrive after layout but before a newly attached overlay accepts input.
+        val down=android.os.SystemClock.uptimeMillis()
+        for(action in listOf(android.view.MotionEvent.ACTION_DOWN,android.view.MotionEvent.ACTION_UP)) {
+            val event=android.view.MotionEvent.obtain(down,android.os.SystemClock.uptimeMillis(),action,point[0].toFloat(),point[1].toFloat(),0)
+            event.source=android.view.InputDevice.SOURCE_TOUCHSCREEN
+            try { assertTrue(automation.injectInputEvent(event,true)) } finally { event.recycle() }
+        }
+    }
+    private fun expand() {
+        tapView { it.findViewWithTag("vitreo-island-touch") }
+        await { NotificationIsland.status.value.expanded && inspect { islandView()?.hasWindowFocus()==true } }
+    }
+    private fun button(label:String)=tapView { root -> descendants(root).filterIsInstance<android.widget.Button>().firstOrNull { it.text.toString()==label } }
     private fun post(title:String,media:Boolean=false) {
         shell("am broadcast -n dev.vitreo.fixture.uninstall/.OverlayReceiver --es operation notice --es title $title --ez media $media")
     }
@@ -63,15 +96,19 @@ class NotificationIslandDeviceTest {
     }
     @Test fun realAlertHasActualAppIconExpandsCollapsesAndDismisses() {
         post("Island-alert")
-        await { NotificationIsland.status.value.visible && node("Expand Uninstall fixture notification")!=null }
+        await { NotificationIsland.status.value.visible && islandReady() }
         val notice=SystemBridge.state.value.notices.first { it.title=="Island-alert" }
         assertNotNull("Real notification must carry its application identity",notice.appIcon)
-        assertTrue(checkNotNull(node("Expand Uninstall fixture notification")).performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK))
-        await { NotificationIsland.status.value.expanded && node("Island-alert")!=null }
-        assertNotNull(node("Uninstall fixture app icon"));assertNotNull(node("New notification"))
+        assertEquals("Uninstall fixture",notice.app)
+        expand()
+        inspect {
+            val children=descendants(checkNotNull(islandView()))
+            assertTrue(children.filterIsInstance<android.widget.TextView>().any { it.text.toString()=="Island-alert" })
+            assertTrue(children.filterIsInstance<android.widget.ImageView>().any { it.contentDescription=="Uninstall fixture app icon" && it.drawable!=null })
+            assertTrue(children.any { it.contentDescription=="New notification" })
+        }
         main {
-            val field=NotificationIsland::class.java.getDeclaredField("root").apply { isAccessible=true }
-            val view=field.get(NotificationIsland) as android.view.View
+            val view=checkNotNull(islandView())
             val tile=view.findViewWithTag<android.view.View>("vitreo-island-card")
             assertTrue("Short alerts should hug their content",tile.height<260*context.resources.displayMetrics.density)
             val bitmap=android.graphics.Bitmap.createBitmap(view.width,view.height,android.graphics.Bitmap.Config.ARGB_8888)
@@ -83,10 +120,9 @@ class NotificationIslandDeviceTest {
         await { !NotificationIsland.status.value.expanded && compose.activity.hasWindowFocus() }
         assertTrue(NotificationIsland.status.value.visible)
         main { NotificationIsland.collapse() }
-        await { node("Expand Uninstall fixture notification")!=null }
-        checkNotNull(node("Expand Uninstall fixture notification")).performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-        await { node("Dismiss")!=null }
-        checkNotNull(node("Dismiss")).performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+        await { islandReady() }
+        expand()
+        button("Dismiss")
         await { !NotificationIsland.status.value.visible && SystemBridge.state.value.notices.none { it.key==notice.key } }
     }
     @Test fun disabledIslandDoesNotReplayInboxAndPermissionRevocationRemovesWindow() {
@@ -109,9 +145,8 @@ class NotificationIslandDeviceTest {
         main { NotificationIsland.update(IslandLayout(reservedBottom=160,duration=15)) }
         post("Incoming-alert")
         await { NotificationIsland.status.value.visible }
-        await { node("Expand Uninstall fixture notification")!=null }
-        val capsule=checkNotNull(node("Expand Uninstall fixture notification"))
-        val rect=android.graphics.Rect();capsule.getBoundsInScreen(rect)
+        await { islandReady() }
+        val rect=inspect { val v=checkNotNull(islandView());val xy=IntArray(2);v.getLocationOnScreen(xy);android.graphics.Rect(xy[0],xy[1],xy[0]+v.width,xy[1]+v.height) }
         assertTrue("Island clears reserved music overlay",rect.top>=168*context.resources.displayMetrics.density-2)
         main { NotificationIsland.update(IslandLayout(coexistence=1)) }
         await { !NotificationIsland.status.value.visible }
@@ -144,10 +179,9 @@ class NotificationIslandDeviceTest {
         shell("am start -W -a android.intent.action.MAIN -c android.intent.category.HOME -n $stockHome")
         try {
             post("Open-from-island")
-            await { NotificationIsland.status.value.visible && node("Expand Uninstall fixture notification")!=null }
-            checkNotNull(node("Expand Uninstall fixture notification")).performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-            await { node("Open")!=null }
-            assertTrue(checkNotNull(node("Open")).performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK))
+            await { NotificationIsland.status.value.visible && islandReady() }
+            expand()
+            button("Open")
             await { !NotificationIsland.status.value.visible && automation.windows.any {
                 it.isFocused && it.root?.findAccessibilityNodeInfosByText("Opened from notification")?.any { n -> n.isVisibleToUser }==true
             } }

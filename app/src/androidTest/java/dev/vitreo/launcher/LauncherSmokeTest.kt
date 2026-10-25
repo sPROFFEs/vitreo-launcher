@@ -170,9 +170,27 @@ class LauncherSmokeTest {
             compose.onNodeWithText("Neural Crimson").performScrollTo().performClick()
             assertEquals(8, model.ui.value.layout.appearance.lockScreen.wallpaper)
             val beforeEditor = model.ui.value.layout.appearance.lockScreen
+            fun openClockOptions() {
+                val activityWindow=compose.activity.window.decorView
+                compose.waitUntil(15_000) {
+                    var focused=false
+                    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                        focused=android.view.inspector.WindowInspector.getGlobalWindowViews().any {
+                            it!==activityWindow && it.isShown && it.isLaidOut && it.hasWindowFocus()
+                        }
+                    }
+                    focused
+                }
+                compose.waitForIdle()
+                compose.onNodeWithTag("lock_edit_clock").performClick()
+                compose.waitUntil(15_000) {
+                    compose.onAllNodes(hasTestTag("lock_clock_style:3") and hasAnyAncestor(hasTestTag("lock_editor")))
+                        .fetchSemanticsNodes(atLeastOneRootRequired=false).isNotEmpty()
+                }
+            }
             compose.onNodeWithText("Customize Lock Screen").performScrollTo().performClick()
             compose.onNodeWithTag("lock_editor").assertIsDisplayed()
-            compose.onNodeWithTag("lock_edit_clock").performClick()
+            openClockOptions()
             fun editorNode(tag: String, unmerged: Boolean = false) = compose.onNode(
                 hasTestTag(tag) and hasAnyAncestor(hasTestTag("lock_editor")), useUnmergedTree = unmerged)
             editorNode("lock_clock_style:3").performScrollTo().performClick()
@@ -190,7 +208,7 @@ class LauncherSmokeTest {
             assertEquals(3, model.ui.value.layout.appearance.lockScreen.clockStyle)
             assertEquals(1.8f, model.ui.value.layout.appearance.lockScreen.clockHeight, .01f)
             compose.onNodeWithText("Customize Lock Screen").performClick()
-            compose.onNodeWithTag("lock_edit_clock").performClick()
+            openClockOptions()
             editorNode("lock_clock_style:2").performScrollTo().performClick()
             compose.onNodeWithTag("lock_editor_cancel").performClick()
             assertEquals(3, model.ui.value.layout.appearance.lockScreen.clockStyle)

@@ -58,7 +58,8 @@ area. **Always reserve space** supports other overlay apps without media alerts.
 Android does not expose other applications' overlay windows or their geometry to
 normal apps. A media notification is not proof that an island is enabled. This
 is why the reserved area and policy remain explicit user controls. An obscured
-Vitreo touch surface yields when Android reports an overlapping window; this is
+Vitreo touch point yields when Android reports coverage there; partial coverage
+of another part of the window can also describe the native status bar. This is
 an additional safeguard, not universal overlay detection.
 
 ## Privacy and lifecycle
@@ -71,6 +72,6 @@ created. Dismissing the card by timeout does not clear the Android notification.
 
 The overlay is removed on screen-off, native keyguard, disabling, permission
 revocation or listener disconnection. It never wakes the display or appears over
-a locked device. Notification contents and app-icon bitmaps stay in bounded memory,
+a locked device. Unlocked, visible island contents follow normal Android screenshot behavior; the secure Lock Screen activity retains its separate capture protection. Notification contents and app-icon bitmaps stay in bounded memory,
 are excluded from backups and diagnostics, and never leave the device. Android's
 banners and Quick Settings remain controlled by Android. Protected screens (including some Android Settings and permission dialogs) may deliberately hide application overlays; Vitreo respects this [Android window protection](https://developer.android.com/reference/android/view/Window#setHideOverlayWindows(boolean)).

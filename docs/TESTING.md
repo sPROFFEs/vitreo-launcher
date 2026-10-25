@@ -259,3 +259,9 @@ the shared Home/Lock Screen status-bar switch. The final Home phase requires all
 three tests, including the foreign-overlay regression. Pure dp geometry tests
 exercise all twelve Aoede controls, safe insets, narrow/landscape screens and yield
 policies. Preview permission grants are confined to guarded disposable emulators.
+
+Overlay gestures use WindowInspector for coordinates in the app's own windows and
+UiAutomation input injection, which synchronizes Android's native input-window
+transactions. Layout completion alone does not guarantee a newly attached overlay
+can receive a shell-injected tap. The clock editor waits for dialog focus before
+testing its font panel. These checks use actual input and retain all assertions.
