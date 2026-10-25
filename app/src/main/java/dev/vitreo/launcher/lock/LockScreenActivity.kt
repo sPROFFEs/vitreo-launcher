@@ -16,6 +16,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -89,6 +91,12 @@ class LockScreenActivity : ComponentActivity() {
         if (!preview) lifecycleScope.launch {
             // Disabling must remove the surface even while keyguard pauses Compose's frame clock.
             LockScreenRuntime.enabled.collect { enabled -> if (!enabled) finishAndRemoveTask() }
+        }
+        if (!preview) lifecycleScope.launch {
+            // Configuration changes must replace an already armed deadline. Do not rely on
+            // another touch or a window-focus transition after native authentication closes.
+            LockScreenRuntime.appearance.map { it.lockScreen.sanitized().idleTimeoutSeconds }
+                .distinctUntilChanged().collect { resetIdle() }
         }
         val previewAppearance = if (preview) runCatching {
             StateCodec.decode(intent.getStringExtra(STYLE).orEmpty()).appearance

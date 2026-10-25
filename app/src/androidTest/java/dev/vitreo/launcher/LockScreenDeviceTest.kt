@@ -65,6 +65,11 @@ class LockScreenDeviceTest {
                     android.accessibilityservice.AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
                 automation.serviceInfo = service
                 shell("input keyevent KEYCODE_WAKEUP"); shell("wm dismiss-keyguard")
+                await("unsecured emulator keyguard dismissed before setting the fixture PIN") {
+                    val keyguard = context.getSystemService(KeyguardManager::class.java)
+                    !keyguard.isDeviceLocked && !keyguard.isKeyguardLocked &&
+                        context.getSystemService(android.os.PowerManager::class.java).isInteractive
+                }
                 home = checkNotNull(shell("cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME")
                     .lineSequence().lastOrNull { it.matches(Regex("[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+")) })
                 timeout = shell("settings get secure lock_screen_lock_after_timeout").trim()
@@ -222,7 +227,7 @@ class LockScreenDeviceTest {
         compose.onNodeWithTag("lock_unlock").assertIsEnabled()
         instrumentation.runOnMainSync { LockScreenRuntime.configure(Appearance(reducedEffects = true,
             lockScreen = dev.vitreo.launcher.core.LockScreenSettings(idleTimeoutSeconds = 5))) }
-        shell("input tap 20 200") // Explicit interaction restarts the new configured idle deadline.
+        // Changing the timeout must rearm the deadline without an injected coordinate tap.
         await("idle surface returns to native keyguard") { lockActivity() == null }
         assertTrue("Idle handoff must not unlock Android", keyguard.isDeviceLocked)
         instrumentation.runOnMainSync { assertNull(LockScreenRuntime.setEnabled(context, false)) }
