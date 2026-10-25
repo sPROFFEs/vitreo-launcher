@@ -3,7 +3,7 @@ import re
 import xml.etree.ElementTree as ET
 
 ANDROID = "{http://schemas.android.com/apk/res/android}"
-PERMISSIONS = {"android.permission.BIND_APPWIDGET", "android.permission.SET_WALLPAPER", "android.permission.ACCESS_NETWORK_STATE", "android.permission.INTERNET", "android.permission.REQUEST_INSTALL_PACKAGES", "android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION", "android.permission.POST_NOTIFICATIONS"}
+PERMISSIONS = {"android.permission.BIND_APPWIDGET", "android.permission.SET_WALLPAPER", "android.permission.ACCESS_NETWORK_STATE", "android.permission.INTERNET", "android.permission.REQUEST_INSTALL_PACKAGES", "android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION", "android.permission.POST_NOTIFICATIONS", "android.permission.SYSTEM_ALERT_WINDOW"}
 LISTENER = "dev.vitreo.launcher.data.VitreoNotificationListener"
 BIND = "android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
 ACTION = "android.service.notification.NotificationListenerService"

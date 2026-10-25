@@ -118,12 +118,14 @@ fun LockScreenSettingsPage(a: Appearance, onAppearance: (Appearance) -> Unit, on
         LockSlider("Dim", options.dim, "${(options.dim * 100).roundToInt()}%", 0f..0.65f) { change(options.copy(dim = it)) }
     }
     LockFootnote("Follow Home includes your photo and its crop. This changes Vitreo's surface only; your system lock wallpaper stays under Android's control.")
+    IosSectionLabel("Status bar")
+    LockFootnote("Uses Android’s status bar by default. Settings → Status Bar & Notifications → Custom status bar controls both Home and Lock Screen together.")
     IosSectionLabel("Notifications")
     IosGroup {
         IosToggleRow("Show notifications", options.showNotifications) { change(options.copy(showNotifications = it)) }; IosDivider()
         IosRow("Android notification access") { runCatching { context.startActivity(dev.vitreo.launcher.data.SystemBridge.accessIntent(context)) } }
     }
-    LockFootnote("Shows app names and notification counts after you grant access. Message text, titles, artwork and actions stay hidden. Notifications marked secret by the app or channel are excluded. Tap a card to open it after Android authentication.")
+    LockFootnote("Shows real app icons, app names, times and notification counts after you grant access. Message text, titles, attachments and actions stay hidden. Notifications marked secret by the app or channel are excluded. Tap a card to open it after Android authentication.")
     IosSectionLabel("Widgets & privacy")
     IosGroup {
         IosToggleRow("Battery", options.showBattery) { change(options.copy(showBattery = it)) }; IosDivider()

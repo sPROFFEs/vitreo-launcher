@@ -198,7 +198,7 @@ class LauncherSmokeTest {
             returnHome()
             listOf("lock-ios" to 1, "lock-cyber" to 2, "lock-large-clock" to 1).forEach { (name, theme) ->
                 compose.runOnUiThread {
-                    dev.vitreo.launcher.lock.LockScreenActivity.preview(context, original.copy(lockScreen =
+                    dev.vitreo.launcher.lock.LockScreenActivity.preview(context, original.copy(homeStatusBar = true, lockScreen =
                         dev.vitreo.launcher.core.LockScreenSettings(theme = theme, clockSize = if (name == "lock-large-clock") 132f else 104f,
                             clockStyle = if (name == "lock-large-clock") 2 else 0, clockHeight = if (name == "lock-large-clock") 2.1f else 1f,
                             wallpaper = if (theme == 2) 8 else -1, showSystemUnlock = name != "lock-ios")))

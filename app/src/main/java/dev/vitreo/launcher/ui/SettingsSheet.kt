@@ -46,7 +46,7 @@ import kotlin.math.roundToInt
 
 private enum class SettingsPage(val title: String) {
     Root("Settings"), Home("Home Screen"), Wallpaper("Wallpaper"), Glass("Motion & Glass"),
-    Backup("Layout & Backup"), About("About Vitreo"), Themes("Themes & Icons"), Controls("Control Center"), Lock("Lock Screen"), Today("Today & News"), Updates("Software Update"), Library("App Library")
+    Backup("Layout & Backup"), About("About Vitreo"), Themes("Themes & Icons"), Controls("Control Center"), Lock("Lock Screen"), Today("Today & News"), Updates("Software Update"), Library("App Library"), Notifications("Status Bar & Notifications"), Island("Dynamic Island")
 }
 
 @Composable
@@ -98,22 +98,26 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                                 }
                             }
                         }
-                        IosSectionLabel("Personalization")
+                        IosSectionLabel("Home & appearance")
                         IosGroup {
                             IosRow("Themes & Icons", if (a.themePreset == 1) "Cyberpunk" else if (a.iosClassic) "iOS 16" else "iOS 26") { page = SettingsPage.Themes }; IosDivider()
                             IosRow("Today & News", if(a.news.enabled) "News" else "Widgets") { page = SettingsPage.Today }; IosDivider()
-                            IosRow("Software Update", BuildConfig.VERSION_NAME) { page = SettingsPage.Updates }; IosDivider()
                             IosRow("Home Screen", "Icons & appearance") { page = SettingsPage.Home }; IosDivider()
                             IosRow("App Library", "Icons & size") { page = SettingsPage.Library }; IosDivider()
                             IosRow("Wallpaper", if (a.usePhoto) "Photo" else "Collection") { page = SettingsPage.Wallpaper }; IosDivider()
-                            IosRow("Lock Screen", "Optional") { page = SettingsPage.Lock }; IosDivider()
                             IosRow("Motion & Glass") { page = SettingsPage.Glass }; IosDivider()
-                            IosRow("Control Center", if (a.controlCenter) "On" else "Off") { page = SettingsPage.Controls }; IosDivider()
-                            IosRow("Status Bar & Notifications") { page = SettingsPage.Controls }; IosDivider()
-                            IosRow("Widgets", onClick = onWidgets)
+                            IosRow("Widgets", "Catalog & placement", onClick = onWidgets)
                         }
-                        IosSectionLabel("General")
+                        IosSectionLabel("Lock Screen, notifications & panels")
                         IosGroup {
+                            IosRow("Lock Screen", "Clock, security & alerts") { page = SettingsPage.Lock }; IosDivider()
+                            IosRow("Status Bar & Notifications", "Home & Lock Screen") { page = SettingsPage.Notifications }; IosDivider()
+                            IosRow("Dynamic Island", "Alerts above your apps") { page = SettingsPage.Island }; IosDivider()
+                            IosRow("Control Center", if (a.controlCenter) "On" else "Off") { page = SettingsPage.Controls }
+                        }
+                        IosSectionLabel("System & maintenance")
+                        IosGroup {
+                            IosRow("Software Update", BuildConfig.VERSION_NAME) { page = SettingsPage.Updates }; IosDivider()
                             IosRow("Default launcher", if (defaultHome) "Vitreo" else "Choose", enabled = !defaultHome, onClick = onSetHome); IosDivider()
                             IosRow("Layout & Backup") { page = SettingsPage.Backup }; IosDivider()
                             IosRow("Refresh apps", "${ui.apps.size} apps", enabled = ui.ready, onClick = onRefresh)
@@ -173,6 +177,8 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                     SettingsPage.Today -> NewsSettingsPage(a, onAppearance)
                     SettingsPage.Updates -> UpdatesSettings()
                     SettingsPage.Lock -> LockScreenSettingsPage(a, onAppearance, onSetHome)
+                    SettingsPage.Notifications -> SystemIntegrationSettings(a, onAppearance)
+                    SettingsPage.Island -> NotificationIslandSettings()
                     SettingsPage.Controls -> {
                         IosSectionLabel("Access")
                         IosGroup {
@@ -184,13 +190,20 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                         }
                         SettingsFootnote("Available on Home, Today and App Library. Swipe down from the upper-right area below the status bar, or tap the controls button in Today. Swipe up from the panel's bottom handle to close it.")
                         IosSectionLabel("Controls")
-                        SettingsFootnote("Media volume and flashlight use Android's public controls. Network, Focus, rotation and device shortcuts open Android settings. Connect media player below to show real track metadata and supported playback actions. Without access, media keys are available while Android reports active playback.")
-                        SettingsFootnote("Brightness applies to Vitreo only. Use Display settings for system brightness. No camera recording or overlay service is used.")
+                        SettingsFootnote("Media volume and flashlight use Android's public controls. Network, Focus, rotation and device shortcuts open Android settings. Connect media player to show real track metadata and supported playback actions. Without access, media keys are available while Android reports active playback.")
+                        SettingsFootnote("Brightness applies to Vitreo only. Use Display settings for system brightness. The controls use no camera recording or persistent service.")
                         IosGroup {
                             IosRow("Use system brightness", if (a.homeBrightness < 0) "Selected" else "Reset") { onAppearance(a.copy(homeBrightness = -1f)) }
                         }
                         SettingsFootnote("Turn Control Center off to remove its gesture and Today button. Android's own Quick Settings remain available from the status bar.")
-                        SystemIntegrationSettings(a, onAppearance)
+                        IosSectionLabel("Media player")
+                        IosGroup {
+                            IosToggleRow("Connect media player", a.mediaIntegration, modifier = Modifier.testTag("media_integration_switch")) {
+                                onAppearance(a.copy(mediaIntegration = it))
+                            }
+                            IosDivider()
+                            IosRow("Notification access & gestures") { page = SettingsPage.Notifications }
+                        }
                     }
                     SettingsPage.Glass -> {
                         if (a.themePreset == 1) {

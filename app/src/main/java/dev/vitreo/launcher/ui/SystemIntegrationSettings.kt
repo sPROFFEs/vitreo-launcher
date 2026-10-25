@@ -28,21 +28,17 @@ import dev.vitreo.launcher.data.SystemBridge
 internal fun SystemIntegrationSettings(a: Appearance, onAppearance: (Appearance) -> Unit) {
     val context = LocalContext.current
     val bridge by SystemBridge.state.collectAsStateWithLifecycle()
-    IosSectionLabel("Home integration · optional")
+    IosSectionLabel("Home & Lock Screen · optional")
     IosGroup {
-        IosToggleRow("Vitreo status bar on Home", a.homeStatusBar, modifier = Modifier.testTag("home_status_switch")) {
+        IosToggleRow("Custom status bar · Home & Lock Screen", a.homeStatusBar, modifier = Modifier.testTag("home_status_switch")) {
             onAppearance(a.copy(homeStatusBar = it))
         }
         IosDivider()
         IosToggleRow("Notification Center", a.notificationCenter, modifier = Modifier.testTag("notification_center_switch")) {
             onAppearance(a.copy(notificationCenter = it))
         }
-        IosDivider()
-        IosToggleRow("Connect media player", a.mediaIntegration, modifier = Modifier.testTag("media_integration_switch")) {
-            onAppearance(a.copy(mediaIntegration = it))
-        }
     }
-    IntegrationFootnote("The status bar replaces Android's bar inside Home only. Battery and network connection reflect your device; cellular signal strength is not requested. Other apps, the lock screen and Recents keep Android's interface. Swipe from the very top to reveal Android's bar temporarily.")
+    IntegrationFootnote("This single switch replaces Android's status bar on both Home and Vitreo's Lock Screen. Leave it off for the native Android bar in both places. Battery and connectivity reflect your device. Other apps and Recents keep Android's interface. Swipe from the very top to reveal Android's bar temporarily.")
     if (a.notificationCenter || a.mediaIntegration) {
         IosSectionLabel("Notification access")
         IosGroup {
@@ -51,7 +47,7 @@ internal fun SystemIntegrationSettings(a: Appearance, onAppearance: (Appearance)
                     .onFailure { runCatching { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) } }
             }
         }
-        IntegrationFootnote("Android asks you to authorize access to notification content. Vitreo displays alerts only when Notification Center is enabled, and reads active media sessions only when Connect media player is enabled. Content stays in memory on this device; it is never saved, exported or sent anywhere. Turn either feature off to clear its data; revoke access here to disconnect entirely. Some protected notifications and work profiles are restricted by Android.")
+        IntegrationFootnote("Android asks you to authorize access to notification content. Vitreo displays alerts only when Notification Center is enabled, and reads active media sessions only when Connect media player is enabled. Content stays in memory on this device; it is never saved, exported or sent anywhere. Lock Screen alerts and Dynamic Island have their own switches in Settings. Revoke access here to disconnect all notification features. Some protected notifications and work profiles are restricted by Android.")
     }
     IosSectionLabel("Gesture area")
     IosGroup {

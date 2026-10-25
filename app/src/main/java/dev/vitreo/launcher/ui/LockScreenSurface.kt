@@ -169,8 +169,15 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                 }.testTag("lock_wallpaper"), contentScale = ContentScale.Crop) }
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = .40f), Color.Transparent, Color.Black.copy(alpha = .42f)))))
                 if (cyber && options.immersive && active && !appearance.reducedEffects) CyberAmbient()
-                Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)), horizontalAlignment = Alignment.CenterHorizontally) {
-                    if (editorHeader != null) editorHeader() else LockScreenStatusBar(preview, onSystemLock, Modifier.graphicsLayer { alpha = arrival.value })
+                Column(Modifier.fillMaxSize().windowInsetsPadding(if (appearance.homeStatusBar) WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom) else WindowInsets.safeDrawing), horizontalAlignment = Alignment.CenterHorizontally) {
+                    if (editorHeader != null) editorHeader()
+                    else if (appearance.homeStatusBar) LockScreenStatusBar(preview, onSystemLock, Modifier.graphicsLayer { alpha = arrival.value })
+                    else Box(Modifier.fillMaxWidth().height(32.dp).testTag("lock_header"), contentAlignment = Alignment.Center) {
+                        if (preview) TextButton(onClick = onSystemLock, modifier = Modifier.testTag("lock_close")) { Text("Close preview", color = Color.White) }
+                        else IconButton(onClick = onSystemLock, modifier = Modifier.size(44.dp, 32.dp).testTag("lock_close")) {
+                            StatusLock(Modifier.size(16.dp, 21.dp).testTag("lock_glyph"), "Use system lock screen", Color.White)
+                        }
+                    }
                     BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().then(unlockGesture).testTag("lock_swipe").padding(horizontal = 22.dp)) {
                       val lockContentHeight = maxHeight
                       val tall = !cyber && options.clockHeight > 1.05f

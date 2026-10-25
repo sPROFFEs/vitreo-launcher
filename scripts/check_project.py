@@ -34,7 +34,7 @@ def main() -> None:
     properties = (ROOT / "gradle/wrapper/gradle-wrapper.properties").read_text()
     if "f397b287023acdba1e9f6fc5ea72d22dd63669d59ed4a289a29b1a76eee151c6" not in properties:
         raise RuntimeError("Unexpected Gradle distribution checksum; update source checks when upgrading.")
-    print(f"SOURCE CHECKS PASSED: Vitreo {version} ({code}); XML, HOME manifest, narrow widget/wallpaper/network/update permissions, protected notification listener and update job, pinned actions, required files.")
+    print(f"SOURCE CHECKS PASSED: Vitreo {version} ({code}); XML, HOME manifest, narrow widget/wallpaper/network/update/optional-island permissions, protected notification listener and update job, pinned actions, required files.")
 if __name__ == "__main__":
     try: main()
     except Exception as exc:

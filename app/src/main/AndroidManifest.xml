@@ -8,6 +8,8 @@
   <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
   <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  <!-- Optional notification island; Android authorization and a local toggle are required. -->
+  <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
   <!-- Deliberately no QUERY_ALL_PACKAGES, storage, contacts,
        accessibility, or overlay permission. Notification access is separately authorized in Android Settings. -->
   <queries>

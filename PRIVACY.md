@@ -24,20 +24,19 @@ se añaden de nuevo en otro dispositivo.
 
 ## Control Center
 
-El panel es opcional. La barra propia de Home, Notification Center y la conexión
+El panel es opcional. La barra propia de Home y bloqueo, Notification Center y la conexión
 con el reproductor tienen interruptores independientes, apagados por defecto.
-La barra se limita a la ventana del launcher: no sustituye SystemUI ni la pantalla
-de bloqueo. ACCESS_NETWORK_STATE permite indicar la conexión activa; no consulta
+La barra sustituye la de Android solo dentro de Home y de la pantalla de bloqueo de Vitreo cuando su opción compartida se activa explícitamente; por defecto ambos usan la barra de Android. No sustituye SystemUI globalmente. ACCESS_NETWORK_STATE permite indicar la conexión activa; no consulta
 SSID, redes cercanas, ubicación ni intensidad de señal telefónica.
 
 Notification Center y el reproductor conectado requieren autorización explícita
 en la pantalla de acceso a notificaciones de Android. El acceso a notificaciones usa un NotificationListenerService no exportado, protegido por
 BIND_NOTIFICATION_LISTENER_SERVICE y vinculado por el sistema. No hay servicio de
-accesibilidad, overlay, grabación de pantalla ni servicio en primer plano.
+accesibilidad, grabación de pantalla ni servicio en primer plano. La isla opcional de notificaciones sí usa una ventana overlay tras autorización explícita de Android y activación local.
 
-Solo con Notification Center o las tarjetas/indicador de bloqueo activados se leen las notificaciones actuales del
+Solo con Notification Center, Dynamic Island o las tarjetas/indicador de bloqueo activados se leen las notificaciones actuales del
 usuario Android actual: aplicación, título, texto, hora y acciones. Los resúmenes
-de grupo se omiten y los avisos no borrables se conservan. En el bloqueo solo se muestran el nombre de la app y el número de avisos; el título, texto, imágenes y acciones permanecen ocultos. Los avisos secretos por visibilidad de la app o del canal se excluyen. Android puede restringir
+de grupo se omiten y los avisos no borrables se conservan. En el bloqueo solo se muestran el icono real, nombre de la app, hora y número de avisos; el título, texto, imágenes y acciones permanecen ocultos. Los avisos secretos por visibilidad de la app o del canal se excluyen. Android puede restringir
 notificaciones sensibles y perfiles de trabajo. Solo con Connect media player
 activado se consultan sesiones multimedia, metadatos, carátulas (máximo 512 píxeles)
 y acciones compatibles. Los botones usan la sesión real, sin historial de escucha.
@@ -55,6 +54,17 @@ Vitreo. El volumen cambia el canal multimedia real y la linterna usa la API púb
 sin capturar imágenes. Sin conexión multimedia autorizada, los comandos genéricos
 solo se habilitan mientras Android informa de audio activo. Las preferencias de
 integración viajan en el layout, pero la autorización de Android nunca se exporta.
+
+## Dynamic Island opcional
+
+Requiere SYSTEM_ALERT_WINDOW y acceso a notificaciones, autorizados por el usuario.
+Solo muestra alertas nuevas, no avisos de reproducción ni notificaciones secretas.
+La ventana desaparece al bloquear/apagar la pantalla, desactivar la función o
+retirar el acceso. No enciende la pantalla ni añade servicios persistentes.
+La presencia de notificaciones multimedia permite reservar espacio para Aoede u
+otra isla, con controles manuales porque Android no revela otras ventanas overlay.
+La activación y geometría se guardan exclusivamente en este dispositivo. Iconos,
+títulos y textos permanecen en memoria y no entran en copias, registros ni red.
 
 ## Imágenes, copias y diagnóstico
 

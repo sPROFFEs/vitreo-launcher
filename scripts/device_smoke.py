@@ -190,8 +190,8 @@ def run_instrumentation(system_home: bool = False, system_lock: bool = False) ->
             count = write_junit(result.stdout, report)
             if result.returncode: raise RuntimeError(f"Instrumentation command failed: {result.returncode}")
             classes = {case.get("classname") for case in ET.parse(report).getroot().findall("testcase")}
-            if system_home and (classes != {SYSTEM_HOME_TEST} or count != 2):
-                raise RuntimeError("Both real Home integration tests must execute in their isolated phase.")
+            if system_home and (classes != {SYSTEM_HOME_TEST} or count != 3):
+                raise RuntimeError("All three real Home integration tests must execute in their isolated phase.")
             if system_lock and (classes != {SYSTEM_LOCK_TEST} or count != 2):
                 raise RuntimeError("Both real keyguard tests must execute in their isolated phase.")
             if not system_lock and SYSTEM_LOCK_TEST in classes:

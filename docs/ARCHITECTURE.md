@@ -155,7 +155,7 @@ binding permission. Android binds it after explicit user authorization. Feature
 switches independently gate notification collection and MediaSession callbacks;
 disable/revocation clears the corresponding memory. No content enters StateStore,
 portable backups or diagnostics. Network state is a normal permission used by the
-optional Home-only status bar, with no cellular-strength/SSID/location access.
+optional shared Home/Lock Screen status bar, with no cellular-strength/SSID/location access.
 
 `homePanelAt` defines upper-left/right gesture zones. Opening progress is a separate
 State consumed by SurfaceHost; blur/scrim progress is read in drawing layers so
@@ -207,3 +207,16 @@ is needed. Cancellation and invalid API metadata fail closed.
 numeric iOS/Cyberpunk theme IDs. `libraryIconSize == 0` follows the resolved Home
 size; a positive size is independent. Expanded folder/category grids choose fitting
 columns. Portable backups keep these choices without changing the schema.
+
+### Notification island
+
+`NotificationIsland` owns transient native WindowManager views within the existing
+notification-listener process. Only onNotificationPosted triggers an alert; inbox
+refreshes and reconnects do not. IslandLayout is pure bounded dp geometry, and
+IslandPreferences stores local activation/placement outside StateCodec backups.
+The base notification-consumer flag and the island flag are tracked separately so
+disabling the island releases collection when no other consumer remains.
+Screen/keyguard/permission/listener lifecycle changes remove windows. A conservative
+media-notification hint, manual reservation and explicit yield/placement policy
+handle other islands without enumerating other apps' windows. See
+[Notification island](NOTIFICATION_ISLAND.md) for permissions and limitations.

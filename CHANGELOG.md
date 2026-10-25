@@ -1,5 +1,22 @@
 # Cambios
 
+## 0.10.0
+
+- Preserve Home when dismissing Aoede and other floating panels; only real app or
+  Overview departures prepare the radial icon arrival.
+- Default Lock Screen to Android’s native status bar. One explicit custom-bar
+  switch now applies to both Home and Lock Screen.
+- Show real app icons, grouped counts and timestamps on private lock notification
+  cards while keeping message contents behind native authentication.
+- Add optional notification Dynamic Island above apps, with compact/expanded
+  motion, Open/Dismiss, all twelve Aoede placement controls, previews, accessibility
+  timeouts and independent Android permission/activation controls.
+- Add conservative music-island detection, configurable reserved space, pause/below
+  policies and manual coexistence controls for other overlays.
+- Organize Settings by Home/appearance, lock/notifications/panels and maintenance.
+- Cover focus-only foreign overlays, native notification interactions, permission
+  revocation, screen-off cleanup and shared status-bar behavior on emulators.
+
 ## 0.9.0
 
 - Add direct HTTPS release-file fallback for unavailable/rate-limited GitHub API,

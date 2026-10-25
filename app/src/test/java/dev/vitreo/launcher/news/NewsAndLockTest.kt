@@ -36,7 +36,7 @@ class NewsAndLockTest {
         val cards=lockNotices(listOf(notice("a"),notice("b"),notice("secret",Notification.VISIBILITY_SECRET),notice("channel",channel=Notification.VISIBILITY_SECRET)))
         assertEquals(1,cards.size); assertEquals(2,cards.single().count)
         assertFalse(cards.toString().contains("Secret"))
-        assertEquals(setOf("key","app","count","time"),LockNotice::class.java.declaredFields.filter { !it.isSynthetic && !java.lang.reflect.Modifier.isStatic(it.modifiers) }.map { it.name }.toSet())
+        assertEquals(setOf("key","app","count","time","packageName","appIcon"),LockNotice::class.java.declaredFields.filter { !it.isSynthetic && !java.lang.reflect.Modifier.isStatic(it.modifiers) }.map { it.name }.toSet())
     }
     @Test fun lockIdleAndNotificationsHaveSafeLegacyDefaultsAndBounds() {
         assertEquals(10,LockScreenSettings(idleTimeoutSeconds=-1).sanitized().idleTimeoutSeconds)

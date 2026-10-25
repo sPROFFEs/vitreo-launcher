@@ -21,7 +21,7 @@ lock screen. Preview never changes the lock state or turns the feature on.
 - Cyberpunk: Classic by default, optional Immersive rain, scan and HUD motion.
   Motion pauses while not resumed, unfocused, screen off, in Battery Saver or with
   Reduce Motion. The surface never wakes the display or holds a wake lock.
-- Notifications: optional app-name/count cards after explicit Android notification
+- Notifications: optional app-icon/name/time/count cards after explicit Android notification
   access, independent of Home Notification Center. Titles, body text, artwork and
   actions remain hidden; app/channel secret notifications are excluded. Tap a card
   to open its current notification only after Android authentication succeeds.
@@ -90,7 +90,7 @@ without dismissing keyguard. Quick-cycle checks wake as soon as Android is secur
 without waiting for Vitreo's activity to be prepared. It restores credentials, role
 and lock timing. Unit tests enforce the single-use 600 ms recovery boundary.
 
-The header uses the platform's status-bar inset even while that bar is hidden.
+The native Android status bar is shown by default. Settings → Status Bar & Notifications → Custom status bar enables the same custom bar on both Home and Lock Screen. When enabled, the header uses the platform’s status-bar inset even while the native bar is hidden.
 Network/battery occupy that band, with the centered lock below the display cutout.
 Original rounded status glyphs and an inset battery percentage serve iOS; angular
 glyphs, a segmented battery and HUD colors serve Cyberpunk across Lock, Home,
@@ -136,7 +136,7 @@ References: [Android KeyguardManager](https://developer.android.com/reference/an
 [BiometricPrompt callbacks](https://developer.android.com/reference/android/hardware/biometrics/BiometricPrompt.AuthenticationCallback),
 [GrapheneOS two-factor fingerprint unlock](https://grapheneos.org/features#two-factor-fingerprint-unlock).
 
-Android's native status bar is hidden only while Vitreo's optional Home status bar
-is active, and on its full-screen lock surface. Other apps retain their own system
+Android's native status bar is hidden only while Vitreo's shared optional status bar
+is explicitly enabled, on both Home and its lock surface. Other apps retain their own system
 bars. Android permits transient edge reveal; a normal launcher cannot globally
 disable SystemUI. See [Android immersive mode](https://developer.android.com/develop/ui/views/layout/immersive).

@@ -143,3 +143,12 @@ sample their current coordinates at draw time. No interaction is needed to refre
 the wallpaper patch. Native pixel checks scroll an untouched lens and compare it
 with a newly created lens at the same destination, including the cached-texture
 path used by Android 12 and Reduce Effects / Battery Saver.
+
+## Floating panels and arrival detection
+
+A window-focus loss alone does not arm Home's arrival animation: Aoede and other
+focusable overlays leave Home resumed underneath. A stopped Home activity, an
+actual unfocused HOME intent or Android's Overview handoff arms the next arrival.
+The radial icon animation and system-wallpaper surface are unchanged. The
+notification island interpolates capsule/card bounds for expansion and collapse,
+consumes outside taps, and respects reduced motion and accessibility timeouts.

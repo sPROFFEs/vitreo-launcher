@@ -183,7 +183,7 @@ class NativeScreenshotTests(unittest.TestCase):
             self.assertIn("notClass", run.call_args.args[0])
             self.assertFalse(any("gradlew" in part for part in run.call_args.args[0]))
 
-    def test_system_home_phase_keeps_earlier_reports_and_requires_both_tests(self):
+    def test_system_home_phase_keeps_earlier_reports_and_requires_all_three_tests(self):
         from test_instrumentation_results import transcript
         from types import SimpleNamespace
         from device_smoke import SYSTEM_HOME_TEST
@@ -191,11 +191,11 @@ class NativeScreenshotTests(unittest.TestCase):
             root = Path(directory)
             earlier = root / "app/build/outputs/androidTest-results/connected/TEST-instrumentation.xml"
             earlier.parent.mkdir(parents=True); earlier.write_text("existing application results")
-            output = transcript().replace("example.Tests", SYSTEM_HOME_TEST)
+            output = transcript((0,0,0)).replace("example.Tests", SYSTEM_HOME_TEST)
             with patch("device_smoke.ROOT", root), patch("device_smoke.adb") as device, \
                 patch("device_smoke.subprocess.Popen"), \
                 patch("device_smoke.subprocess.run", return_value=SimpleNamespace(returncode=0, stdout=output)) as run:
-                self.assertEqual(run_instrumentation(system_home=True), 2)
+                self.assertEqual(run_instrumentation(system_home=True), 3)
             self.assertEqual(earlier.read_text(), "existing application results")
             self.assertTrue(earlier.with_name("TEST-system-home.xml").is_file())
             self.assertIn("class", run.call_args.args[0])
@@ -205,7 +205,7 @@ class NativeScreenshotTests(unittest.TestCase):
         from test_instrumentation_results import transcript
         from types import SimpleNamespace
         from device_smoke import SYSTEM_HOME_TEST
-        for output in (transcript(), transcript((0,)).replace("example.Tests", SYSTEM_HOME_TEST)):
+        for output in (transcript(), transcript((0,)).replace("example.Tests", SYSTEM_HOME_TEST), transcript((0,0)).replace("example.Tests", SYSTEM_HOME_TEST)):
             with self.subTest(output=output), tempfile.TemporaryDirectory() as directory:
                 with patch("device_smoke.ROOT", Path(directory)), patch("device_smoke.adb"), \
                     patch("device_smoke.subprocess.Popen"), \

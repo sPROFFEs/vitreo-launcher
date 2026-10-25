@@ -6,6 +6,7 @@ import java.io.File
 class VitreoApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        dev.vitreo.launcher.island.NotificationIsland.initialize(this)
         dev.vitreo.launcher.update.AppUpdates.initialize(this)
         dev.vitreo.launcher.lock.LockScreenRuntime.initialize(this)
         val previous = Thread.getDefaultUncaughtExceptionHandler()

@@ -73,7 +73,7 @@ class LockScreenActivity : ComponentActivity() {
         if (!preview) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         WindowCompat.getInsetsController(window, window.decorView).apply {
             isAppearanceLightNavigationBars = false
-            hide(WindowInsetsCompat.Type.systemBars())
+            hide(WindowInsetsCompat.Type.navigationBars())
             systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
         if (!preview) {
@@ -105,7 +105,16 @@ class LockScreenActivity : ComponentActivity() {
             val current by LockScreenRuntime.appearance.collectAsState()
             BackHandler { finishAndRemoveTask() }
             var previewHint by rememberSaveable { mutableStateOf(false) }
-            LockScreenSurface(previewAppearance ?: current, preview, busy,
+            val shown = previewAppearance ?: current
+            DisposableEffect(shown.homeStatusBar) {
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = false
+                    if (shown.homeStatusBar) hide(WindowInsetsCompat.Type.statusBars())
+                    else show(WindowInsetsCompat.Type.statusBars())
+                }
+                onDispose { }
+            }
+            LockScreenSurface(shown, preview, busy,
                 failure ?: if (preview && previewHint) "Preview only. Android handles real authentication." else null,
                 onUnlock = { if (preview) previewHint = true else unlock() },
                 onSystemLock = { finishAndRemoveTask() },

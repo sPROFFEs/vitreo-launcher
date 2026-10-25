@@ -5,7 +5,7 @@ App Library, optional iOS 16 Classic and Cyberpunk HUD themes and native Android
 no accounts, ads, analytics, root or accessibility service.
 
 [Download the signed APK](https://github.com/sPROFFEs/vitreo-launcher/releases/latest)
-· [iOS design study](docs/IOS_DESIGN.md) · [Lock screen / GrapheneOS](docs/LOCK_SCREEN.md) · [Changes](CHANGELOG.md) · [Build](BUILDING.md) · [Privacy](PRIVACY.md)
+· [Notification island](docs/NOTIFICATION_ISLAND.md) · [iOS design study](docs/IOS_DESIGN.md) · [Lock screen / GrapheneOS](docs/LOCK_SCREEN.md) · [Changes](CHANGELOG.md) · [Build](BUILDING.md) · [Privacy](PRIVACY.md)
 
 <p>
   <img src="docs/screenshots/home.png" width="220" alt="Home screen with clock, calendar and glass dock">
@@ -18,6 +18,15 @@ no accounts, ads, analytics, root or accessibility service.
 recording and test reports for its exact commit.
 
 ## Use Vitreo
+
+**Settings → Dynamic Island** adds optional notification alerts above other apps,
+with real app icons, an expandable card, and separate capsule, handle and touch-area
+placement controls matching Aoede. Notification access and overlay permission are
+explicit. Choose whether to move below a music island or pause while it is active;
+manual reservation supports other overlays. See [setup and coexistence](docs/NOTIFICATION_ISLAND.md).
+The island disappears on lock and screen-off. Closing Aoede or another floating
+panel on Home preserves the icon layout without replaying the app-return animation.
+
 
 Install the release APK and select **Vitreo** as your default Home app in Android
 Settings. Keep your system launcher installed so you can switch back at any time.
@@ -111,14 +120,14 @@ NFC and battery controls open Android's settings or panels.
 **Home brightness** affects Vitreo's window; **Use system brightness** restores
 Android's value. It does not change other apps' brightness. Disabling Vitreo's
 Control Center removes its gesture/button; Android's Quick Settings stays available.
-**Settings → Control Center → Home integration** also offers a custom Home status
-bar and Notification Center, independently off by default. The top-right 38% opens
+**Settings → Status Bar & Notifications** also offers a custom status
+bar for Home and Lock Screen and Notification Center, independently off by default. The top-right 38% opens
 controls; the top-left 62% opens notifications when enabled. Adjust/test the gesture
 area in Settings. The pull follows your finger and short reversed pulls cancel.
 Notification Center displays real alerts with expansion, actions and dismissal;
 notification access is explicitly authorized in Android and content stays in memory.
 The custom bar shows time, battery and network connection. It replaces the status
-bar **inside Home only**; other apps and Android's physical top-edge gesture keep
+bar **inside Home and Vitreo’s Lock Screen, using the same explicit switch**; other apps and Android's physical top-edge gesture keep
 system behavior.
 See [Control Center](docs/CONTROL_CENTER.md) for platform behavior and references.
 

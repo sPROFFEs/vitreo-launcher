@@ -250,3 +250,12 @@ Notification taps use the public
 - JVM cases inject API rate limiting, enforce the server retry deadline, validate
   direct metadata/checksums and reject altered identity/version/length/path data.
   Cancellation/invalid API metadata must not silently switch verification paths.
+
+Notification island coverage uses a second-UID native overlay fixture to verify
+that focus loss and outside dismissal preserve Home's arrival serial. Real native
+notification posts cover identity icons, expansion, outside collapse, dismissal,
+permission revocation, no inbox replay, media coexistence, screen-off cleanup and
+the shared Home/Lock Screen status-bar switch. The final Home phase requires all
+three tests, including the foreign-overlay regression. Pure dp geometry tests
+exercise all twelve Aoede controls, safe insets, narrow/landscape screens and yield
+policies. Preview permission grants are confined to guarded disposable emulators.

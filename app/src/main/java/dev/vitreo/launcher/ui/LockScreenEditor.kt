@@ -56,12 +56,16 @@ internal fun LockScreenEditor(appearance: Appearance, onCancel: () -> Unit, onSa
     val cyber = draft.appearance(appearance).themePreset == 1
     Dialog(onDismissRequest = onCancel, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         val view = LocalView.current
-        DisposableEffect(view) {
+        DisposableEffect(view, appearance.homeStatusBar) {
             val window = (view.parent as? DialogWindowProvider)?.window
             window?.let {
                 WindowCompat.setDecorFitsSystemWindows(it, false)
                 it.attributes = it.attributes.apply { layoutInDisplayCutoutMode = android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES }
-                WindowCompat.getInsetsController(it, view).hide(WindowInsetsCompat.Type.systemBars())
+                WindowCompat.getInsetsController(it, view).apply {
+                    hide(WindowInsetsCompat.Type.navigationBars())
+                    isAppearanceLightStatusBars = false
+                    if (appearance.homeStatusBar) hide(WindowInsetsCompat.Type.statusBars()) else show(WindowInsetsCompat.Type.statusBars())
+                }
             }
             onDispose { }
         }

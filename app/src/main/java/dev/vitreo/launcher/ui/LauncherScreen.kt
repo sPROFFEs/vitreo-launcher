@@ -322,6 +322,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val lightWallpaper = appearance.themePreset != 1 && (frame?.brightness ?: 0f) * (1f - appearance.wallpaperDim) > .62f
     val lightChrome = opaqueScreen && sheet != Sheet.Wallpaper && MaterialTheme.colorScheme.background.luminance() > .5f ||
         sheet == null && lightWallpaper
+    LaunchedEffect(appearance) { dev.vitreo.launcher.island.NotificationIsland.configure(appearance) }
     val integratedBar = appearance.homeStatusBar && !opaqueScreen
     val customBarHeight = statusBandHeight(appearance)
     val lockEnabled by dev.vitreo.launcher.lock.LockScreenRuntime.enabled.collectAsState()

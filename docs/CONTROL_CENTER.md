@@ -1,7 +1,7 @@
 # Control Center and Home integration
 
-Settings → Control Center provides independent switches for Control Center, a
-Vitreo status bar on Home, Notification Center and active-player integration.
+Settings → Control Center provides switches for Control Center and active-player integration.
+Settings → Status Bar & Notifications contains the shared Home/Lock Screen status-bar switch, Notification Center and gesture zones.
 The three integration options default to **off**, including when upgrading old
 layouts. Turning off Control Center removes its gesture and Today button.
 
@@ -23,10 +23,9 @@ to dismiss, or use Close, Back or Home. Reduce Motion uses a short fade; Battery
 Saver also reduces effects. No per-frame wallpaper capture or bitmap blur is used.
 
 **Android SystemUI is not replaced globally.** The custom bar uses immersive status
-bar handling in Vitreo's window. Android still owns the physical top edge: a swipe
-from that edge reveals its transient bar. Other apps, the lock screen, Recents,
-system navigation and security prompts retain Android's UI. No root, overlay or
-accessibility service is installed. The independently optional [lock surface](LOCK_SCREEN.md) also retains Android authentication.
+bar handling in Home and Vitreo’s optional Lock Screen only when explicitly enabled. Both use the native Android bar by default. Android still owns the physical top edge: a swipe
+from that edge reveals its transient bar. Other apps, Recents,
+system navigation and security prompts retain Android's UI. No root or accessibility service is installed. The independently optional [notification island](NOTIFICATION_ISLAND.md) requests overlay access for transient alerts above apps. The independently optional [lock surface](LOCK_SCREEN.md) also retains Android authentication.
 
 The custom bar shows device time, battery percentage/charging and the validated
 active network. Wi-Fi indicates a Wi-Fi connection, not measured strength; M

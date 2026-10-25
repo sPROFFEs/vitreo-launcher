@@ -110,8 +110,8 @@ class HomeIntegrationTest {
     private fun overviewVisible(): Boolean = InstrumentationRegistry.getInstrumentation().uiAutomation.windows.any { window ->
         val root = window.root
         window.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION &&
-            root?.packageName?.toString() == "com.google.android.apps.nexuslauncher" &&
-            root.findAccessibilityNodeInfosByViewId("com.google.android.apps.nexuslauncher:id/action_screenshot")
+            root?.packageName?.toString() in setOf("com.google.android.apps.nexuslauncher", "com.android.launcher3") &&
+            root!!.findAccessibilityNodeInfosByViewId("${root.packageName}:id/action_screenshot")
                 .any { it.isVisibleToUser }
     }
 
@@ -152,6 +152,30 @@ class HomeIntegrationTest {
             compose.onNodeWithTag("search_field").assertTextEquals(app.label)
             compose.onNodeWithTag("search_entry:${app.id}").assertIsDisplayed()
         }
+    }
+
+    @Test fun dismissingForeignMusicOverlayKeepsHomeInPlace() {
+        awaitReady()
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        val info = checkNotNull(automation.serviceInfo)
+        info.flags = info.flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+        automation.serviceInfo = info
+        val main = activity()
+        val before = compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[HomeRevealSerialKey]
+        val oldMode = Regex("SYSTEM_ALERT_WINDOW: (allow|ignore|deny|default|foreground)")
+            .find(shell("appops get dev.vitreo.fixture.uninstall SYSTEM_ALERT_WINDOW"))?.groupValues?.get(1) ?: "default"
+        try {
+            shell("appops set dev.vitreo.fixture.uninstall SYSTEM_ALERT_WINDOW allow")
+            repeat(2) {
+                shell("am broadcast -n dev.vitreo.fixture.uninstall/.OverlayReceiver")
+                compose.waitUntil(10_000) { !main.hasWindowFocus() && automation.windows.any { it.isFocused && it.root?.packageName?.toString()=="dev.vitreo.fixture.uninstall" } }
+                assertEquals("A floating island leaves Home resumed", Lifecycle.State.RESUMED, main.lifecycle.currentState)
+                shell("input tap 100 450")
+                awaitReady()
+                assertEquals("Closing an overlay must not animate a new Home arrival",before,
+                    compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[HomeRevealSerialKey])
+            }
+        } finally { shell("appops set dev.vitreo.fixture.uninstall SYSTEM_ALERT_WINDOW $oldMode") }
     }
 
     @Test fun recentsReturnUsesSharedSystemWallpaperAndRevealsHomeWithoutChangingItsLayout() {

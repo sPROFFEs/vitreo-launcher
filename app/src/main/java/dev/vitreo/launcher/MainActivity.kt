@@ -33,6 +33,14 @@ class MainActivity : ComponentActivity() {
     private var pendingHomeReveal = false
     private var homeFocusedOnce = false
     private var homeRevealSerial by mutableIntStateOf(0)
+    private val overviewReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context, intent: Intent) {
+            // Quickstep on Android 12 can keep HOME resumed underneath Overview.
+            // Focus alone cannot distinguish it from Aoede, keyboards or dialogs.
+            if (intent.action == Intent.ACTION_CLOSE_SYSTEM_DIALOGS &&
+                intent.getStringExtra("reason") == "recentapps") pendingHomeReveal = true
+        }
+    }
     private val widgetConfigurations = WidgetConfigurationRequests()
     private val roleRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         defaultHome = isDefaultHome()
@@ -43,6 +51,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         homeRevealSerial = savedInstanceState?.getInt("homeRevealSerial") ?: 0
         pendingHomeReveal = savedInstanceState != null
+        androidx.core.content.ContextCompat.registerReceiver(this, overviewReceiver,
+            android.content.IntentFilter(Intent.ACTION_CLOSE_SYSTEM_DIALOGS),
+            androidx.core.content.ContextCompat.RECEIVER_EXPORTED)
         enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT))
         setContent {
@@ -55,6 +66,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         dev.vitreo.launcher.update.AppUpdates.onForeground()
+        dev.vitreo.launcher.island.NotificationIsland.refresh()
         if (leftForApp) { leftForApp = false; appReturnSerial++ }
         revealHomeWhenFocused()
         defaultHome = isDefaultHome()
@@ -62,19 +74,17 @@ class MainActivity : ComponentActivity() {
         model.refresh()
     }
     override fun onStop() { pendingHomeReveal = true; super.onStop() }
-    override fun onPause() { pendingHomeReveal = true; super.onPause() }
+    override fun onDestroy() { unregisterReceiver(overviewReceiver); super.onDestroy() }
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putInt("homeRevealSerial", homeRevealSerial)
         super.onSaveInstanceState(outState)
     }
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        // Fallback Recents on Android 12 can cover HOME without pausing it.
-        // Its real window-focus handoff must also prepare the next arrival.
         if (hasFocus) {
             revealHomeWhenFocused()
             homeFocusedOnce = true
-        } else if (homeFocusedOnce) pendingHomeReveal = true
+        }
         if (hasFocus && defaultHome && model.systemBackgroundVisible.value) runCatching {
             android.app.WallpaperManager.getInstance(this).setWallpaperOffsets(window.decorView.windowToken, .5f, .5f)
         }
@@ -90,6 +100,8 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (homeFocusedOnce && !hasWindowFocus() && intent.action == Intent.ACTION_MAIN &&
+            intent.hasCategory(Intent.CATEGORY_HOME)) pendingHomeReveal = true
         // The first HOME after an app restores the place it was opened from.
         // A further HOME closes that folder/search and returns to the first page.
         if (!leftForApp) homeSerial++
