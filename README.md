@@ -33,9 +33,15 @@ stays on Android's own surface; Reduce Motion removes the icon arrival effect.
 - **Home:** swipe between pages. Four app columns, folders and a four-slot glass dock.
 - **Today:** swipe right from the first Home page for widgets and recent suggestions.
   Tap **Edit** to reorder or remove built-in cards and restore them later.
-  **Settings → Today & News** optionally replaces this page with current Google News
-  headlines, edition/topic selection, pull-to-refresh and an offline cache. Switching
-  back preserves the widgets. News is off by default and fetches only while visible.
+  **Settings → Today & News** optionally replaces this page with illustrated news,
+  edition/topic selection, pull-to-refresh and an offline cache. Publisher RSS is
+  the default: BBC News (English), EL PAÍS (Spanish), Le Monde (French) or
+  tagesschau (German). Google News is optional, with a switchable publisher fallback.
+  Neither source needs a Google account or Play Services. Google RSS does not
+  provide photos; Publisher RSS shows a cover story and article thumbnails.
+  Disable photos to save data. Switching back preserves widgets. News is off by
+  default and fetches only while visible. On GrapheneOS, allow **Network** for
+  Vitreo in Android app settings.
 - **Control Center:** swipe down briefly in the upper-right area, below Android's
   status bar, on Home, Today or App Library. Today also has a dedicated button.
   Swipe up from the panel's bottom handle to close it. Enable/disable it in

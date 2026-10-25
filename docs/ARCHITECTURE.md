@@ -174,9 +174,22 @@ A protected JobService performs daily checks; a private receiver handles install
 status. Android consent is presented only after an explicit user action. Local
 updater preferences and temporary APKs never enter portable layout backups.
 
-`news` parses bounded public RSS with external entities disabled and caches at most
-50 headlines per sanitized edition/topic using AtomicFile. The optional Today view
-loads only while active, resumed and focused. It preserves the widget host and
+`news` parses bounded public RSS with external entities disabled. `NewsLoader`
+separates provider selection and failure handling from transport: direct publisher
+RSS is the default; Google RSS and its publisher fallback are independent settings.
+Direct requests never contact Google or require GMS. Edition selects a publisher
+language, not device location or personalized news. `NewsRepository` caches at most
+50 articles per provider/fallback/edition/topic and 12 recent combinations using
+AtomicFile, preserving the actual source and image URLs offline. Errors distinguish
+network permission, DNS, timeout, TLS and HTTP failures.
+
+Photos come from RSS media, enclosures or embedded image tags, validated against
+exact publisher CDN hosts. `NewsImages` bounds individual downloads, image dimensions,
+concurrency (2), decoded memory (12 MiB) and disk (24 MiB). No HTML page scraping,
+WebView, account tokens or new libraries are involved. News HTTP requests have a
+20-second budget across redirects/body reads, plus bounded per-operation timeouts.
+The optional Today view loads only while active, resumed and focused; image loads
+also respect that gate and the image preference. It preserves the widget host and
 layout when switching modes. `LockNotice` is a redacted projection with no message
 fields or PendingIntents. Notification launches look up the current live notice
 only after native keyguard dismissal and use Android's explicit sender opt-in.

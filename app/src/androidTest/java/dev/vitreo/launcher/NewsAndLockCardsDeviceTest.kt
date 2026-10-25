@@ -42,6 +42,34 @@ class NewsAndLockCardsDeviceTest {
         compose.onNodeWithText("Widgets",useUnmergedTree=true).performClick()
         compose.runOnIdle { assertFalse(a.news.enabled); assertEquals(original.todaySections,a.todaySections) }
     }
+    @Test fun photoCardsRespectTheImageToggleAndPageVisibility() {
+        val calls=AtomicInteger(); var active by mutableStateOf(false); var images by mutableStateOf(true)
+        val article=NewsArticle("Illustrated story","BBC News","https://example.com/photo",0,"https://ichef.bbci.co.uk/photo.jpg")
+        val source=object:NewsSource { override suspend fun load(settings:NewsSettings,force:Boolean)=NewsFeed(listOf(article)) }
+        val artwork=NewsImageSource { calls.incrementAndGet(); android.graphics.Bitmap.createBitmap(64,36,android.graphics.Bitmap.Config.ARGB_8888) }
+        compose.setContent { VitreoTheme { NewsPage(NewsSettings(true,images=images),active,{}, {},source,artwork) } }
+        compose.waitForIdle(); assertEquals(0,calls.get())
+        compose.runOnIdle { active=true }
+        compose.waitUntil(10000) { calls.get()==1 }
+        compose.onNodeWithTag("news_hero_image",useUnmergedTree=true).assertIsDisplayed()
+        compose.runOnIdle { images=false }
+        compose.onNodeWithTag("news_hero_image",useUnmergedTree=true).assertDoesNotExist()
+        compose.runOnIdle { assertEquals(1,calls.get()) }
+    }
+    @Test fun changingProviderReplacesTheFeedAndShowsRealFallbackAttribution() {
+        val calls=AtomicInteger(); var provider by mutableStateOf("direct")
+        val source=object:NewsSource { override suspend fun load(settings:NewsSettings,force:Boolean):NewsFeed {
+            calls.incrementAndGet()
+            return NewsFeed(listOf(NewsArticle(if(settings.provider=="direct") "Publisher story" else "Fallback story","BBC News","https://example.com/"+settings.provider,0)),
+                sourceName="BBC News",fallback=settings.provider=="google")
+        } }
+        compose.setContent { VitreoTheme { NewsPage(NewsSettings(true,provider=provider),true,{}, {},source) } }
+        compose.waitUntil(10000) { calls.get()==1 }; compose.onNodeWithText("Publisher story").assertIsDisplayed()
+        compose.runOnIdle { provider="google" }
+        compose.waitUntil(10000) { calls.get()==2 }; compose.onNodeWithText("Fallback story").assertIsDisplayed()
+        compose.onNodeWithText("Publisher story").assertDoesNotExist()
+        compose.onNodeWithTag("news_fallback").assertIsDisplayed()
+    }
     @Test fun lockCardsAreBoundedAndOnlyExposeSafeSummariesInBothThemes() {
         var selected=""; var theme by mutableIntStateOf(0)
         compose.setContent { VitreoTheme(preset=theme) { Box(Modifier.fillMaxSize()) {

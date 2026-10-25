@@ -1,6 +1,6 @@
 # Privacidad — Vitreo
 
-Vitreo no tiene cuentas, anuncios ni telemetría. Tiene acceso a Internet para comprobar y descargar actualizaciones estables de GitHub y, si lo activas, cargar titulares públicos de Google News. Las funciones locales no envían datos a estos servicios.
+Vitreo no tiene cuentas, anuncios ni telemetría. Tiene acceso a Internet para comprobar y descargar actualizaciones estables de GitHub y, si lo activas, cargar noticias RSS públicas de medios o de Google News. Las funciones locales no envían datos a estos servicios.
 La búsqueda y la clasificación de aplicaciones son locales y se limitan al usuario Android actual.
 El catálogo combina LauncherApps y la consulta MAIN/LAUNCHER para las actividades de inicio que Android pone a disposición del usuario actual; no consulta perfiles ocultos. Los proveedores de widgets se consultan por separado.
 Los menús pueden consultar accesos rápidos de las apps mediante LauncherApps cuando Android reconoce a Vitreo como launcher predeterminado. Se muestran localmente y no se incluyen en las copias exportadas.
@@ -136,11 +136,25 @@ una pantalla de confirmación desde el fondo o encima del bloqueo.
 
 ## Noticias opcionales
 
-Desactivadas por defecto. Al ver Today en modo News se solicitan titulares RSS a
-`news.google.com` para la edición e idioma elegidos. Google recibe la petición y
-la IP. No se envían ubicación, notificaciones, historial de apps ni distribución.
-No se descargan imágenes ni páginas de los periódicos. Una caché corta guarda
-hasta 50 titulares por edición/tema para mostrar las últimas noticias sin red;
-Android puede eliminarla. Los enlaces se abren por una acción expresa en el
-navegador, sujeto a la política del sitio. No hay consulta periódica de noticias
-en segundo plano. Volver al modo Widgets conserva la configuración local.
+Desactivadas por defecto. Publisher RSS es la fuente inicial y consulta directamente
+BBC News (`feeds.bbci.co.uk`), EL PAÍS (`feeds.elpais.com`), Le Monde
+(`www.lemonde.fr`) o tagesschau (`www.tagesschau.de`) según el idioma de la edición.
+Google News (`news.google.com`) es opcional; no utiliza cuenta, cookies, tokens,
+Google Play Services ni la app Google News. No es un feed personalizado de Discover.
+Si activas su respaldo, un fallo de Google consulta el RSS del medio correspondiente;
+la página identifica la fuente que realmente muestra. Puedes desactivar ese respaldo.
+
+Show article images carga únicamente las fotos incluidas por el medio en el RSS,
+al mostrarse las tarjetas. Sus servidores permitidos son `ichef.bbci.co.uk`,
+`ichef.bbci.com`, `imagenes.elpais.com`, `img.lemde.fr` e `images.tagesschau.de`.
+Puedes desactivar las imágenes; Google RSS no proporciona fotos. No se consultan
+páginas de artículos ni se ejecutan scripts para obtenerlas. Los medios y servidores
+de imágenes reciben las peticiones y la IP; no se envían ubicación, notificaciones,
+historial de apps ni distribución del launcher.
+
+La caché conserva hasta 50 titulares por combinación y 12 combinaciones recientes;
+las imágenes tienen límites de 24 MiB en disco y 12 MiB en memoria. Android puede
+eliminar la caché. No hay consultas periódicas de noticias en segundo plano. Los
+enlaces se abren por una acción expresa en el navegador, sujeto a la política del
+sitio. Volver al modo Widgets conserva la configuración local. GrapheneOS permite
+revocar Network a Vitreo: sin ese permiso ninguna fuente podrá actualizarse.

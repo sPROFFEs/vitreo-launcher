@@ -1,5 +1,16 @@
 # Cambios
 
+## 0.8.1
+
+- Default Today News to direct publisher RSS, without Google services or accounts;
+  retain optional Google News and a configurable independent publisher fallback.
+- Add cover photos and article thumbnails from publisher RSS, lazy image loads,
+  a photo toggle and bounded image memory/disk caches.
+- Explain network-permission, DNS, timeout, TLS and provider failures; add a total
+  news-request deadline, useful retry/settings actions and explicit loading state.
+- Keep offline headlines, photos and source attribution isolated by provider,
+  edition and topic; migrate existing preferences without changing widget layouts.
+
 ## 0.8.0
 
 - Add stable GitHub self-updates with automatic daily checks, unmetered downloads,

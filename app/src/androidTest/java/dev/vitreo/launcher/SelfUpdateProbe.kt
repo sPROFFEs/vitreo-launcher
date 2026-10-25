@@ -6,6 +6,8 @@ import android.os.Bundle
 import dev.vitreo.launcher.core.NewsSettings
 import dev.vitreo.launcher.net.HttpsClient
 import dev.vitreo.launcher.news.NewsRepository
+import dev.vitreo.launcher.news.NewsImages
+import dev.vitreo.launcher.news.NewsLoader
 import dev.vitreo.launcher.update.*
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -19,9 +21,19 @@ class SelfUpdateProbe : Instrumentation() {
             if(args.getString("mode") in setOf("network","news")) {
                 runBlocking {
                     val release=if(args.getString("mode")=="network") StableRelease.parse(HttpsClient.text(StableRelease.API,HttpsClient.githubHosts)) else null
-                    val feed=NewsRepository(targetContext,java.util.Locale.US).load(NewsSettings(true,"US"),true)
-                    check(feed.error==null && feed.articles.isNotEmpty())
-                    finish(0,Bundle().apply { putString("https","passed");putString("stableVersion",release?.version ?: "not checked");putInt("headlines",feed.articles.size) })
+                    val settings=NewsSettings(true,args.getString("market") ?: "US",args.getString("topic") ?: "top",args.getString("provider") ?: "direct")
+                    val feed=NewsRepository(targetContext,java.util.Locale.US).load(settings,true)
+                    check(feed.error==null && feed.articles.isNotEmpty()) { feed.error ?: "No headlines" }
+                    var photos=0
+                    if(args.getString("images")=="true") {
+                        val images=NewsImages(targetContext)
+                        for(url in feed.articles.mapNotNull { it.imageUrl }.take(2)) if(images.load(url)!=null) photos++
+                        check(photos>0) { "No publisher image could be downloaded and decoded" }
+                    }
+                    val offline=NewsRepository(targetContext,java.util.Locale.US,NewsLoader({throw java.net.UnknownHostException("offline probe")})).load(settings,true)
+                    check(offline.articles==feed.articles && offline.error!=null) { "Offline headlines/photos were not preserved" }
+                    finish(0,Bundle().apply { putString("https","passed");putString("stableVersion",release?.version ?: "not checked");
+                        putInt("headlines",feed.articles.size);putString("source",feed.sourceName);putInt("photos",photos);putBoolean("offlineCache",true) })
                 }
                 return
             }

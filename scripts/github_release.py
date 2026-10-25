@@ -70,9 +70,9 @@ def release_body(info: dict) -> str:
 - Signer SHA-256: `{info['signingCertificateSha256']}`.
 
 ## New in this release
-Stable GitHub self-updates with daily checks, unmetered downloads and APK checksum/identity/version/signer verification. Android owns installation consent; enable installation permission in Settings → Software Update. Debug and Preview do not self-update.
-Today can optionally show Google News headlines with edition/topic selection, refresh and an offline cache. News is off by default, fetches only while visible and preserves the widgets when switching back.
-The optional Lock Screen shows app-name/count notification cards after Android notification access, hides private content and secret alerts, and opens notifications only after native authentication. A configurable idle handoff returns to Android keyguard so the system can turn the display off normally.
+Illustrated Today news now defaults to public publisher RSS: BBC News (English), EL PAÍS (Spanish), Le Monde (French) or tagesschau (German), selected by edition. No Google account, Play Services or Google News app is required.
+Google News remains optional, with a configurable independent publisher fallback and clear source attribution. Its RSS does not include article photos; Publisher RSS provides a cover story and thumbnails. Show article images can be disabled to save data.
+News loads only while visible, preserves cached headlines/photos offline and reports network permission, DNS, timeout, TLS and HTTP errors with retry and settings actions. On GrapheneOS, allow Network for Vitreo in Android app settings. News remains off by default; switching back preserves widgets.
 
 ## Scope and verification
 iOS-inspired Home and optional Cyberpunk HUD theme, four-column grid, Dock, paged folders, Spotlight, categorized App Library, Home/Today widgets and layout backups.

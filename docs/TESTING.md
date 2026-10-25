@@ -200,3 +200,28 @@ Installer limitations follow the public
 [PackageInstaller contract](https://developer.android.com/reference/android/content/pm/PackageInstaller.SessionParams#setRequireUserAction(int)).
 Notification taps use the public
 [background activity launch opt-in](https://developer.android.com/guide/components/activities/secure-bal).
+
+
+## Illustrated news / service-independent feeds (0.8.1)
+
+- Publisher RSS is the default, including existing News configurations without a
+  provider field. Validate language/topic and actual source attribution. The
+  German publisher groups Technology/Science/Health under Wissen and omits
+  unsupported Sports/Entertainment choices. Spain/Mexico share EL PAÍS in Spanish.
+- With Google source selected, block only Google and refresh: enabled fallback
+  shows the independent publisher and its banner. Disable fallback: no publisher
+  request may occur. Cancellation and permission denial must not start fallback.
+- Toggle Show article images: no photo requests while off. Headline and thumbnail
+  cards preserve readable text, clipped photos and large-font layout in both themes.
+  Failed or missing photos never prevent a headline from being read.
+- Offline refresh retains the cached source, headlines and photo URLs. Changing
+  provider, edition or topic must not display another configuration's cached feed.
+- GrapheneOS: revoke Vitreo's Network permission, then restore and retry. Also
+  check private DNS/VPN restrictions. No Google account or Play Services is required.
+- Live opt-in probe on an emulator without Google services:
+  `adb shell am instrument -w -e mode news -e market ES -e provider direct -e images true
+  dev.vitreo.launcher.debug.test/dev.vitreo.launcher.SelfUpdateProbe`.
+  It requires real HTTPS headlines, downloads/decodes publisher images and checks
+  an offline refresh against the persisted cache. Repeat with US, FR and DE and
+  Google without `-e images true` (Google RSS omits article photographs). This
+  manual check is separate from deterministic CI and makes no physical Pixel claim.
