@@ -10,6 +10,7 @@ import dev.vitreo.launcher.core.Appearance
 import dev.vitreo.launcher.core.IslandLayout
 import dev.vitreo.launcher.data.SystemBridge
 import dev.vitreo.launcher.data.NotificationSettingsNavigation
+import dev.vitreo.launcher.data.StateStore
 import dev.vitreo.launcher.island.NotificationIsland
 import dev.vitreo.launcher.lock.LockScreenActivity
 import org.junit.*
@@ -72,6 +73,10 @@ class NotificationIslandDeviceTest {
     }
     @Before fun prepare() {
         check(shell("getprop ro.kernel.qemu").trim()=="1")
+        // Finish Home's initial appearance effect before configuring native overlays.
+        // Otherwise a slow first composition can overwrite the test's appearance.
+        await { inspect { androidx.lifecycle.ViewModelProvider(compose.activity)[LauncherViewModel::class.java].ui.value.ready } }
+        compose.waitForIdle()
         oldAnimatorScale=shell("settings get global animator_duration_scale").trim()
         val info=checkNotNull(automation.serviceInfo)
         info.flags=info.flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
@@ -145,15 +150,27 @@ class NotificationIslandDeviceTest {
 
     @Test fun reduceMotionSkipsCentreAnimationAndRemovesDismissedWindowImmediately() {
         shell("settings put global animator_duration_scale 3")
-        main { NotificationIsland.configure(Appearance(reducedEffects=true));assertTrue(NotificationIsland.preview(context)) }
-        await { islandReady() }
-        inspect { val view=checkNotNull(islandView());assertEquals(1f,view.scaleX,0f);assertEquals(1f,view.alpha,0f) }
-        post("Reduced-motion")
-        await { SystemBridge.state.value.notices.any { it.title=="Reduced-motion" } }
-        val old=inspect { checkNotNull(islandView()) }
-        shell("am broadcast -n dev.vitreo.fixture.uninstall/.OverlayReceiver --es operation notice --ez cancel true")
-        await { !NotificationIsland.status.value.visible }
-        assertFalse(inspect { old.isAttachedToWindow })
+        val model=inspect { androidx.lifecycle.ViewModelProvider(compose.activity)[LauncherViewModel::class.java] }
+        val original=model.ui.value.layout.appearance
+        try {
+            // Use the real setting so Compose and listener reconnections agree.
+            main { model.appearance(original.copy(reducedEffects=true)) }
+            compose.waitForIdle()
+            await { StateStore(context).load().state.appearance.reducedEffects }
+            main { assertTrue(NotificationIsland.preview(context)) }
+            await { islandReady() }
+            inspect { val view=checkNotNull(islandView());assertEquals(1f,view.scaleX,0f);assertEquals(1f,view.alpha,0f) }
+            post("Reduced-motion")
+            await { SystemBridge.state.value.notices.any { it.title=="Reduced-motion" } }
+            val old=inspect { checkNotNull(islandView()) }
+            shell("am broadcast -n dev.vitreo.fixture.uninstall/.OverlayReceiver --es operation notice --ez cancel true")
+            await { !NotificationIsland.status.value.visible }
+            assertFalse(inspect { old.isAttachedToWindow })
+        } finally {
+            main { model.appearance(original) }
+            compose.waitForIdle()
+            await { StateStore(context).load().state.appearance.reducedEffects==original.reducedEffects }
+        }
     }
 
     @Test fun channelSettingsShortcutPreservesNotificationAndCategoryIdentity() {

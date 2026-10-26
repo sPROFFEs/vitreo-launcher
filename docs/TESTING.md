@@ -270,3 +270,6 @@ can receive a shell-injected tap. The clock editor waits for dialog focus before
 testing its font panel. These checks use actual input and retain all assertions.
 Foreign-overlay dismissal uses the same synchronized native input: focus alone
 does not ensure its input region has reached SurfaceFlinger on Android 12.
+Island tests wait for Home's initial appearance effect. Reduce Motion uses the
+persisted application setting, restored afterward, so a listener reconnect or a
+late composition cannot overwrite a window-only test override.
