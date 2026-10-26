@@ -160,3 +160,14 @@ window. Expansion cancels the entrance before morphing; repeated data updates
 do not replay the entrance. Exit releases input immediately, and a replacement,
 lock or permission loss removes any retiring surface. Reduce Motion, disabled
 system animators and Battery Saver skip these transitions.
+On Android 14+, the island opts out of WindowManager's separate position-change
+animation with [setCanPlayMoveAnimation](https://developer.android.com/reference/android/view/WindowManager.LayoutParams#setCanPlayMoveAnimation(boolean)).
+This prevents the compact-to-fullscreen origin change from sliding the entire
+surface while its card is already morphing. Android 12/13 retain their platform
+window behavior; no hidden API or system animation setting is changed.
+The card records each displayed frame as its next transition's starting bounds.
+An interrupted collapse keeps fullscreen coordinates until it reaches the capsule;
+revision checks discard older completion callbacks. Unchanged foreground refreshes
+and appearance values leave a running animation intact.
+Tapping during the entrance transfers the capsule's current horizontal scale and
+opacity into the card morph before resetting the enclosing window's transform.

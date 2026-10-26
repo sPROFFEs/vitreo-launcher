@@ -1,5 +1,17 @@
 # Cambios
 
+## 0.10.2
+
+- Disable Android 14+ overlay-window movement during island expansion/collapse,
+  retaining Vitreo's own card morph without a second slide and reposition.
+- Continue interrupted morphs from the visible frame, retain fullscreen coordinates
+  through collapse, and ignore stale completion callbacks after a new transition.
+- Expand an arriving capsule from its currently visible width and opacity when
+  tapped before its entrance finishes.
+- Avoid rebuilding the island for unchanged appearance or foreground refreshes.
+- Add native checks for compositor position, rapid reversal and mid-collapse
+  replacements while preserving reduced-motion behavior and permission cleanup.
+
 ## 0.10.1
 
 - Match Aoede's centre-opening/closing notification capsule: 280 ms horizontal

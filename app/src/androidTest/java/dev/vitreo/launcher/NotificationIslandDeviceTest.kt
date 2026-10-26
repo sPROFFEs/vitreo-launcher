@@ -29,6 +29,7 @@ class NotificationIslandDeviceTest {
     private var oldLayout=IslandLayout()
     private var oldMode="default"
     private var oldAnimatorScale="1"
+    private var oldWindowScale="1"
     private fun shell(cmd:String)=automation.executeShellCommand(cmd).use { java.io.FileInputStream(it.fileDescriptor).bufferedReader().use { r -> r.readText() } }
     private fun main(action:()->Unit)=instrumentation.runOnMainSync(action)
     private fun <T> inspect(action:()->T):T {
@@ -78,6 +79,7 @@ class NotificationIslandDeviceTest {
         await { inspect { androidx.lifecycle.ViewModelProvider(compose.activity)[LauncherViewModel::class.java].ui.value.ready } }
         compose.waitForIdle()
         oldAnimatorScale=shell("settings get global animator_duration_scale").trim()
+        oldWindowScale=shell("settings get global window_animation_scale").trim()
         val info=checkNotNull(automation.serviceInfo)
         info.flags=info.flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
         automation.serviceInfo=info
@@ -102,6 +104,8 @@ class NotificationIslandDeviceTest {
         shell("appops set ${context.packageName} SYSTEM_ALERT_WINDOW $oldMode")
         if(oldAnimatorScale=="null") shell("settings delete global animator_duration_scale")
         else shell("settings put global animator_duration_scale $oldAnimatorScale")
+        if(oldWindowScale=="null") shell("settings delete global window_animation_scale")
+        else shell("settings put global window_animation_scale $oldWindowScale")
         main { NotificationIsland.setEnabled(context,oldEnabled) }
     }
     @Test fun capsuleOpensAndClosesHorizontallyFromItsOwnCentre() {
@@ -171,6 +175,97 @@ class NotificationIslandDeviceTest {
             compose.waitForIdle()
             await { StateStore(context).load().state.appearance.reducedEffects==original.reducedEffects }
         }
+    }
+
+    @androidx.test.filters.SdkSuppress(minSdkVersion=34)
+    @Test fun expansionAndCollapseDoNotAddSystemWindowMovement() {
+        shell("settings put global window_animation_scale 3")
+        val model=inspect { androidx.lifecycle.ViewModelProvider(compose.activity)[LauncherViewModel::class.java] }
+        val original=model.ui.value.layout.appearance
+        fun assertSurfaceAtCard(name:String) {
+            val bounds=inspect {
+                val view=checkNotNull(checkNotNull(islandView()).findViewWithTag<android.view.View>("vitreo-island-card"))
+                val xy=IntArray(2);view.getLocationOnScreen(xy)
+                android.graphics.Rect(xy[0],xy[1],xy[0]+view.width,xy[1]+view.height)
+            }
+            val screen=checkNotNull(automation.takeScreenshot())
+            try {
+                val directory=checkNotNull(context.getExternalFilesDir("review"));directory.mkdirs()
+                java.io.File(directory,"$name.png").outputStream().use { screen.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it) }
+                val inset=(6*context.resources.displayMetrics.density).toInt()
+                for(x in listOf(bounds.left+inset,bounds.right-inset)) {
+                    val color=screen.getPixel(x,bounds.centerY())
+                    assertTrue("$name: compositor must keep the card at $bounds; pixel ($x,${bounds.centerY()})=${Integer.toHexString(color)}",
+                        android.graphics.Color.red(color)<12 && android.graphics.Color.green(color)<12 && android.graphics.Color.blue(color)<12)
+                }
+            } finally { screen.recycle() }
+        }
+        try {
+            // Isolate WindowManager's motion from Vitreo's own morph, as when Reduce Motion is on.
+            main { model.appearance(original.copy(reducedEffects=true)) }
+            compose.waitForIdle()
+            await { StateStore(context).load().state.appearance.reducedEffects }
+            main { assertTrue(NotificationIsland.preview(context)) }
+            await { islandReady() }
+            main { checkNotNull(islandView()).findViewWithTag<android.view.View>("vitreo-island-touch").performClick() }
+            await { inspect { islandView()?.let { it.width==context.resources.displayMetrics.widthPixels && it.hasWindowFocus() }==true } }
+            assertSurfaceAtCard("island-expanded-position")
+            main { NotificationIsland.collapse() }
+            await { inspect { islandView()?.width?.let { it<context.resources.displayMetrics.widthPixels }==true } }
+            assertSurfaceAtCard("island-collapsed-position")
+        } finally {
+            main { model.appearance(original) }
+            compose.waitForIdle()
+            await { StateStore(context).load().state.appearance.reducedEffects==original.reducedEffects }
+        }
+    }
+
+    @Test fun interruptedMorphAndForegroundRefreshKeepTheVisiblePosition() {
+        shell("settings put global animator_duration_scale 3")
+        await { inspect { android.animation.ValueAnimator.areAnimatorsEnabled() } }
+        fun bounds():android.graphics.Rect {
+            fun read():android.graphics.Rect {
+                val view=checkNotNull(checkNotNull(islandView()).findViewWithTag<android.view.View>("vitreo-island-card"))
+                val lp=view.layoutParams as android.widget.FrameLayout.LayoutParams
+                return android.graphics.Rect(lp.leftMargin,lp.topMargin,lp.leftMargin+lp.width,lp.topMargin+lp.height)
+            }
+            return if(android.os.Looper.myLooper()==android.os.Looper.getMainLooper()) read() else inspect { read() }
+        }
+        main { assertTrue(NotificationIsland.preview(context)) }
+        await { inspect { islandView()?.let { it.isLaidOut && it.scaleX in .1f..0.85f }==true } }
+        val compactWidth=bounds().width()
+        val wide=context.resources.displayMetrics.widthPixels-(40*context.resources.displayMetrics.density).toInt()
+        main {
+            val root=checkNotNull(islandView())
+            val lp=root.layoutParams as android.view.WindowManager.LayoutParams
+            val before=bounds()
+            val pivot=lp.x+root.pivotX
+            val left=(pivot+(lp.x+before.left-pivot)*root.scaleX).toDouble()
+            val right=(pivot+(lp.x+before.right-pivot)*root.scaleX).toDouble()
+            root.findViewWithTag<android.view.View>("vitreo-island-touch").performClick()
+            assertEquals("Early expansion starts at the currently visible left edge",left,bounds().left.toDouble(),1.0)
+            assertEquals("Early expansion starts at the currently visible right edge",right,bounds().right.toDouble(),1.0)
+        }
+        await { bounds().width() in (compactWidth+20)..wide }
+        main {
+            val before=bounds()
+            NotificationIsland.refresh()
+            NotificationIsland.configure(Appearance())
+            assertEquals("A foreground refresh must not finish the morph",before,bounds())
+            NotificationIsland.collapse()
+            assertEquals("Reversing must start at the visible position",before,bounds())
+        }
+        await { bounds().width() in (compactWidth+5)..wide }
+        main {
+            val before=bounds()
+            assertTrue(NotificationIsland.preview(context))
+            val lp=checkNotNull(islandView()).layoutParams as android.view.WindowManager.LayoutParams
+            assertEquals("An interrupted collapse retains its fullscreen coordinates",-1,lp.width)
+            assertEquals(0,lp.x);assertEquals(0,lp.y)
+            assertEquals("Replacement continues from the current frame",before,bounds())
+        }
+        await { inspect { islandView()?.width?.let { it<context.resources.displayMetrics.widthPixels }==true } }
+        assertEquals(compactWidth,bounds().width())
     }
 
     @Test fun channelSettingsShortcutPreservesNotificationAndCategoryIdentity() {

@@ -52,6 +52,8 @@ object NotificationIsland {
     private var sample=false
     private var appearance=Appearance()
     private var lastBounds:IslandRect?=null
+    private var lastGeometry:IslandBounds?=null
+    private var renderRevision=0
     private val expire=Runnable { hide(true) }
     private val ops get()=app.getSystemService(AppOpsManager::class.java)
     private val permissionChange=AppOpsManager.OnOpChangedListener { _, pkg -> if(pkg==app.packageName) handler.post { refresh() } }
@@ -72,7 +74,11 @@ object NotificationIsland {
         placement.value=IslandPreferences.read(app)
     }
     fun hasPermission(context:Context)=Settings.canDrawOverlays(context)
-    fun configure(value:Appearance) { appearance=value; if(root!=null) render(status.value.expanded,false) }
+    fun configure(value:Appearance) {
+        if(appearance==value) return
+        appearance=value
+        if(root!=null) render(status.value.expanded,false)
+    }
     fun setEnabled(context:Context,value:Boolean) {
         initialize(context)
         active.value=value;IslandPreferences.enabled(app,value)
@@ -136,7 +142,7 @@ object NotificationIsland {
     fun refresh() {
         if(!::app.isInitialized) return
         if(!hasPermission(app) || !unlocked() || !active.value && !sample) hide(false)
-        else if(root!=null) render(status.value.expanded,false)
+        else if(root!=null && geometry()!=lastGeometry) render(status.value.expanded,false)
         publish()
     }
     private fun publish() { mutableStatus.value=status.value.copy(overlayPermission=hasPermission(app),connected=connected) }
@@ -168,9 +174,14 @@ object NotificationIsland {
         val notice=current ?: return
         if(!hasPermission(app) || !unlocked()) { hide(false);return }
         val bounds=geometry() ?: run { hide(false);return }
+        val continuing=animator?.isRunning==true
+        val moving=(animate || continuing) && !reduced
+        val revision=++renderRevision
         animator?.cancel();animator=null
-        val old=lastBounds ?: bounds.capsule
-        val full=open || status.value.expanded && animate && !reduced
+        var old=lastBounds ?: bounds.capsule
+        // A second event may arrive during collapse, after expanded has become false.
+        // Keep its fullscreen coordinate space until the visible card reaches the capsule.
+        val full=open || moving && (root?.layoutParams as? WindowManager.LayoutParams)?.width==WindowManager.LayoutParams.MATCH_PARENT
         val metric=windows.currentWindowMetrics
         val safe=metric.windowInsets.getInsetsIgnoringVisibility(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
         val expandedWidth=minOf(dp(420),metric.bounds.width()-safe.left-safe.right-dp(24)).coerceAtLeast(dp(48))
@@ -187,7 +198,14 @@ object NotificationIsland {
         val modeChanged=status.value.expanded!=open
         if(entering) clearExitingWindows()
         val view=root ?: IslandWindow(overlayContext)
-        if(modeChanged) {
+        val startAlpha=if(modeChanged) view.alpha else 1f
+        if(modeChanged && view.scaleX!=1f) {
+            val previousOrigin=(view.layoutParams as WindowManager.LayoutParams).x
+            val pivot=previousOrigin+view.pivotX
+            old=old.copy(left=(pivot+(old.left-pivot)*view.scaleX).roundToInt(),
+                right=(pivot+(old.right-pivot)*view.scaleX).roundToInt())
+        }
+        if(modeChanged || reduced) {
             view.animate().cancel();view.scaleX=1f;view.scaleY=1f;view.alpha=1f
         }
         if(!full) view.pivotX=(bounds.capsule.left+bounds.capsule.right)/2f-bounds.window.left
@@ -201,11 +219,13 @@ object NotificationIsland {
             tag="vitreo-island-card";background=shape(if(cyber) dp(10).toFloat() else (if(open) dp(34) else target.height/2).toFloat())
             clipToOutline=true;importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_NO
             elevation=dp(12).toFloat()
+            alpha=if(moving) startAlpha else 1f
         }
         card=tile
         val originX=if(full) 0 else bounds.window.left
         val originY=if(full) 0 else bounds.window.top
         fun place(rect:IslandRect) {
+            lastBounds=rect
             tile.layoutParams=FrameLayout.LayoutParams(rect.width,rect.height).apply { leftMargin=rect.left-originX;topMargin=rect.top-originY }
         }
         view.addView(tile)
@@ -232,18 +252,21 @@ object NotificationIsland {
             gravity=Gravity.TOP or Gravity.LEFT;x=originX;y=originY;dimAmount=if(open) .18f else 0f
             setFitInsetsTypes(0);layoutInDisplayCutoutMode=WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
             title="Vitreo notification island"
+            // The card supplies its own morph. Moving this window's surface as well
+            // makes it slide away and then snap back when its origin changes.
+            if(Build.VERSION.SDK_INT>=34) setCanPlayMoveAnimation(false)
         }
-        place(if(animate && !reduced) old else target)
+        place(if(moving) old else target)
         try {
             if(root==null) windows.addView(view,params) else windows.updateViewLayout(view,params)
             root=view;mutableStatus.value=status.value.copy(visible=true,expanded=open,overlayPermission=true)
         } catch(_:RuntimeException) { hide(false);return }
-        lastBounds=target
+        lastGeometry=bounds
         if(centerEntrance) {
             // Aoede's compact entrance: full height, opening horizontally from the capsule centre.
             view.animate().scaleX(1f).alpha(1f).setDuration(280)
                 .setInterpolator(android.view.animation.PathInterpolator(.16f,1f,.3f,1f)).start()
-        } else if(animate && !reduced) {
+        } else if(moving) {
             val content=tile.getChildAt(0);content.alpha=0f
             animator=ValueAnimator.ofFloat(0f,1f).apply {
                 duration=if(open) 360 else 280;interpolator=android.view.animation.PathInterpolator(.22f,.8f,.18f,1f)
@@ -251,13 +274,16 @@ object NotificationIsland {
                     val f=it.animatedValue as Float
                     fun mix(a:Int,b:Int)=(a+(b-a)*f).roundToInt()
                     place(IslandRect(mix(old.left,target.left),mix(old.top,target.top),mix(old.right,target.right),mix(old.bottom,target.bottom)))
+                    tile.alpha=startAlpha+(1f-startAlpha)*f
                     content.alpha=((f-.15f)/.85f).coerceIn(0f,1f)
                 }
                 addListener(object:android.animation.AnimatorListenerAdapter() {
                     private var cancelled=false
                     override fun onAnimationCancel(animation:android.animation.Animator) { cancelled=true }
                     override fun onAnimationEnd(animation:android.animation.Animator) {
-                        if(!cancelled && !open && full) handler.post { if(root===view && !status.value.expanded) render(false,false) }
+                        if(!cancelled && !open && full) handler.post {
+                            if(revision==renderRevision && root===view && !status.value.expanded) render(false,false)
+                        }
                     }
                 });start()
             }
@@ -328,9 +354,12 @@ object NotificationIsland {
         val animated=animate && !reduced
         if(!animated) clearExitingWindows()
         // Close the compact capsule, as in Aoede, instead of scaling a fullscreen input window.
-        if(animated && status.value.expanded && root!=null) render(false,false)
-        handler.removeCallbacks(expire);animator?.cancel();animator=null
-        val old=root;root=null;card=null;lastBounds=null;current=null;sample=false
+        if(animated && (root?.layoutParams as? WindowManager.LayoutParams)?.width==WindowManager.LayoutParams.MATCH_PARENT) {
+            animator?.cancel();animator=null
+            render(false,false)
+        }
+        handler.removeCallbacks(expire);renderRevision++;animator?.cancel();animator=null
+        val old=root;root=null;card=null;lastBounds=null;lastGeometry=null;current=null;sample=false
         mutableStatus.value=status.value.copy(visible=false,expanded=false)
         if(old!=null) {
             old.animate().cancel()
