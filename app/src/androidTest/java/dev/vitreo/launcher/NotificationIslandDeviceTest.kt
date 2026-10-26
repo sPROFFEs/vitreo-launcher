@@ -263,9 +263,14 @@ class NotificationIslandDeviceTest {
             }
             main { android.view.Choreographer.getInstance().postFrameCallback(callback) }
             tapView { it.findViewWithTag("vitreo-island-touch") }
-            val expandedRadius = 34 * context.resources.displayMetrics.density
+            // Window geometry is rounded to whole display pixels (e.g. 89px at 420dpi).
+            val expandedRadius = Math.round(34 * context.resources.displayMetrics.density).toFloat()
             await { samples.any { (r, _) -> r > compactRadius + 1f && r < expandedRadius - 1f } }
-            await { samples.any { (r, _) -> kotlin.math.abs(r - expandedRadius) < .1f } }
+            try {
+                await { samples.any { (r, _) -> kotlin.math.abs(r - expandedRadius) < .1f } }
+            } catch (failure: androidx.compose.ui.test.ComposeTimeoutException) {
+                throw AssertionError("Expected settled radius=$expandedRadius px; observed=${samples.map { it.first }.distinct()}", failure)
+            }
             samples.clear()
             main { NotificationIsland.collapse() }
             await { samples.any { (r, _) -> r > compactRadius + 1f && r < expandedRadius - 1f } }

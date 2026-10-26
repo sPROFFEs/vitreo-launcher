@@ -395,7 +395,7 @@ def main() -> None:
         count = application_count + system_home_count + system_lock_count
         if passed_tests(ROOT / "app/build/outputs/androidTest-results/connected") != count:
             raise RuntimeError("The three native phases must account for exactly all passing test reports.")
-        native_screens.extend(["theme-ios16-controls", "theme-ios26-controls"])
+        native_screens.extend(["theme-ios16-settings", "theme-ios16-home", "theme-ios16-controls", "theme-ios26-controls"])
         collect_native_screens(output, native_screens)
         result_path.write_text(json.dumps({"schema": 1, "commit": commit, "api": args.api,
             "status": "passed", "debugTestsPassed": count, "optimizedPreviewStarted": True,
