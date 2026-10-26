@@ -68,7 +68,7 @@ jobs:
         if: always()
         run: python3 scripts/prepare_signing.py --clean
       - name: Share test APKs with both emulators
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: test-apks-${{ github.sha }}-${{ github.run_id }}
           path: |
@@ -79,7 +79,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - name: Stage signed build for verification after device tests
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: signed-build-${{ github.sha }}-${{ github.run_id }}
           path: |
@@ -89,7 +89,7 @@ jobs:
           retention-days: 7
       - name: Keep build reports
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: build-reports-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
@@ -130,7 +130,7 @@ jobs:
       - name: Remove temporary private keystore
         if: always()
         run: python3 scripts/prepare_signing.py --clean
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: release-candidate-${{ github.sha }}-${{ github.run_id }}
           path: dist/
