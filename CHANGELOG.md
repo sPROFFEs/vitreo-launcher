@@ -2,13 +2,17 @@
 
 ## 0.10.2
 
-- Disable Android 14+ overlay-window movement during island expansion/collapse,
-  retaining Vitreo's own card morph without a second slide and reposition.
+- Hand off island coordinate spaces only after a hardware frame is submitted,
+  preserving the previous surface until its replacement can draw. Release its
+  input immediately and avoid moving an old fullscreen buffer into the capsule.
+- Disable additional Android 14+ overlay-window movement and start entrance motion
+  after the window's first committed draw.
 - Continue interrupted morphs from the visible frame, retain fullscreen coordinates
   through collapse, and ignore stale completion callbacks after a new transition.
 - Expand an arriving capsule from its currently visible width and opacity when
   tapped before its entrance finishes.
 - Avoid rebuilding the island for unchanged appearance or foreground refreshes.
+- Keep outgoing search cleanup from closing the IME of a newly opened editor.
 - Add native checks for compositor position, rapid reversal and mid-collapse
   replacements while preserving reduced-motion behavior and permission cleanup.
 

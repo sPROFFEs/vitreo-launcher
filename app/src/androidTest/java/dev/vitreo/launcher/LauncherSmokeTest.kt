@@ -1461,6 +1461,7 @@ class LauncherSmokeTest {
         }
         // A late-show guard on Home must still allow an intentional new editing session.
         compose.onNodeWithTag("library_button").performClick()
+        compose.onNodeWithTag("search_field").performClick()
         compose.onNodeWithTag("search_field").performTextInput(app.label)
         compose.waitUntil(5_000) {
             compose.activity.window.decorView.rootWindowInsets

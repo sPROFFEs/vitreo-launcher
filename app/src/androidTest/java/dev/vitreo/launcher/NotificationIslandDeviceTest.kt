@@ -30,6 +30,7 @@ class NotificationIslandDeviceTest {
     private var oldMode="default"
     private var oldAnimatorScale="1"
     private var oldWindowScale="1"
+    private var oldAppearance:Appearance?=null
     private fun shell(cmd:String)=automation.executeShellCommand(cmd).use { java.io.FileInputStream(it.fileDescriptor).bufferedReader().use { r -> r.readText() } }
     private fun main(action:()->Unit)=instrumentation.runOnMainSync(action)
     private fun <T> inspect(action:()->T):T {
@@ -41,7 +42,7 @@ class NotificationIslandDeviceTest {
     private fun islandView():android.view.ViewGroup? = android.view.inspector.WindowInspector.getGlobalWindowViews()
         .lastOrNull {
             val lp=it.layoutParams as? android.view.WindowManager.LayoutParams
-            it.isAttachedToWindow && lp?.title?.toString()=="Vitreo notification island" && lp.flags and android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE==0
+            lp?.title?.toString()=="Vitreo notification island" && lp.flags and android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE==0
         } as? android.view.ViewGroup
     private fun descendants(view:android.view.View):List<android.view.View> = listOf(view) +
         if(view is android.view.ViewGroup) (0 until view.childCount).flatMap { descendants(view.getChildAt(it)) } else emptyList()
@@ -66,7 +67,7 @@ class NotificationIslandDeviceTest {
     }
     private fun expand() {
         tapView { it.findViewWithTag("vitreo-island-touch") }
-        await { NotificationIsland.status.value.expanded && inspect { islandView()?.hasWindowFocus()==true } }
+        await { NotificationIsland.status.value.expanded && inspect { islandView()?.let { it.isLaidOut && it.hasWindowFocus() }==true } }
     }
     private fun button(label:String)=tapView { root -> descendants(root).filterIsInstance<android.widget.Button>().firstOrNull { it.text.toString()==label } }
     private fun post(title:String,media:Boolean=false) {
@@ -77,7 +78,11 @@ class NotificationIslandDeviceTest {
         // Finish Home's initial appearance effect before configuring native overlays.
         // Otherwise a slow first composition can overwrite the test's appearance.
         await { inspect { androidx.lifecycle.ViewModelProvider(compose.activity)[LauncherViewModel::class.java].ui.value.ready } }
+        val model=inspect { androidx.lifecycle.ViewModelProvider(compose.activity)[LauncherViewModel::class.java] }
+        oldAppearance=model.ui.value.layout.appearance
+        val fixtureAppearance=inspect { model.appearance(Appearance(syncWallpaper=false));model.ui.value.layout.appearance }
         compose.waitForIdle()
+        await { StateStore(context).load().state.appearance==fixtureAppearance }
         oldAnimatorScale=shell("settings get global animator_duration_scale").trim()
         oldWindowScale=shell("settings get global window_animation_scale").trim()
         val info=checkNotNull(automation.serviceInfo)
@@ -88,10 +93,10 @@ class NotificationIslandDeviceTest {
         check(shell("pm install -r -t /data/local/tmp/vitreo-uninstall-fixture.apk").contains("Success"))
         if(Build.VERSION.SDK_INT>=33) shell("pm grant dev.vitreo.fixture.uninstall android.permission.POST_NOTIFICATIONS")
         shell("appops set ${context.packageName} SYSTEM_ALERT_WINDOW allow")
-        main { NotificationIsland.update(IslandLayout(duration=15));NotificationIsland.setEnabled(context,true);NotificationIsland.configure(Appearance()) }
+        main { NotificationIsland.update(IslandLayout(duration=15));NotificationIsland.setEnabled(context,true) }
         shell("cmd notification allow_listener ${SystemBridge.component(context).flattenToString()}")
         await { SystemBridge.state.value.connected && SystemBridge.state.value.access }
-        main { NotificationIsland.refresh() }
+        main { NotificationIsland.configure(fixtureAppearance);NotificationIsland.refresh() }
     }
     @After fun restore() {
         main { androidx.test.runner.lifecycle.Stage.values().flatMap {
@@ -107,6 +112,11 @@ class NotificationIslandDeviceTest {
         if(oldWindowScale=="null") shell("settings delete global window_animation_scale")
         else shell("settings put global window_animation_scale $oldWindowScale")
         main { NotificationIsland.setEnabled(context,oldEnabled) }
+        oldAppearance?.let { original ->
+            main { androidx.lifecycle.ViewModelProvider(compose.activity)[LauncherViewModel::class.java].appearance(original) }
+            compose.waitForIdle()
+            await { StateStore(context).load().state.appearance==original }
+        }
     }
     @Test fun capsuleOpensAndClosesHorizontallyFromItsOwnCentre() {
         shell("settings put global animator_duration_scale 3")
@@ -177,12 +187,18 @@ class NotificationIslandDeviceTest {
         }
     }
 
-    @androidx.test.filters.SdkSuppress(minSdkVersion=34)
     @Test fun expansionAndCollapseDoNotAddSystemWindowMovement() {
         shell("settings put global window_animation_scale 3")
         val model=inspect { androidx.lifecycle.ViewModelProvider(compose.activity)[LauncherViewModel::class.java] }
         val original=model.ui.value.layout.appearance
         fun assertSurfaceAtCard(name:String) {
+            val committed=java.util.concurrent.atomic.AtomicBoolean(false)
+            main {
+                val view=checkNotNull(islandView())
+                view.viewTreeObserver.registerFrameCommitCallback { committed.set(true) }
+                view.invalidate()
+            }
+            await { committed.get() }
             val bounds=inspect {
                 val view=checkNotNull(checkNotNull(islandView()).findViewWithTag<android.view.View>("vitreo-island-card"))
                 val xy=IntArray(2);view.getLocationOnScreen(xy)
@@ -211,7 +227,7 @@ class NotificationIslandDeviceTest {
             await { inspect { islandView()?.let { it.width==context.resources.displayMetrics.widthPixels && it.hasWindowFocus() }==true } }
             assertSurfaceAtCard("island-expanded-position")
             main { NotificationIsland.collapse() }
-            await { inspect { islandView()?.width?.let { it<context.resources.displayMetrics.widthPixels }==true } }
+            await { inspect { islandView()?.let { it.isLaidOut && it.width<context.resources.displayMetrics.widthPixels }==true } }
             assertSurfaceAtCard("island-collapsed-position")
         } finally {
             main { model.appearance(original) }
@@ -221,7 +237,9 @@ class NotificationIslandDeviceTest {
     }
 
     @Test fun interruptedMorphAndForegroundRefreshKeepTheVisiblePosition() {
-        shell("settings put global animator_duration_scale 3")
+        shell("settings put global animator_duration_scale 0")
+        await { inspect { !android.animation.ValueAnimator.areAnimatorsEnabled() } }
+        shell("settings put global animator_duration_scale 10")
         await { inspect { android.animation.ValueAnimator.areAnimatorsEnabled() } }
         fun bounds():android.graphics.Rect {
             fun read():android.graphics.Rect {
@@ -264,7 +282,7 @@ class NotificationIslandDeviceTest {
             assertEquals(0,lp.x);assertEquals(0,lp.y)
             assertEquals("Replacement continues from the current frame",before,bounds())
         }
-        await { inspect { islandView()?.width?.let { it<context.resources.displayMetrics.widthPixels }==true } }
+        await { inspect { islandView()?.let { it.isLaidOut && it.width<context.resources.displayMetrics.widthPixels }==true } }
         assertEquals(compactWidth,bounds().width())
     }
 

@@ -28,7 +28,6 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -43,7 +42,6 @@ fun Spotlight(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestion
     onClose: () -> Unit, onLaunch: (String, Rect?) -> Unit, onActions: (String, Rect?) -> Unit,
     alphabetical: Boolean = false, active: Boolean = true) {
     val focus = remember { FocusRequester() }
-    val view = LocalView.current
     val results = remember(query, records, suggestions, alphabetical) {
         val key = searchKey(query)
         val source = if (alphabetical) records.sortedBy { searchKey(it.label) } else suggestions.take(8)
@@ -90,13 +88,8 @@ fun Spotlight(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestion
         if (!alphabetical || results.isEmpty()) Spacer(Modifier.weight(1f))
     }
     LaunchedEffect(active) { if (active) focus.requestFocus() }
-    DisposableEffect(view) {
-        onDispose {
-            // The closing panel retains its content during motion. End pending
-            // IME show requests after that last text field is actually removed.
-            view.windowInsetsController?.hide(android.view.WindowInsets.Type.ime())
-        }
-    }
+    // LauncherScreen owns IME cleanup. An outgoing field can be disposed after a
+    // new search/editor has opened; hiding the window-wide IME here closes that session.
 }
 
 @Composable

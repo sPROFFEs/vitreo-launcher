@@ -275,7 +275,10 @@ persisted application setting, restored afterward, so a listener reconnect or a
 late composition cannot overwrite a window-only test override.
 Island motion regressions reverse an in-flight morph, replace an alert during
 collapse and refresh foreground state without jumping to the old destination.
-On API 34+, a compositor screenshot checks both card edges immediately after
-expansion/collapse with reduced app motion and slower Android window animations.
+On both emulator APIs, compositor screenshots check both card edges after the
+first submitted frame following expansion/collapse, with reduced app motion and
+slower Android window animations.
 This detects a separate window-surface slide that view-coordinate checks miss.
 Animation settings and persisted appearance are restored after the test.
+Native island cases use a persisted, deterministic appearance and restore the
+previous one, so reconnecting the listener cannot override their motion mode.

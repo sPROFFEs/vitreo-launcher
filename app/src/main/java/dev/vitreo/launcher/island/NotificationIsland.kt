@@ -15,6 +15,7 @@ import android.view.*
 import android.view.accessibility.AccessibilityManager
 import android.widget.*
 import androidx.core.content.ContextCompat
+import androidx.core.view.doOnPreDraw
 import dev.vitreo.launcher.core.*
 import dev.vitreo.launcher.data.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,6 +48,7 @@ object NotificationIsland {
     private var root:IslandWindow?=null
     private var card:FrameLayout?=null
     private val exitingWindows=mutableSetOf<IslandWindow>()
+    private val retiringWindows=mutableSetOf<IslandWindow>()
     private var animator:ValueAnimator?=null
     private var current:Notice?=null
     private var sample=false
@@ -127,7 +129,7 @@ object NotificationIsland {
     private fun unlocked()=app.getSystemService(PowerManager::class.java).isInteractive &&
         app.getSystemService(KeyguardManager::class.java).let { !it.isKeyguardLocked && !it.isDeviceLocked }
     private fun syncRegistration() {
-        val needed=active.value && connected || sample || exitingWindows.isNotEmpty()
+        val needed=active.value && connected || sample || exitingWindows.isNotEmpty() || retiringWindows.isNotEmpty()
         if(needed && !registered) {
             ContextCompat.registerReceiver(app,screen,IntentFilter().apply {
                 addAction(Intent.ACTION_SCREEN_OFF);addAction(Intent.ACTION_SCREEN_ON);addAction(Intent.ACTION_USER_PRESENT)
@@ -174,10 +176,10 @@ object NotificationIsland {
         val notice=current ?: return
         if(!hasPermission(app) || !unlocked()) { hide(false);return }
         val bounds=geometry() ?: run { hide(false);return }
-        val continuing=animator?.isRunning==true
+        val continuing=animator!=null
         val moving=(animate || continuing) && !reduced
         val revision=++renderRevision
-        animator?.cancel();animator=null
+        val previousAnimator=animator;animator=null;previousAnimator?.cancel()
         var old=lastBounds ?: bounds.capsule
         // A second event may arrive during collapse, after expanded has become false.
         // Keep its fullscreen coordinate space until the visible card reaches the capsule.
@@ -196,21 +198,24 @@ object NotificationIsland {
             (metric.bounds.width()+expandedWidth)/2,expandedTop+checkNotNull(expandedContent).measuredHeight) else bounds.capsule
         val entering=root==null
         val modeChanged=status.value.expanded!=open
-        if(entering) clearExitingWindows()
-        val view=root ?: IslandWindow(overlayContext)
-        val startAlpha=if(modeChanged) view.alpha else 1f
-        if(modeChanged && view.scaleX!=1f) {
-            val previousOrigin=(view.layoutParams as WindowManager.LayoutParams).x
-            val pivot=previousOrigin+view.pivotX
-            old=old.copy(left=(pivot+(old.left-pivot)*view.scaleX).roundToInt(),
-                right=(pivot+(old.right-pivot)*view.scaleX).roundToInt())
+        if(entering) { clearExitingWindows();clearRetiringWindows() }
+        val previous=root
+        val wasFull=(previous?.layoutParams as? WindowManager.LayoutParams)?.width==WindowManager.LayoutParams.MATCH_PARENT
+        val replacing=previous!=null && wasFull!=full
+        val view=if(previous==null || replacing) IslandWindow(overlayContext) else previous
+        val startAlpha=if(modeChanged || continuing) (previous?.alpha ?: 1f)*(card?.alpha ?: 1f) else 1f
+        if(modeChanged && previous!=null && previous.scaleX!=1f) {
+            val previousOrigin=(previous.layoutParams as WindowManager.LayoutParams).x
+            val pivot=previousOrigin+previous.pivotX
+            old=old.copy(left=(pivot+(old.left-pivot)*previous.scaleX).roundToInt(),
+                right=(pivot+(old.right-pivot)*previous.scaleX).roundToInt())
         }
         if(modeChanged || reduced) {
             view.animate().cancel();view.scaleX=1f;view.scaleY=1f;view.alpha=1f
         }
         if(!full) view.pivotX=(bounds.capsule.left+bounds.capsule.right)/2f-bounds.window.left
-        val centerEntrance=entering && !open && animate && !reduced
-        if(centerEntrance) { view.scaleX=.02f;view.alpha=0f }
+        val centerEntrance=!open && !reduced && (entering && animate || view.scaleX<1f)
+        if(entering && centerEntrance) { view.scaleX=.02f;view.alpha=0f }
         view.removeAllViews()
         view.importantForAccessibility=if(open) View.IMPORTANT_FOR_ACCESSIBILITY_NO else View.IMPORTANT_FOR_ACCESSIBILITY_YES
         view.contentDescription=if(open) null else "Expand ${notice.app} notification"
@@ -246,7 +251,7 @@ object NotificationIsland {
         }
         val params=WindowManager.LayoutParams(if(full) -1 else bounds.window.width,if(full) -1 else bounds.window.height,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED or
                 if(open) WindowManager.LayoutParams.FLAG_DIM_BEHIND else WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT).apply {
             gravity=Gravity.TOP or Gravity.LEFT;x=originX;y=originY;dimAmount=if(open) .18f else 0f
@@ -258,17 +263,27 @@ object NotificationIsland {
         }
         place(if(moving) old else target)
         try {
-            if(root==null) windows.addView(view,params) else windows.updateViewLayout(view,params)
+            if(entering || replacing) windows.addView(view,params) else windows.updateViewLayout(view,params)
             root=view;mutableStatus.value=status.value.copy(visible=true,expanded=open,overlayPermission=true)
         } catch(_:RuntimeException) { hide(false);return }
+        if(replacing) {
+            checkNotNull(previous).animate().cancel()
+            if(reduced) runCatching { windows.removeViewImmediate(previous) }
+            else {
+                val released=runCatching {
+                    val lp=previous.layoutParams as WindowManager.LayoutParams
+                    lp.flags=lp.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                    lp.alpha=.8f
+                    windows.updateViewLayout(previous,lp)
+                }.isSuccess
+                if(released) retiringWindows.add(previous)
+                else runCatching { windows.removeViewImmediate(previous) }
+            }
+        }
         lastGeometry=bounds
-        if(centerEntrance) {
-            // Aoede's compact entrance: full height, opening horizontally from the capsule centre.
-            view.animate().scaleX(1f).alpha(1f).setDuration(280)
-                .setInterpolator(android.view.animation.PathInterpolator(.16f,1f,.3f,1f)).start()
-        } else if(moving) {
+        val motion=if(moving && !centerEntrance) {
             val content=tile.getChildAt(0);content.alpha=0f
-            animator=ValueAnimator.ofFloat(0f,1f).apply {
+            ValueAnimator.ofFloat(0f,1f).apply {
                 duration=if(open) 360 else 280;interpolator=android.view.animation.PathInterpolator(.22f,.8f,.18f,1f)
                 addUpdateListener {
                     val f=it.animatedValue as Float
@@ -281,12 +296,36 @@ object NotificationIsland {
                     private var cancelled=false
                     override fun onAnimationCancel(animation:android.animation.Animator) { cancelled=true }
                     override fun onAnimationEnd(animation:android.animation.Animator) {
+                        if(animator===animation) animator=null
                         if(!cancelled && !open && full) handler.post {
                             if(revision==renderRevision && root===view && !status.value.expanded) render(false,false)
                         }
                     }
-                });start()
+                })
             }
+        } else null
+        animator=motion
+        fun startMotion() {
+            if(root!==view || revision!=renderRevision) return
+            if(centerEntrance) {
+                view.animate().scaleX(1f).alpha(1f).setDuration(280)
+                    .setInterpolator(android.view.animation.PathInterpolator(.16f,1f,.3f,1f)).start()
+            } else motion?.start()
+        }
+        if(!view.isLaidOut || retiringWindows.isNotEmpty()) {
+            // A compact and a fullscreen window have different coordinate origins.
+            // Submit the new surface before retiring the old one or advancing its morph.
+            view.doOnPreDraw {
+                val committed=Runnable {
+                    handler.post { view.postOnAnimation {
+                        if(root===view && revision==renderRevision) { clearRetiringWindows();syncRegistration();startMotion() }
+                    } }
+                }
+                if(view.isHardwareAccelerated) view.viewTreeObserver.registerFrameCommitCallback(committed)
+                else view.postOnAnimation(committed)
+            }
+        } else {
+            startMotion()
         }
         if(open) view.requestFocus()
     }
@@ -350,25 +389,30 @@ object NotificationIsland {
     private fun clearExitingWindows() {
         exitingWindows.toList().forEach(::removeExitingWindow)
     }
+    private fun clearRetiringWindows() {
+        retiringWindows.toList().forEach { view ->
+            retiringWindows.remove(view);view.animate().cancel()
+            runCatching { windows.removeViewImmediate(view) }
+        }
+    }
     private fun hide(animate:Boolean) {
         val animated=animate && !reduced
+        clearRetiringWindows()
         if(!animated) clearExitingWindows()
-        // Close the compact capsule, as in Aoede, instead of scaling a fullscreen input window.
-        if(animated && (root?.layoutParams as? WindowManager.LayoutParams)?.width==WindowManager.LayoutParams.MATCH_PARENT) {
-            animator?.cancel();animator=null
-            render(false,false)
-        }
+        val visible=lastBounds
         handler.removeCallbacks(expire);renderRevision++;animator?.cancel();animator=null
         val old=root;root=null;card=null;lastBounds=null;lastGeometry=null;current=null;sample=false
         mutableStatus.value=status.value.copy(visible=false,expanded=false)
         if(old!=null) {
             old.animate().cancel()
+            if(visible!=null) old.pivotX=(visible.left+visible.right)/2f-(old.layoutParams as WindowManager.LayoutParams).x
             if(animated && old.isAttachedToWindow) {
                 old.importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
                 val released=runCatching {
                     val lp=old.layoutParams as WindowManager.LayoutParams
                     lp.flags=lp.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
                     lp.alpha=.8f // Android 12 permits touches through the non-interactive exit window.
+                    lp.dimAmount=0f
                     windows.updateViewLayout(old,lp)
                 }.isSuccess
                 if(released) {
