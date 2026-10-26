@@ -565,6 +565,30 @@ class LauncherSmokeTest {
             val slider = compose.onNodeWithTag("control_slider:Home brightness")
             val lens = compose.onNodeWithTag("control_slider_lens:Home brightness", useUnmergedTree = true)
             val hitBefore = slider.getUnclippedBoundsInRoot()
+            // A fast drag must not jump back to a lagging read-back animation on release.
+            fun fillTop(): Int {
+                val image = lens.captureToImage().asAndroidBitmap()
+                val x = image.width / 4
+                return (image.height / 8 until image.height * 7 / 8).firstOrNull { y ->
+                    val color = image.getPixel(x, y)
+                    AndroidColor.red(color) > 225 && AndroidColor.green(color) > 225 && AndroidColor.blue(color) > 225
+                } ?: image.height
+            }
+            compose.mainClock.autoAdvance = false
+            var touching = false
+            try {
+                slider.performTouchInput { down(center); touching = true; moveTo(Offset(center.x, height * .2f), delayMillis = 16) }
+                compose.mainClock.advanceTimeBy(48)
+                val beforeRelease = fillTop()
+                assertTrue("The white fill must be visible", beforeRelease < lens.fetchSemanticsNode().boundsInRoot.height * .5f)
+                slider.performTouchInput { up() }
+                touching = false
+                compose.mainClock.advanceTimeByFrame()
+                assertEquals("Releasing a slider must preserve the visible fill", beforeRelease.toFloat(), fillTop().toFloat(), 2f)
+            } finally {
+                try { if (touching) slider.performTouchInput { cancel() } } finally { compose.mainClock.autoAdvance = true }
+            }
+            compose.waitForIdle()
             // Unclipped bounds use the layout size and omit graphics-layer scaling.
             // Inspect the transformed child bounds to verify the visible deformation.
             val heightBefore = lens.fetchSemanticsNode().boundsInRoot.height

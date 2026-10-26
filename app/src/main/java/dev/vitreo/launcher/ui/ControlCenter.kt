@@ -146,8 +146,8 @@ private fun ControlSlider(title: String, icon: ImageVector, value: Float, enable
     val stretch by animateFloatAsState(if (cyber || reduced) 1f else iosSliderStretch(overscroll).scale,
         if (reduced) tween(0) else spring(dampingRatio = .84f, stiffness = 420f), label = "Slider elasticity")
     // Follow the finger directly; animate only read-back changes from Android or buttons.
-    val settled by animateFloatAsState(rangeValue, tween(if (reduced) 0 else 120), label = "Slider read-back")
-    val display = tracking ?: settled
+    val display by animateFloatAsState(tracking ?: rangeValue,
+        tween(if (reduced || tracking != null) 0 else 120), label = "Slider read-back")
     val ink by animateColorAsState(if (cyber) { if (display <= .18f) Color.White else if (title == "Home brightness") Color(0xffffc700) else Color(0xff00bfe8) }
         else if (display <= .2f) Color.White else Color(0xff333339),
         tween(if (reduced) 0 else 120), label = "Slider symbol contrast")

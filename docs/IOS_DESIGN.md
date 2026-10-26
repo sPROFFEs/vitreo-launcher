@@ -170,3 +170,7 @@ module navigation and modern/Classic Control Center screenshots. Existing optica
 tests remain mandatory for refraction, stable centers, scrolling and the absence
 of an inset contour. Emulator results do not establish physical-device frame rate
 or exact equivalence to Apple's proprietary compositor.
+Slider drag and read-back share one visual value: dragging snaps to the finger,
+then release animates only a genuinely different device value. A paused-frame
+pixel check compares the white fill immediately before and after release so an
+older read-back tween cannot pull the bar backward.
