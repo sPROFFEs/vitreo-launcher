@@ -43,6 +43,44 @@ import kotlin.math.abs
 class GlassRenderingDeviceTest {
     @get:Rule val compose = createComposeRule()
 
+    @Test fun regularMaterialFollowsExplicitInkAcrossClassicAndModernThemes() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val texture = Bitmap.createBitmap(720, 1600, Bitmap.Config.ARGB_8888).apply { eraseColor(AndroidColor.WHITE) }
+        val frame = WallpaperStore(context).frame(texture)
+        var classic by mutableStateOf(false)
+        var opaque by mutableStateOf(false)
+        compose.setContent {
+            var viewport by remember { mutableStateOf(Viewport()) }
+            // Deliberately use a light theme: a white-on-dark card must override it.
+            VitreoTheme(1) {
+                Box(Modifier.fillMaxSize().onGloballyPositioned {
+                    val p = it.positionOnScreen()
+                    viewport = Viewport(it.size.width.toFloat(), it.size.height.toFloat(), p.x, p.y)
+                }) {
+                    CompositionLocalProvider(LocalGlass provides GlassEnvironment(frame, viewport,
+                        Appearance(interfaceStyle = 1, iosClassic = classic, opaquePanels = opaque, wallpaperDim = 0f))) {
+                        Column(Modifier.align(Alignment.Center), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                            GlassPanel(Modifier.size(180.dp, 80.dp).testTag("white-ink"), material = GlassMaterial.Regular,
+                                contentColor = androidx.compose.ui.graphics.Color.White) {}
+                            GlassPanel(Modifier.size(180.dp, 80.dp).testTag("black-ink"), material = GlassMaterial.Regular,
+                                contentColor = androidx.compose.ui.graphics.Color.Black) {}
+                        }
+                    }
+                }
+            }
+        }
+        for (isClassic in listOf(false, true)) for (isOpaque in listOf(false, true)) {
+            compose.runOnIdle { classic = isClassic; opaque = isOpaque }
+            compose.waitForIdle()
+            for ((tag, ink) in listOf("white-ink" to AndroidColor.WHITE, "black-ink" to AndroidColor.BLACK)) {
+                val image = capture(tag, "classic-$isClassic-opaque-$isOpaque")
+                val background = image.getPixel(image.width / 2, image.height / 2)
+                val contrast = androidx.core.graphics.ColorUtils.calculateContrast(ink, background)
+                assertTrue("$tag must retain readable contrast, classic=$isClassic opaque=$isOpaque ratio=$contrast", contrast >= 4.5)
+            }
+        }
+    }
+
     @Test fun untouchedLibraryGlassTracksScrollingWallpaper() = verifyScrollingGlass(reducedEffects = false)
 
     @Test fun reducedEffectsGlassTracksScrollingWallpaper() = verifyScrollingGlass(reducedEffects = true)

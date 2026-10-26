@@ -6,6 +6,19 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class LockScreenSettingsTest {
+    @Test fun classicPresentationPreservesTheStoredModernClockAndThemeOverride() {
+        val stored = LockScreenSettings(glassClock = true, clockHeight = 2.2f, clockStyle = 4, clockSize = 118f)
+        val classic = Appearance(iosClassic = true, lockScreen = stored)
+        val rendered = stored.presentation(classic)
+        assertFalse(rendered.glassClock)
+        assertEquals(1f, rendered.clockHeight)
+        assertEquals(stored.clockStyle, rendered.clockStyle)
+        assertEquals(stored.clockSize, rendered.clockSize)
+        assertEquals(stored, StateCodec.decode(StateCodec.encode(LauncherState(appearance = classic))).appearance.lockScreen)
+        assertEquals(stored, stored.presentation(classic.copy(iosClassic = false)))
+        assertEquals(stored.copy(theme = 2), stored.copy(theme = 2).presentation(classic))
+        assertEquals(stored, stored.presentation(classic.copy(themePreset = 1)))
+    }
     @Test fun backupRoundTripKeepsAppearanceButNeverContainsActivation() {
         val options = LockScreenSettings(showSystemUnlock = true, theme = 2, clockSize = 126f, clockStyle = 5, clockHeight = 2.1f, clockColor = 0xffb9eaff.toInt(),
             glassClock = false, showDate = false, showBattery = false, showAlarm = false, notificationCount = true,

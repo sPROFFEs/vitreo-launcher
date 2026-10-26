@@ -1063,6 +1063,23 @@ class LauncherSmokeTest {
             assertEquals(placed,model.ui.value.layout.placedApps())
             captureEvidence("theme-ios16-settings")
             compose.onNodeWithText("Done").performClick(); returnHome(); captureEvidence("theme-ios16-home")
+            compose.runOnUiThread { model.appearance(model.ui.value.layout.appearance.copy(controlCenter = true)) }
+            openControlsFromEdge()
+            compose.onNodeWithTag("control:Screen Mirroring").assertIsDisplayed()
+            compose.onNodeWithTag("control_page:0").assertDoesNotExist()
+            captureEvidence("theme-ios16-controls")
+            compose.onNodeWithContentDescription("Expand media").performClick()
+            compose.waitForIdle()
+            compose.onNodeWithText("Open music app").assertIsDisplayed()
+            compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
+            compose.waitForIdle()
+            compose.onNodeWithTag("control:Screen Mirroring").assertIsDisplayed()
+            returnHome()
+            compose.runOnUiThread { model.appearance(original.copy(themePreset = 0, iosClassic = false, controlCenter = true)) }
+            openControlsFromEdge()
+            compose.onNodeWithTag("control_page:0").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Expand connectivity").assertIsDisplayed()
+            captureEvidence("theme-ios26-controls")
         } finally { returnHome(); compose.runOnUiThread { model.appearance(original) } }
     }
 

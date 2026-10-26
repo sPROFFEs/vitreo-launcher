@@ -13,8 +13,9 @@ import androidx.compose.ui.unit.dp
 
 /** Original geometric control symbols; no SF Symbols font or Apple image assets. */
 internal object ControlSymbols {
-    private fun symbol(name: String, data: String, filled: Boolean = false) = ImageVector.Builder(
+    private fun symbol(name: String, data: String, filled: Boolean = false, body: String? = null) = ImageVector.Builder(
         "Vitreo.$name", 24.dp, 24.dp, 24f, 24f).apply {
+        if (body != null) addPath(PathParser().parsePathString(body).toNodes(), fill = SolidColor(Color.White))
         addPath(PathParser().parsePathString(data).toNodes(),
             fill = if (filled) SolidColor(Color.White) else null,
             stroke = if (filled) null else SolidColor(Color.White), strokeLineWidth = 1.9f,
@@ -30,10 +31,11 @@ internal object ControlSymbols {
         "Bedtime" to symbol("Focus", "M19.8 15.5 A9 9 0 0 1 8.5 4.2 A8.8 8.8 0 1 0 19.8 15.5 Z", true),
         "Notifications" to symbol("Bell", "M12 3 C7 3 6 7 6 11 L4 17 L20 17 L18 11 C18 7 17 3 12 3 Z M10 21 L14 21", true),
         "ScreenRotation" to symbol("Rotation", "M9 11 L15 11 L15 17 L9 17 Z M10 11 L10 9 A2 2 0 0 1 14 9 L14 11 M20 8 A9 9 0 1 0 20 17 M17 7 L21 8 L22 4"),
-        "BrightnessHigh" to symbol("Sun", "M15.5 12 A3.5 3.5 0 1 1 8.5 12 A3.5 3.5 0 1 1 15.5 12 M12 2 L12 4 M12 20 L12 22 M2 12 L4 12 M20 12 L22 12 M5 5 L6.5 6.5 M17.5 17.5 L19 19 M5 19 L6.5 17.5 M17.5 6.5 L19 5"),
-        "VolumeDown" to symbol("VolumeLow", "M3 9 L7 9 L12 5 L12 19 L7 15 L3 15 Z M16 8 Q20 12 16 16"),
-        "VolumeUp" to symbol("Volume", "M3 9 L7 9 L12 5 L12 19 L7 15 L3 15 Z M16 8 Q20 12 16 16 M19 5 Q25 12 19 19"),
-        "VolumeOff" to symbol("Muted", "M3 9 L7 9 L12 5 L12 19 L7 15 L3 15 Z M17 9 L22 15 M22 9 L17 15"),
+        "BrightnessHigh" to symbol("Sun", "M12 2 L12 4 M12 20 L12 22 M2 12 L4 12 M20 12 L22 12 M5 5 L6.5 6.5 M17.5 17.5 L19 19 M5 19 L6.5 17.5 M17.5 6.5 L19 5",
+            body = "M16 12 A4 4 0 1 1 8 12 A4 4 0 1 1 16 12 Z"),
+        "VolumeDown" to symbol("VolumeLow", "M16 8.5 Q19.5 12 16 15.5", body = "M3 9 L7 9 L12 5 L12 19 L7 15 L3 15 Q2 15 2 14 L2 10 Q2 9 3 9 Z"),
+        "VolumeUp" to symbol("Volume", "M16 8.5 Q19.5 12 16 15.5 M19 5.5 Q25 12 19 18.5", body = "M3 9 L7 9 L12 5 L12 19 L7 15 L3 15 Q2 15 2 14 L2 10 Q2 9 3 9 Z"),
+        "VolumeOff" to symbol("Muted", "M3 3 L21 21", body = "M3 9 L6 9 L12 15 L12 19 L7 15 L3 15 Q2 15 2 14 L2 10 Q2 9 3 9 Z M8 7 L12 5 L12 11 Z"),
         "MusicNote" to symbol("Music", "M10 17 L10 5 L21 3 L21 15 M10 8 L21 6 M10 17 A3 2.4 0 1 1 4 17 A3 2.4 0 1 1 10 17 M21 15 A3 2.4 0 1 1 15 15 A3 2.4 0 1 1 21 15"),
         "PlayArrow" to symbol("Play", "M7 3 L21 12 L7 21 Z", true),
         "Pause" to symbol("Pause", "M5 3 L10 3 L10 21 L5 21 Z M14 3 L19 3 L19 21 L14 21 Z", true),
@@ -50,7 +52,13 @@ internal object ControlSymbols {
         "Close" to symbol("Close", "M5 5 L19 19 M19 5 L5 19"),
         "Check" to symbol("Done", "M4 12 L10 18 L21 5")
     )
-    fun resolve(icon: ImageVector) = symbols[if (icon.name.substringAfterLast('.') == "DarkMode") "Bedtime" else icon.name.substringAfterLast('.')] ?: icon
+    fun resolve(icon: ImageVector) = when (val name = icon.name.substringAfterLast('.')) {
+        "Wifi" -> StatusSymbols.wifi
+        "PhotoCamera" -> StatusSymbols.camera
+        "FlashlightOn" -> StatusSymbols.flashlight
+        "DarkMode" -> symbols.getValue("Bedtime")
+        else -> symbols[name] ?: icon
+    }
 }
 
 @Composable

@@ -54,6 +54,7 @@ internal fun LockScreenEditor(appearance: Appearance, onCancel: () -> Unit, onSa
     val shownPanel = if (panel == 0) lastPanel else panel
     SideEffect { if (panel != 0) lastPanel = panel }
     val cyber = draft.appearance(appearance).themePreset == 1
+    val classic = !cyber && appearance.iosClassic
     Dialog(onDismissRequest = onCancel, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         val view = LocalView.current
         DisposableEffect(view, appearance.homeStatusBar) {
@@ -107,7 +108,7 @@ internal fun LockScreenEditor(appearance: Appearance, onCancel: () -> Unit, onSa
                                                     .clickable { draft = draft.copy(clockColor = value.toInt()) })
                                             }
                                         }
-                                        if (!cyber) {
+                                        if (!cyber && !classic) {
                                             IosSegmented(listOf("Glass", "Solid"), if (draft.glassClock) 0 else 1) { draft = draft.copy(glassClock = it == 0) }
                                             Text("Clock height", Modifier.padding(top = 14.dp), fontSize = 13.sp)
                                             IosSlider(draft.clockHeight, { draft = draft.copy(clockHeight = it) }, Modifier.testTag("lock_editor_height"), valueRange = 1f..2.4f)

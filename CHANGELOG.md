@@ -1,5 +1,24 @@
 # Cambios
 
+## 0.10.3
+
+- Refine iOS 26 Control Center using the supplied component kits: larger primary
+  network buttons, a grouped expansion target, restrained press feedback and
+  smoothly settling sliders. Reserve readable space for compact media metadata.
+- Give iOS 16 distinct controls, single-page navigation, Screen Mirroring,
+  neutral frost, dock/search/menu geometry and grouped-settings corners.
+- Render the Classic lock clock solid and unstretched while retaining the saved
+  modern glass/height preferences for switching back.
+- Refine original control symbols and notification typography, reuse real app
+  icons and animate expanded notification height without overflowing actions.
+- Follow actual text color for regular glass, including light-theme overrides;
+  soften the outer optical lip while retaining continuous refraction and a quiet
+  center. Keep Reduce Motion, opaque panels and Cyberpunk behavior.
+- Morph island corners with its current geometry and refine expanded actions,
+  preserving committed-frame handoff, overlay coexistence and immediate lock cleanup.
+- Document the reviewed repositories and local Figma component records; add
+  contrast, navigation, corner-motion and theme screenshot verification.
+
 ## 0.10.2
 
 - Hand off island coordinate spaces only after a hardware frame is submitted,

@@ -80,14 +80,16 @@ class GlassRenderer(private val context: Context) {
         val radius = min(radiusDp * density, min(width, height) * .5f)
         bounds.set(0f, 0f, width.toFloat(), height.toFloat())
         val f = frame
-        val dark = appearance.interfaceStyle == 2 || appearance.interfaceStyle == 0 &&
-            context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK == android.content.res.Configuration.UI_MODE_NIGHT_YES
         val classic = appearance.iosClassic && appearance.themePreset != 1
-        val materialDark = if (regular) dark else !foregroundDark
+        // The text's actual composition can override the system theme (Lock Screen,
+        // previews, Control Center). The sampled material must follow that same ink.
+        val materialDark = !foregroundDark
         val backdropBrightness = (f?.brightness ?: 0f) * (1f - appearance.wallpaperDim)
-        val opacity = if (regular) max(panelTint, if (dark) .60f else .66f)
-            else max(panelTint, if (classic) .30f else if (foregroundDark) .18f else if (backdropBrightness > .65f) .35f else .13f)
-        val materialColor = if (materialDark) Color.rgb(23, 25, 32) else Color.rgb(248, 249, 253)
+        val opacity = if (regular) max(panelTint, if (materialDark) { if (classic) .64f else .62f } else .66f)
+            else max(panelTint, if (classic) .22f else if (foregroundDark) .18f else if (backdropBrightness > .65f) .35f else .13f)
+        val materialColor = if (classic) {
+            if (materialDark) Color.rgb(28, 28, 30) else Color.rgb(246, 246, 248)
+        } else if (materialDark) Color.rgb(23, 25, 32) else Color.rgb(248, 249, 253)
         if (appearance.opaquePanels || f == null || viewport.width <= 1f) {
             paint.shader = null; paint.color = materialColor
             canvas.drawRoundRect(bounds, radius, radius, paint)
@@ -120,7 +122,7 @@ class GlassRenderer(private val context: Context) {
             align(fallbackSharp!!, f.sharp, x, y)
             paint.shader = fallbackSharp; paint.color = Color.WHITE
             canvas.drawRoundRect(bounds, radius, radius, paint)
-            val frost = if (classic) (if (regular) .85f + .15f * appearance.frost else .72f + .28f * appearance.frost) else if (regular) max(.78f, appearance.frost) else appearance.frost
+            val frost = if (classic) (if (regular) .9f + .1f * appearance.frost else .82f + .18f * appearance.frost) else if (regular) max(.78f, appearance.frost) else appearance.frost
             align(fallback!!, f.frosted, x, y)
             paint.shader = fallback; paint.alpha = (frost * 255).toInt()
             canvas.drawRoundRect(bounds, radius, radius, paint)
@@ -138,7 +140,7 @@ class GlassRenderer(private val context: Context) {
         if (width != borderWidth || height != borderHeight) {
             borderWidth = width; borderHeight = height
             border.shader = LinearGradient(0f, 0f, width.toFloat(), height.toFloat(),
-                intArrayOf(0x9cffffff.toInt(), 0x16ffffff, 0x09ffffff, 0x60ffffff), null, Shader.TileMode.CLAMP)
+                intArrayOf(0x70ffffff, 0x12ffffff, 0x06ffffff, 0x48ffffff), null, Shader.TileMode.CLAMP)
         }
         if (classic) return
         border.strokeWidth = density * .65f

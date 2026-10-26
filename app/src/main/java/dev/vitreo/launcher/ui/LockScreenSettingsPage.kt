@@ -98,14 +98,16 @@ fun LockScreenSettingsPage(a: Appearance, onAppearance: (Appearance) -> Unit, on
                 }
             }
         }
-        if (options.appearance(a).themePreset != 1) {
+        if (options.appearance(a).let { it.themePreset != 1 && !it.iosClassic }) {
             IosToggleRow("Glass clock", options.glassClock) { change(options.copy(glassClock = it)) }
             LockSlider("Height", options.clockHeight, "${(options.clockHeight * 100).roundToInt()}%", 1f..2.4f) { change(options.copy(clockHeight = it)) }
         }
         IosDivider()
         IosToggleRow("Show date", options.showDate) { change(options.copy(showDate = it)) }
     }
-    LockFootnote("The clock follows Android's 12/24-hour setting and fits the available width. Customize Lock Screen lets you tap the clock, choose its font and color, or drag its lower-right handle to make it taller. Tall iOS clocks move accessories toward the bottom.")
+    LockFootnote(if (options.appearance(a).let { it.themePreset == 0 && it.iosClassic })
+        "iOS 16 uses a solid clock with its original proportions. Font, size and color remain customizable. Your iOS 26 glass and height preferences are retained when you switch themes."
+        else "The clock follows Android's 12/24-hour setting and fits the available width. Customize Lock Screen lets you tap the clock, choose its font and color, or drag its lower-right handle to make it taller. Tall iOS clocks move accessories toward the bottom.")
     IosSectionLabel("Wallpaper")
     IosGroup {
         IosRow("Use Home wallpaper", if (options.wallpaper == -1) "Selected" else "Choose") { change(options.copy(wallpaper = -1)) }

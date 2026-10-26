@@ -33,6 +33,13 @@ data class LockScreenSettings(
         palette = if (wallpaper == -1) home.palette else wallpaper,
         wallpaperDim = dim, cyberImmersive = immersive,
     )
+
+    /** Classic renders a solid, unstretched clock without overwriting modern preferences. */
+    fun presentation(home: Appearance): LockScreenSettings {
+        val safe = sanitized()
+        return if (safe.appearance(home).let { it.themePreset == 0 && it.iosClassic })
+            safe.copy(glassClock = false, clockHeight = 1f) else safe
+    }
 }
 
 /** A deliberate upward drag; distance/velocity in dp so every Pixel has the same threshold. */

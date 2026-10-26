@@ -1,6 +1,6 @@
-# iOS visual and motion study — 0.7.0
+# iOS visual and motion study
 
-Reviewed on 2026-10-21. These projects are references, not a native iOS runtime or
+Initial review on 2026-10-21 (0.7.0). These projects are references, not a native iOS runtime or
 an authoritative specification. Vitreo implements the selected behavior in
 Kotlin / Compose and its original AGSL renderer. No SwiftUI, web runtime, Apple
 wallpapers, SF Symbols files or private iOS hooks are bundled by this change.
@@ -113,3 +113,60 @@ outer lip and stable central sample remain. A uniform-wallpaper pixel regression
 compares 0/100% refraction at 0/50/100% frost to detect an artificial inset contour.
 The existing high-contrast wallpaper test still requires visible refraction and a
 stable centre; moving a lens must match a fresh lens without a touch.
+
+## Component review — 0.10.3
+
+Reviewed 2026-10-26 against the three maintainer-supplied `.fig` files in
+`Desktop/UI`, including their thumbnail previews and decoded component geometry,
+text roles and material layers. The files contain 751, 47,777 and 5,876 decoded
+node records respectively. These are community references: the file named iOS 17
+has an iOS 18 cover, and neither file is an authoritative iOS 16 specification.
+No kit images, SF Symbols, Apple fonts or Figma runtime are packaged in Vitreo.
+
+| Local file | SHA-256 |
+| --- | --- |
+| Apple Liquid Glass iOS 26 ( Control Center UI Kit ) (Community).fig | `b553faf25abe3c00a6271aee724a635674c24c54b926afb62d5c96945a15ef0e` |
+| Apple iOS 17 UI Kit · Free UI Resources (Upgraded 2024) (Community).fig | `1247d100246a8a5f139c93dbf6c18727869c268497aeaec19d7427bfcf9dd3bd` |
+| iPhone Lock Screen (Community).fig | `9282f962188b1af1b48a4350cf3c7cbbb1aaa40b4f48fe9dccf32c840dd07148` |
+
+The Control Center kit's 68-point control, 151-point double module and 68 × 151
+slider inform the four-column proportions and 14 dp modern spacing. The compact
+connectivity group has three large controls and a smaller four-symbol cluster.
+Vitreo uses real Android Airplane, Internet and Bluetooth settings; the small
+cluster is one accessible expansion target, rather than four undersized buttons.
+It does not imply AirDrop support or invent radio state. Compact media reserves
+space for metadata between artwork and transport controls instead of distributing
+potentially overlapping text across the whole module.
+
+Classic now has its own rounded-square controls, shorter slider corners, Screen
+Mirroring shortcut, single main page and back navigation from expanded modules.
+It retains shortcut editing through the header. The modern side rail and power
+shortcut belong to iOS 26. Classic also uses neutral uniform frost, a 32 dp dock,
+14 dp context menus, 12 dp search fields and 10 dp grouped-settings corners. Its
+solid lock clock keeps its original height; saved iOS 26 glass/height preferences
+remain intact and are restored by switching themes.
+
+[ControlCenterForSwiftUI](https://github.com/alessiorubicini/ControlCenterForSwiftUI/tree/36aeae416a07bbc02b2f7801e1dea7564eddf5e2)
+informs press response and slider elasticity. Its README advertises MIT, but a
+root LICENSE was not available during review; no implementation is imported.
+[IslandAlertsForSwiftUI](https://github.com/alessiorubicini/IslandAlertsForSwiftUI/tree/b7e2aba52fcb33151bd477b299e7613ebaa38e22)
+(MIT) informs the transition from compact capsule to readable alert with rounded
+actions. Vitreo interpolates its corner radius with the visible bounds while
+retaining the established committed-frame window handoff and Aoede-style entrance.
+Its actions remain Android notifications, with permission and keyguard checks.
+
+[liquid-glass](https://github.com/archisvaze/liquid-glass/tree/fbeb99ef5e8dad2cbbc991ffc23e186a28dc01c4)
+(MIT) informs the optical layering. Vitreo keeps its original C2-continuous lens
+and cached textures, softens the single outer lip and adds a weaker opposite
+reflection. The highlight no longer has a separate peak inside the lens. Regular
+material follows the actual foreground color, including explicit white text
+inside an otherwise light theme. Notification cards reuse the existing real app
+icons instead of loading them again while composing the list. Expanded content
+resizes smoothly; long action rows scroll rather than overflowing the card.
+
+Native coverage checks foreground contrast on a white wallpaper in Classic,
+modern and opaque modes, both directions of the island corner morph, Classic
+module navigation and modern/Classic Control Center screenshots. Existing optical
+tests remain mandatory for refraction, stable centers, scrolling and the absence
+of an inset contour. Emulator results do not establish physical-device frame rate
+or exact equivalence to Apple's proprietary compositor.

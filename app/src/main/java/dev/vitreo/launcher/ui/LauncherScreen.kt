@@ -667,7 +667,8 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                     HomePageControl({ pager.currentPage + pager.currentPageOffsetFraction }, homePages,
                         editing || pager.isScrollInProgress, ::openSearch)
                     GlassPanel(Modifier.padding(horizontal = (if (appearance.themePreset == 1) 11f else IosDesign.DockInset).dp).fillMaxWidth().testTag("dock")
-                        .onGloballyPositioned { dockBounds = it.boundsInRoot() }, radius = if (appearance.themePreset == 1) 35f else minOf(44f, dockHeight * .45f), tint = .12f) {
+                        .onGloballyPositioned { dockBounds = it.boundsInRoot() },
+                        radius = if (appearance.themePreset == 1) 35f else if (appearance.iosClassic) 32f else minOf(44f, dockHeight * .45f), tint = .12f) {
                         Row(Modifier.fillMaxWidth().height(dockHeight.dp).padding(horizontal = (if (appearance.themePreset == 1) 10f else IosDesign.DockInnerInset).dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                             repeat(DOCK_SLOTS) { slot ->
                                 val id = ui.layout.dock.getOrNull(slot)

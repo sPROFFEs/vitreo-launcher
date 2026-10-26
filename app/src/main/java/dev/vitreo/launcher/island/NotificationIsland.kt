@@ -200,6 +200,7 @@ object NotificationIsland {
         val modeChanged=status.value.expanded!=open
         if(entering) { clearExitingWindows();clearRetiringWindows() }
         val previous=root
+        val previousRadius=(card?.background as? GradientDrawable)?.cornerRadius
         val wasFull=(previous?.layoutParams as? WindowManager.LayoutParams)?.width==WindowManager.LayoutParams.MATCH_PARENT
         val replacing=previous!=null && wasFull!=full
         val view=if(previous==null || replacing) IslandWindow(overlayContext) else previous
@@ -220,8 +221,12 @@ object NotificationIsland {
         view.importantForAccessibility=if(open) View.IMPORTANT_FOR_ACCESSIBILITY_NO else View.IMPORTANT_FOR_ACCESSIBILITY_YES
         view.contentDescription=if(open) null else "Expand ${notice.app} notification"
         view.setOnClickListener(if(open) null else View.OnClickListener { render(true,true);deadline() })
+        val targetRadius=if(cyber) dp(10).toFloat() else (if(open) dp(34) else target.height/2).toFloat()
+        val startRadius=previousRadius ?: targetRadius
+        var cornerProgress=if(moving) 0f else 1f
+        val silhouette=shape(targetRadius)
         val tile=FrameLayout(overlayContext).apply {
-            tag="vitreo-island-card";background=shape(if(cyber) dp(10).toFloat() else (if(open) dp(34) else target.height/2).toFloat())
+            tag="vitreo-island-card";background=silhouette
             clipToOutline=true;importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_NO
             elevation=dp(12).toFloat()
             alpha=if(moving) startAlpha else 1f
@@ -231,6 +236,8 @@ object NotificationIsland {
         val originY=if(full) 0 else bounds.window.top
         fun place(rect:IslandRect) {
             lastBounds=rect
+            silhouette.cornerRadius=minOf((startRadius+(targetRadius-startRadius)*cornerProgress).coerceAtLeast(0f),minOf(rect.width,rect.height)/2f)
+            tile.invalidateOutline()
             tile.layoutParams=FrameLayout.LayoutParams(rect.width,rect.height).apply { leftMargin=rect.left-originX;topMargin=rect.top-originY }
         }
         view.addView(tile)
@@ -287,6 +294,7 @@ object NotificationIsland {
                 duration=if(open) 360 else 280;interpolator=android.view.animation.PathInterpolator(.22f,.8f,.18f,1f)
                 addUpdateListener {
                     val f=it.animatedValue as Float
+                    cornerProgress=f
                     fun mix(a:Int,b:Int)=(a+(b-a)*f).roundToInt()
                     place(IslandRect(mix(old.left,target.left),mix(old.top,target.top),mix(old.right,target.right),mix(old.bottom,target.bottom)))
                     tile.alpha=startAlpha+(1f-startAlpha)*f
@@ -353,17 +361,28 @@ object NotificationIsland {
         addView(LinearLayout(overlayContext).apply {
             orientation=LinearLayout.VERTICAL;setPadding(dp(22),dp(20),dp(22),dp(14));setOnClickListener { deadline() }
             addView(LinearLayout(overlayContext).apply {
-                gravity=Gravity.CENTER_VERTICAL;addView(icon(notice,32));addView(text(notice.app,14f,true),LinearLayout.LayoutParams(0,-2,1f).apply { marginStart=dp(10) })
+                gravity=Gravity.CENTER_VERTICAL;addView(icon(notice,36));addView(text(notice.app,13f,true).apply { setTextColor(0xffb6b6bf.toInt()) },LinearLayout.LayoutParams(0,-2,1f).apply { marginStart=dp(12) })
                 addView(bell(),LinearLayout.LayoutParams(dp(22),dp(22)))
             })
-            addView(text(notice.title.ifBlank { "New notification" },18f,true).apply { maxLines=2;setPadding(0,dp(16),0,dp(4)) })
-            if(notice.text.isNotBlank()) addView(text(notice.text,14f).apply { maxLines=5;setTextColor(0xffc7c7cc.toInt());setLineSpacing(dp(2).toFloat(),1f) })
+            addView(text(notice.title.ifBlank { "New notification" },17f,true).apply { maxLines=2;setPadding(0,dp(14),0,dp(4)) })
+            if(notice.text.isNotBlank()) addView(text(notice.text,15f).apply { maxLines=5;setTextColor(0xffc7c7cc.toInt());setLineSpacing(dp(3).toFloat(),1f) })
             addView(LinearLayout(overlayContext).apply {
                 val stacked=resources.configuration.fontScale>1.3f || px(windows.currentWindowMetrics.bounds.width())<340
                 orientation=if(stacked) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
                 gravity=Gravity.END;setPadding(0,dp(12),0,0)
                 fun action(label:String,run:()->Unit) { addView(Button(overlayContext).apply {
-                    text=label;isAllCaps=false;minHeight=dp(48);setTextColor(accent);background=GradientDrawable().apply { setColor(0xff242426.toInt());cornerRadius=dp(16).toFloat() }
+                    text=label;isAllCaps=false;minHeight=dp(48);minimumHeight=dp(48);textSize=15f;letterSpacing=0f
+                    typeface=Typeface.create(if(cyber) "monospace" else "sans-serif-medium",Typeface.NORMAL)
+                    setPadding(dp(12),dp(8),dp(12),dp(8));stateListAnimator=null
+                    setTextColor(if(!cyber && label=="Open") Color.WHITE else accent)
+                    background=android.graphics.drawable.StateListDrawable().apply {
+                        fun surface(pressed:Boolean)=GradientDrawable().apply {
+                            setColor(if(!cyber && label=="Open") (if(pressed) 0xff0865d8.toInt() else 0xff0a84ff.toInt())
+                                else if(pressed) 0xff3a3a3c.toInt() else 0xff242426.toInt())
+                            cornerRadius=dp(if(cyber) 8 else 24).toFloat()
+                        }
+                        addState(intArrayOf(android.R.attr.state_pressed),surface(true));addState(intArrayOf(),surface(false))
+                    }
                     setOnClickListener { run() }
                 },(if(stacked) LinearLayout.LayoutParams(-1,-2) else LinearLayout.LayoutParams(0,-2,1f)).apply {
                     marginStart=dp(4);marginEnd=dp(4);if(stacked) bottomMargin=dp(6)

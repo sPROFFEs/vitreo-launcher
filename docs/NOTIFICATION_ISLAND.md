@@ -21,6 +21,9 @@ using Aoede's curves. Offset handles and touch areas do not move that centre.
 Replacing an alert keeps the current capsule, while expanding/collapsing retains
 the card morph. Closing releases input immediately; lock and permission loss
 remove both active and retiring windows without waiting for animation.
+The card's corners follow its animated bounds in both directions. Expanded alerts
+use rounded actions with an emphasized Open button and retain the same compact
+placement, touch area and surface handoff when interrupted.
 
 ## Use the island instead of Android's pop-up banners
 

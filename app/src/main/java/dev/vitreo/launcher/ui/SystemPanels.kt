@@ -1,10 +1,7 @@
 package dev.vitreo.launcher.ui
 
 import android.app.KeyguardManager
-import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -16,6 +13,8 @@ import android.os.BatteryManager
 import android.os.PowerManager
 import android.text.format.DateFormat
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -163,6 +162,8 @@ internal fun NotificationCenter(onClose: () -> Unit, onAccess: () -> Unit, onErr
     val locked = context.getSystemService(KeyguardManager::class.java).isDeviceLocked
     var expanded by remember { mutableStateOf(emptySet<String>()) }
     val now = LocalHomeClock.current
+    val appearance = LocalGlass.current.appearance
+    val reduced = appearance.reducedEffects
     Column(Modifier.fillMaxSize().windowInsetsPadding(if (showStatusBar) WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
         else WindowInsets.safeDrawing).testTag("notification_center")) {
         if (showStatusBar) CompositionLocalProvider(LocalGlassContentColor provides Color.White) {
@@ -175,8 +176,10 @@ internal fun NotificationCenter(onClose: () -> Unit, onAccess: () -> Unit, onErr
             }
             Text(SimpleDateFormat("EEEE, MMMM d", Locale.ENGLISH).format(Date(now)), color = Color.White,
                 fontSize = 19.sp, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 16.dp))
-            Text(SimpleDateFormat(if (DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm", Locale.getDefault()).format(Date(now)), color = Color.White, fontSize = 68.sp,
-                fontWeight = FontWeight.Light, modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 24.dp))
+            Text(SimpleDateFormat(if (DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm", Locale.getDefault()).format(Date(now)), color = Color.White,
+                fontSize = if (LocalCyber.current) 68.sp else 76.sp, letterSpacing = (-2).sp,
+                fontWeight = if (LocalCyber.current) FontWeight.Light else FontWeight.SemiBold,
+                modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 24.dp))
             if (!bridge.access) {
                 GlassPanel(Modifier.fillMaxWidth(), material = GlassMaterial.Regular) {
                     Column(Modifier.padding(20.dp)) {
@@ -201,28 +204,33 @@ internal fun NotificationCenter(onClose: () -> Unit, onAccess: () -> Unit, onErr
                         })
                         SwipeToDismissBox(dismiss, enableDismissFromStartToEnd = false, enableDismissFromEndToStart = notice.clearable,
                             backgroundContent = { Box(Modifier.fillMaxSize().padding(20.dp), contentAlignment = Alignment.CenterEnd) { Text("Clear", color = Color.White) } }) {
-                            GlassPanel(Modifier.fillMaxWidth().testTag("notice:${notice.key}"), radius = 26f, tint = .32f, material = GlassMaterial.Regular) {
+                            GlassPanel(Modifier.fillMaxWidth().testTag("notice:${notice.key}")
+                                .animateContentSize(if (reduced) tween(0) else LauncherMotion.panel()),
+                                radius = if (appearance.iosClassic) 22f else 26f, tint = .32f, material = GlassMaterial.Regular) {
                                 Column(Modifier.fillMaxWidth().clickable {
                                     val intent = notice.intent
                                     if (intent != null) { if(dev.vitreo.launcher.data.launchNotification(context,intent)) onClose() else onError("This notification is no longer available.") }
                                     else expanded = if (notice.key in expanded) expanded - notice.key else expanded + notice.key
-                                }.padding(16.dp)) {
+                                }.padding(14.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        val appIcon by produceState<android.graphics.Bitmap?>(null, notice.packageName) {
-                                            value = withContext(Dispatchers.IO) { runCatching {
-                                                context.packageManager.getApplicationIcon(notice.packageName).toBitmap(64, 64)
-                                            }.getOrNull() }
+                                        Box(Modifier.size(32.dp).clip(if (LocalCyber.current) CyberShape else IconShape)
+                                            .background(LocalGlassContentColor.current.copy(alpha = .08f)), contentAlignment = Alignment.Center) {
+                                            if (notice.appIcon != null) Image(notice.appIcon.asImageBitmap(), "${notice.app} app icon", Modifier.fillMaxSize())
+                                            else ControlSymbol(Icons.Outlined.Notifications, "${notice.app} notification", Modifier.size(20.dp))
                                         }
-                                        appIcon?.let { Image(it.asImageBitmap(), null, Modifier.padding(end = 8.dp).size(26.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(7.dp))) }
-                                        Text(notice.app, Modifier.weight(1f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                                        Text(DateFormat.getTimeFormat(context).format(Date(notice.time)), fontSize = 11.sp)
+                                        Text(notice.app, Modifier.weight(1f).padding(start = 10.dp), fontSize = 13.sp,
+                                            fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text(DateFormat.getTimeFormat(context).format(Date(notice.time)), fontSize = 12.sp,
+                                            color = LocalGlassContentColor.current.copy(alpha = .65f))
                                         if (notice.clearable) IconButton(onClick = { SystemBridge.dismiss(notice.key) }, modifier = Modifier.size(32.dp)) {
                                             ControlSymbol(Icons.Outlined.Close, "Clear ${notice.app} notification", Modifier.size(14.dp))
                                         }
                                     }
-                                    if (notice.title.isNotEmpty()) Text(notice.title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                    if (notice.text.isNotEmpty()) Text(notice.text, fontSize = 14.sp, maxLines = if (notice.key in expanded) 12 else 2, overflow = TextOverflow.Ellipsis)
-                                    Row {
+                                    if (notice.title.isNotEmpty()) Text(notice.title, Modifier.padding(top = 8.dp), fontSize = 15.sp,
+                                        lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                    if (notice.text.isNotEmpty()) Text(notice.text, fontSize = 15.sp, lineHeight = 20.sp,
+                                        color = LocalGlassContentColor.current.copy(alpha = .8f), maxLines = if (notice.key in expanded) 12 else 2, overflow = TextOverflow.Ellipsis)
+                                    Row(Modifier.horizontalScroll(rememberScrollState())) {
                                         TextButton(onClick = { expanded = if (notice.key in expanded) expanded - notice.key else expanded + notice.key }) { Text(if (notice.key in expanded) "Less" else "More", fontSize = 12.sp) }
                                         if (notice.key in expanded) notice.actions.forEach { action ->
                                             TextButton(onClick = { if(!dev.vitreo.launcher.data.launchNotification(context,action.intent)) onError("This action is no longer available.") }) { Text(action.title, fontSize = 12.sp, maxLines = 1) }

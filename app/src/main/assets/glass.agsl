@@ -54,9 +54,12 @@ half4 main(float2 position) {
         (touchPoint - halfSize) / max(halfSize, float2(1.0)) + float2(-0.3, -0.4), pressed * 0.5));
     float lighting = dot(normal, lightDirection);
     float fresnel = pow(edge, 5.0);
-    float rim = exp(-abs(distance + pixelDensity * 0.9) / max(pixelDensity * 0.8, 1.0));
-    float specular = pow(max(lighting, 0.0), 3.0) * (fresnel * 0.34 + rim * 0.22);
-    float innerShade = max(-lighting, 0.0) * bend * 0.11;
+    // One soft outer lip, with a weaker reflected light on the opposite edge.
+    // Its maximum stays at the silhouette: no second peak inside the lens.
+    float lip = 1.0 - smoothstep(0.0, max(pixelDensity * 2.2, 1.0), max(-distance, 0.0));
+    float specular = pow(max(lighting, 0.0), 3.0) * (fresnel * 0.28 + lip * 0.19)
+        + pow(max(-lighting, 0.0), 4.0) * lip * 0.09;
+    float innerShade = max(-lighting, 0.0) * bend * 0.08;
     float touchGlow = exp(-length(position - touchPoint) / max(length(resolution) * 0.35, 1.0)) * pressed * 0.14;
     color = color + half3(specular - innerShade + touchGlow);
     return half4(clamp(color, half3(0.0), half3(1.0)), 1.0);

@@ -236,6 +236,48 @@ class NotificationIslandDeviceTest {
         }
     }
 
+    @Test fun cardCornersMorphWithTheVisibleBounds() {
+        shell("settings put global animator_duration_scale 3")
+        val model = inspect { androidx.lifecycle.ViewModelProvider(compose.activity)[LauncherViewModel::class.java] }
+        val original = model.ui.value.layout.appearance
+        val samples = java.util.concurrent.CopyOnWriteArrayList<Pair<Float, Float>>()
+        var recording = true
+        val callback = object : android.view.Choreographer.FrameCallback {
+            override fun doFrame(time: Long) {
+                if (!recording) return
+                islandView()?.findViewWithTag<android.view.View>("vitreo-island-card")?.let { tile ->
+                    val params = tile.layoutParams as android.widget.FrameLayout.LayoutParams
+                    val radius = (tile.background as android.graphics.drawable.GradientDrawable).cornerRadius
+                    samples.add(radius to minOf(params.width, params.height) / 2f)
+                }
+                android.view.Choreographer.getInstance().postFrameCallback(this)
+            }
+        }
+        try {
+            main { model.appearance(original.copy(themePreset = 0, reducedEffects = false)) }
+            compose.waitForIdle()
+            main { assertTrue(NotificationIsland.preview(context)) }
+            await { islandReady() && inspect { checkNotNull(islandView()).scaleX == 1f } }
+            val compactRadius = inspect {
+                (checkNotNull(islandView()).findViewWithTag<android.view.View>("vitreo-island-card").background as android.graphics.drawable.GradientDrawable).cornerRadius
+            }
+            main { android.view.Choreographer.getInstance().postFrameCallback(callback) }
+            tapView { it.findViewWithTag("vitreo-island-touch") }
+            val expandedRadius = 34 * context.resources.displayMetrics.density
+            await { samples.any { (r, _) -> r > compactRadius + 1f && r < expandedRadius - 1f } }
+            await { samples.any { (r, _) -> kotlin.math.abs(r - expandedRadius) < .1f } }
+            samples.clear()
+            main { NotificationIsland.collapse() }
+            await { samples.any { (r, _) -> r > compactRadius + 1f && r < expandedRadius - 1f } }
+            await { inspect { islandView()?.let { it.width < context.resources.displayMetrics.widthPixels } == true } }
+            assertTrue(samples.isNotEmpty())
+            assertTrue("The corner must remain inside the current silhouette", samples.all { (radius, maximum) -> radius >= 0f && radius <= maximum + .5f })
+        } finally {
+            main { recording = false; android.view.Choreographer.getInstance().removeFrameCallback(callback); model.appearance(original) }
+            compose.waitForIdle()
+        }
+    }
+
     @Test fun interruptedMorphAndForegroundRefreshKeepTheVisiblePosition() {
         shell("settings put global animator_duration_scale 0")
         await { inspect { !android.animation.ValueAnimator.areAnimatorsEnabled() } }

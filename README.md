@@ -74,7 +74,10 @@ stays on Android's own surface; Reduce Motion removes the icon arrival effect.
   Home keeps four columns and fits icons to the available width; dp measures layout
   space, so extra display pixels alone do not increase usable width.
   **Themes & Icons → iOS 16** selects uniform frosted surfaces, quiet shadows and
-  original colorful icons. iOS 26 keeps Liquid Glass and the saved optical preferences.
+  original colorful icons, with its own rounded-square Control Center, compact
+  menus, grouped settings and solid lock clock. Expanded classic modules return
+  with Back or the header arrow. iOS 26 keeps Liquid Glass and the saved optical
+  and clock-height preferences.
 - **Wallpaper:** use a built-in background or a local photo. Pinch, pan, Fit, Fill and
   Reset let you frame it before saving; the original remains available for later edits.
 

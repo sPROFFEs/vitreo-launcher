@@ -41,7 +41,8 @@ fun GlassPanel(modifier: Modifier = Modifier, radius: Float = 28f, tint: Float =
     if (LocalCyber.current) { CyberPanel(modifier, content); return }
     val glass = LocalGlass.current
     val classic = glass.appearance.iosClassic
-    val visualRadius = if (classic) minOf(radius, 28f) else radius
+    // Material and geometry are separate: Classic capsules must keep round ends.
+    val visualRadius = radius
     val surfaceReveal = LocalSurfaceReveal.current
     var pressed by remember { mutableStateOf(false) }
     var touch by remember { mutableStateOf(Offset(.5f, .5f)) }

@@ -88,7 +88,7 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
         }, ContextCompat.RECEIVER_NOT_EXPORTED)
         onDispose { context.unregisterReceiver(receiver); lifecycle.removeObserver(observer) }
     }
-    val options = home.lockScreen.sanitized()
+    val options = home.lockScreen.presentation(home)
     val currentClockHeight by rememberUpdatedState(options.clockHeight)
     val changeClockHeight by rememberUpdatedState(onClockHeight)
     val appearance = options.appearance(home).copy(reducedEffects = home.reducedEffects || saving || !interactive || !resumed)
@@ -200,7 +200,7 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                             .border(1.dp, Color.White.copy(alpha = .5f), RoundedCornerShape(18.dp))
                             .clickable(onClickLabel = "Edit clock font and color", onClick = onEditClock).testTag("lock_edit_clock") else Modifier)) {
                             LockClock(now, appearance, Modifier.fillMaxWidth().padding(vertical = 2.dp))
-                            if (onClockHeight != null && !cyber) Box(Modifier.align(Alignment.BottomEnd).size(44.dp)
+                            if (onClockHeight != null && !cyber && !appearance.iosClassic) Box(Modifier.align(Alignment.BottomEnd).size(44.dp)
                                 .pointerInput(Unit) {
                                     var value = options.clockHeight
                                     detectVerticalDragGestures(onDragStart = { value = currentClockHeight }, onVerticalDrag = { change, delta ->
@@ -296,7 +296,7 @@ internal fun lockClockFont(cyber: Boolean, style: Int): FontFamily = remember(cy
 
 @Composable
 internal fun LockClock(now: Long, a: Appearance, modifier: Modifier) {
-    val options = a.lockScreen
+    val options = a.lockScreen.presentation(a)
     val cyber = a.themePreset == 1
     val time = DateFormat.getBestDateTimePattern(Locale.getDefault(), if (DateFormat.is24HourFormat(LocalContext.current)) "Hm" else "hm")
         .let { SimpleDateFormat(it.replace("a", "").trim(), Locale.getDefault()).format(Date(now)) }

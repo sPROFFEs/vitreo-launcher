@@ -51,7 +51,7 @@ fun Spotlight(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestion
     Column(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .32f)).safeDrawingPadding()
         .imePadding().padding(horizontal = 18.dp).testTag("library_title")) {
         Row(Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-            GlassPanel(Modifier.weight(1f).height(49.dp), radius = 25f, tint = .24f, contentColor = Color.White) {
+            GlassPanel(Modifier.weight(1f).height(49.dp), radius = if (LocalGlass.current.appearance.iosClassic) 12f else 25f, tint = .24f, contentColor = Color.White) {
                 Row(Modifier.fillMaxSize().padding(horizontal = 13.dp), verticalAlignment = Alignment.CenterVertically) {
                     LauncherSymbol(Icons.Outlined.Search, null, Modifier.size(21.dp), tint = Color.White.copy(alpha = .8f))
                     BasicTextField(query, { onQueryChange(it.take(100)) }, Modifier.weight(1f).padding(start = 9.dp)
@@ -142,7 +142,8 @@ fun AppLibrary(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestio
             .toSortedMap().toList()
     }
     Column(Modifier.fillMaxSize().padding(horizontal = (if (cyber) 18f else IosDesign.HomeInset).dp, vertical = 12.dp).testTag("app_library")) {
-        GlassPanel(Modifier.fillMaxWidth().height(IosDesign.SearchHeight.dp).clickable(onClick = onSearch), radius = 25f, tint = .16f, interactive = true) {
+        GlassPanel(Modifier.fillMaxWidth().height(IosDesign.SearchHeight.dp).clickable(onClick = onSearch),
+            radius = if (LocalGlass.current.appearance.iosClassic) 12f else 25f, tint = .16f, interactive = true) {
             Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                 LauncherSymbol(Icons.Outlined.Search, null, Modifier.size(20.dp), tint = ink.copy(alpha = .8f))
                 Text("App Library", color = ink.copy(alpha = .85f), fontSize = 18.sp, modifier = Modifier.padding(start = 9.dp))

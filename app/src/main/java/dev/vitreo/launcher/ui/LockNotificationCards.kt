@@ -2,7 +2,6 @@ package dev.vitreo.launcher.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.clickable
@@ -28,15 +27,17 @@ import dev.vitreo.launcher.data.LockNotice
 fun LockNotificationCards(notices: List<LockNotice>, modifier: Modifier = Modifier, onOpen: (String) -> Unit) {
     LazyColumn(modifier.fillMaxWidth().clipToBounds().testTag("lock_notifications"),verticalArrangement=Arrangement.spacedBy(8.dp)) {
         items(notices,key={it.key}) { notice ->
-            GlassPanel(Modifier.fillMaxWidth().testTag("lock_notice:${notice.packageName}").clickable(onClickLabel="Unlock to open ${notice.app}") { onOpen(notice.key) },radius=24f,tint=.23f,interactive=true) {
-                Row(Modifier.padding(16.dp),verticalAlignment=Alignment.CenterVertically) {
-                    Box(Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)).background(Color.White.copy(alpha=.12f)), contentAlignment=Alignment.Center) {
+            GlassPanel(Modifier.fillMaxWidth().testTag("lock_notice:${notice.packageName}").clickable(onClickLabel="Unlock to open ${notice.app}") { onOpen(notice.key) },
+                radius=if(LocalGlass.current.appearance.iosClassic) 22f else 24f,tint=.23f,
+                material=GlassMaterial.Regular,contentColor=Color.White,interactive=true) {
+                Row(Modifier.heightIn(min=76.dp).padding(14.dp),verticalAlignment=Alignment.CenterVertically) {
+                    Box(Modifier.size(32.dp).clip(if(LocalCyber.current) CyberShape else IconShape).background(Color.White.copy(alpha=.12f)), contentAlignment=Alignment.Center) {
                         if (notice.appIcon != null) Image(notice.appIcon.asImageBitmap(), "${notice.app} app icon", Modifier.fillMaxSize())
                         else LauncherSymbol(Icons.Outlined.NotificationsNone,null,Modifier.size(24.dp),tint=Color.White)
                     }
                     Column(Modifier.weight(1f).padding(start=12.dp)) {
                         Row(verticalAlignment=Alignment.CenterVertically) {
-                            Text(notice.app,Modifier.weight(1f),color=Color.White,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
+                            Text(notice.app,Modifier.weight(1f),color=Color.White,fontSize=15.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
                             if (notice.time > 0) Text(android.text.format.DateUtils.getRelativeTimeSpanString(notice.time,System.currentTimeMillis(),60_000).toString(),
                                 Modifier.padding(start=8.dp),color=Color.White.copy(alpha=.65f),fontSize=11.sp,maxLines=1)
                         }

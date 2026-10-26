@@ -34,6 +34,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import androidx.compose.ui.platform.LocalLayoutDirection
 import kotlin.math.*
@@ -96,7 +97,7 @@ fun IosSwitch(checked: Boolean, enabled: Boolean = true) {
 @Composable
 fun IosGroup(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     if (LocalCyber.current) { CyberPanel(modifier.fillMaxWidth()) { Column(Modifier.fillMaxWidth(), content = content) }; return }
-    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp))
+    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(if (LocalGlass.current.appearance.iosClassic) 10.dp else 22.dp))
         .background(MaterialTheme.colorScheme.surface), content = content)
 }
 
@@ -109,9 +110,10 @@ fun IosRow(title: String, detail: String? = null, enabled: Boolean = true,
         .then(if (onClick != null) Modifier.clickable(interactions, null, enabled = enabled, onClick = onClick) else Modifier)
         .heightIn(min = 52.dp).padding(horizontal = 17.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Text(title, Modifier.weight(1f), fontSize = 16.sp,
+        Text(title, Modifier.weight(1f), fontSize = if (LocalGlass.current.appearance.iosClassic) 17.sp else 16.sp,
             color = if (destructive) Color(0xffff453a) else MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else .45f))
-        detail?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp, modifier = Modifier.padding(start = 8.dp)) }
+        detail?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp,
+            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 140.dp).padding(start = 8.dp)) }
         if (onClick != null) LauncherSymbol(Icons.Outlined.ChevronRight, null, Modifier.size(19.dp).padding(start = 3.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .5f))
     }

@@ -135,7 +135,8 @@ fun AppContextMenu(target: AppActionTarget?, state: LauncherState, apps: Map<Str
                 val start = if (cyber) .96f else .86f
                 val scale = if (reduced) 1f else start + (1f - start) * progress.value
                 scaleX = scale; scaleY = scale
-            }.clickable(remember { MutableInteractionSource() }, null) {}, radius = if (cyber) 24f else 28f, material = GlassMaterial.Regular) {
+            }.clickable(remember { MutableInteractionSource() }, null) {},
+            radius = if (cyber) 24f else if (LocalGlass.current.appearance.iosClassic) 14f else 28f, material = GlassMaterial.Regular) {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(entryLabel(entry, apps), Modifier.padding(horizontal = 17.dp, vertical = 12.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.Medium)

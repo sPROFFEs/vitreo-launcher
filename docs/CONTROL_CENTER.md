@@ -5,6 +5,13 @@ Settings → Status Bar & Notifications contains the shared Home/Lock Screen sta
 The three integration options default to **off**, including when upgrading old
 layouts. Turning off Control Center removes its gesture and Today button.
 
+**iOS 16 Classic** uses rounded-square controls, a frosted main page, Screen
+Mirroring and more compact slider corners. Tap a module's expansion control for
+media or connectivity; Back or the top-left arrow returns to the main page.
+The header's ellipsis opens shortcut editing. **iOS 26** retains the vertical
+Favorites/Media/Connectivity rail, circular controls and Liquid Glass. Its compact
+network cluster opens the full connectivity page as one accessible control.
+
 ## Gestures and system boundaries
 
 Start a downward pull in the upper-right 38% for Control Center, or the left 62%
