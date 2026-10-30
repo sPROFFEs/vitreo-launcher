@@ -74,7 +74,7 @@ fun CyberPanel(modifier: Modifier = Modifier, content: @Composable BoxScope.() -
     Box(modifier.clip(CyberShape).background(CyberColors.Panel).border(1.dp, CyberColors.Red.copy(alpha = .7f), CyberShape)) {
         Canvas(Modifier.matchParentSize()) {
             val p = reveal.value
-            if (appearance.cyberImmersive && animated) {
+            if (appearance.cyberImmersive && animated && dev.vitreo.launcher.core.CYBER_EFFECT_PANEL_SWEEP in appearance.cyberNightEffects) {
                 val sweep = phase.value
                 drawLine(CyberColors.Yellow.copy(alpha = .75f), Offset(size.width * sweep, 1.dp.toPx()),
                     Offset((size.width * sweep + size.width * .16f).coerceAtMost(size.width), 1.dp.toPx()), 2.dp.toPx())

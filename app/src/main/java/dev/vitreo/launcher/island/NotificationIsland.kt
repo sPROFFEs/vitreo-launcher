@@ -52,6 +52,7 @@ object NotificationIsland {
     private var animator:ValueAnimator?=null
     private var current:Notice?=null
     private var sample=false
+    private var editing=false
     private var appearance=Appearance()
     private var lastBounds:IslandRect?=null
     private var lastGeometry:IslandBounds?=null
@@ -91,7 +92,26 @@ object NotificationIsland {
     }
     fun update(value:IslandLayout) {
         placement.value=value.sanitized();IslandPreferences.write(app,placement.value)
-        if(root!=null) { render(status.value.expanded,false); if(sample) deadline() }
+        if(root!=null) { render(status.value.expanded,false); if(sample && !editing) deadline() }
+    }
+    fun startEditing(context:Context) {
+        initialize(context)
+        editing=true
+        if(hasPermission(app) && unlocked()) {
+            current=Notice("island-preview",app.packageName,"Vitreo","Your notifications, at a glance",
+                "Tap outside to collapse. Open an app or dismiss an alert from here.",System.currentTimeMillis(),false,null,
+                appIcon=NoticeIcons.load(app,app.packageName,null))
+            sample=true;syncRegistration();render(false,false)
+        }
+    }
+    fun stopEditing() {
+        if(!editing) return
+        editing=false
+        if(sample) {
+            sample=false
+            current=null
+            hide(false)
+        }
     }
     internal fun connect(context:Context) {
         initialize(context);connected=true;NoticeIcons.clear();syncRegistration();publish()
@@ -166,6 +186,7 @@ object NotificationIsland {
     }
     private fun deadline() {
         handler.removeCallbacks(expire)
+        if(editing) return
         val base=if(sample) 30_000 else if(status.value.expanded) 20_000 else layout.value.duration*1000
         val timeout=app.getSystemService(AccessibilityManager::class.java).getRecommendedTimeoutMillis(base,
             AccessibilityManager.FLAG_CONTENT_TEXT or AccessibilityManager.FLAG_CONTENT_ICONS or AccessibilityManager.FLAG_CONTENT_CONTROLS)
@@ -249,7 +270,14 @@ object NotificationIsland {
                     tag=if(handle) "vitreo-island-handle" else "vitreo-island-touch"
                     if(handle) { background=shape(dp(7).toFloat());addView(View(overlayContext).apply { background=shape(dp(1).toFloat()).apply { setColor(0xffa8a8ad.toInt()) } },
                         FrameLayout.LayoutParams(dp(14),dp(2),Gravity.CENTER)) }
-                    importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_NO;setOnClickListener { render(true,true);deadline() }
+                    else if(editing) {
+                        background=GradientDrawable().apply {
+                            setColor(0x2800E5FF.toInt())
+                            setStroke(dp(1),0xCC00E5FF.toInt())
+                            cornerRadius=dp(12).toFloat()
+                        }
+                    }
+                    importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_NO;setOnClickListener { render(true,true); if(!editing) deadline() }
                     minimumHeight=0;isClickable=true
                 },FrameLayout.LayoutParams(rect.width,rect.height).apply { leftMargin=rect.left-originX;topMargin=rect.top-originY })
             }

@@ -10,6 +10,26 @@ const val MAX_FOLDER_ID_LENGTH = 128
 const val MIN_ICON_SIZE = 40f
 const val MAX_ICON_SIZE = 100f
 
+const val CYBER_EFFECT_RAIN = "rain"
+const val CYBER_EFFECT_SCANLINE = "scanline"
+const val CYBER_EFFECT_GLITCH = "glitch"
+const val CYBER_EFFECT_GRID = "grid"
+const val CYBER_EFFECT_TELEMETRY = "telemetry"
+const val CYBER_EFFECT_BLOOM = "bloom"
+const val CYBER_EFFECT_PANEL_SWEEP = "panel_sweep"
+
+val CYBER_NIGHT_EFFECTS: List<String> = listOf(
+    CYBER_EFFECT_RAIN,
+    CYBER_EFFECT_GLITCH,
+    CYBER_EFFECT_GRID,
+    CYBER_EFFECT_SCANLINE,
+    CYBER_EFFECT_TELEMETRY,
+    CYBER_EFFECT_BLOOM,
+    CYBER_EFFECT_PANEL_SWEEP,
+)
+
+val DEFAULT_CYBER_NIGHT_EFFECTS: Set<String> = CYBER_NIGHT_EFFECTS.toSet()
+
 private val APP_ID_PATTERN = Regex("[A-Za-z][A-Za-z0-9_.]*/[A-Za-z_.$][A-Za-z0-9_.$]*")
 fun isFolderId(value: String): Boolean = value.startsWith("folder:") &&
     value.length in 8..MAX_FOLDER_ID_LENGTH
@@ -44,6 +64,7 @@ data class Appearance(
     val themePreset: Int = 0,
     val cyberEffects: Boolean = true,
     val cyberImmersive: Boolean = false,
+    val cyberNightEffects: Set<String> = DEFAULT_CYBER_NIGHT_EFFECTS,
     val cyberStatusHeight: Float = 22f,
     val cyberStatusOpacity: Float = .72f,
     val iconPack: String = "",
@@ -76,6 +97,7 @@ data class Appearance(
         photoTransform = photoTransform.sanitized(),
         wallpaperDim = if (wallpaperDim.isFinite()) wallpaperDim.coerceIn(0f, .6f) else .12f,
         themePreset = themePreset.coerceIn(0, 1),
+        cyberNightEffects = cyberNightEffects.intersect(DEFAULT_CYBER_NIGHT_EFFECTS),
         cyberStatusHeight = if (cyberStatusHeight.isFinite()) cyberStatusHeight.coerceIn(16f, 40f) else 22f,
         cyberStatusOpacity = if (cyberStatusOpacity.isFinite()) cyberStatusOpacity.coerceIn(.2f, 1f) else .72f,
         panelGestureHeight = if (panelGestureHeight.isFinite()) panelGestureHeight.coerceIn(64f, 180f) else 112f,

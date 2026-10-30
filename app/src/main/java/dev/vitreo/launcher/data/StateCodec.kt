@@ -49,6 +49,7 @@ object StateCodec {
                 put("themePreset", s.appearance.themePreset)
                 put("cyberEffects", s.appearance.cyberEffects)
                 put("cyberImmersive", s.appearance.cyberImmersive)
+                put("cyberNightEffects", JSONArray(s.appearance.cyberNightEffects.toList()))
                 put("cyberStatusHeight", s.appearance.cyberStatusHeight.toDouble())
                 put("cyberStatusOpacity", s.appearance.cyberStatusOpacity.toDouble())
                 put("controlWide", JSONArray(s.appearance.controlWide.toList()))
@@ -118,6 +119,7 @@ object StateCodec {
                 themePreset = a.optInt("themePreset", 0),
                 cyberEffects = a.optBoolean("cyberEffects", true),
                 cyberImmersive = a.optBoolean("cyberImmersive", false),
+                cyberNightEffects = a.optJSONArray("cyberNightEffects")?.let { strings(it, 32).toSet() } ?: DEFAULT_CYBER_NIGHT_EFFECTS,
                 cyberStatusHeight = a.optDouble("cyberStatusHeight", 22.0).toFloat(),
                 cyberStatusOpacity = a.optDouble("cyberStatusOpacity", .72).toFloat(),
                 controlWide = a.optJSONArray("controlWide")?.let { strings(it, 32).toSet() } ?: emptySet(),

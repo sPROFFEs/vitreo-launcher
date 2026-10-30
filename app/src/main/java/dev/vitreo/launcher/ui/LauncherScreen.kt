@@ -167,7 +167,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         if (appearance.reducedEffects || homeRevealSerial == 0) arrival.snapTo(1f)
         else {
             if (arrival.value >= .999f) arrival.snapTo(0f)
-            arrival.animateTo(1f, spring(dampingRatio = 1f, stiffness = 350f))
+            arrival.animateTo(1f, spring(dampingRatio = 1f, stiffness = 900f))
         }
     }
     DisposableEffect(widgets, lifecycle) {

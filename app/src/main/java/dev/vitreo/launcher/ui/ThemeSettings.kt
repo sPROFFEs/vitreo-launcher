@@ -84,8 +84,32 @@ fun ThemeSettings(ui: LauncherViewModel.UiState, onAppearance: (Appearance) -> U
             IosDivider()
             PackChoice("Immersive · Neon city", a.cyberImmersive, "cyber_immersive") { onAppearance(a.copy(cyberImmersive = true)) }
         }
-        Text("Immersive adds rain, drifting light, a scanning HUD and animated panel edges. Classic keeps the original restrained appearance. Both keep your layout and wallpaper.",
+        Text("Immersive adds dynamic rain, drifting neon light, scanning HUD, 3D cyberspace grid and relic glitch effects. Classic keeps the restrained appearance. Both keep your layout and wallpaper.",
             Modifier.padding(17.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (a.cyberImmersive) {
+            IosSectionLabel("Night City effects")
+            IosGroup {
+                val effects = listOf(
+                    dev.vitreo.launcher.core.CYBER_EFFECT_RAIN to "Neon rain",
+                    dev.vitreo.launcher.core.CYBER_EFFECT_GLITCH to "Relic glitch interference",
+                    dev.vitreo.launcher.core.CYBER_EFFECT_GRID to "Cyberspace matrix grid",
+                    dev.vitreo.launcher.core.CYBER_EFFECT_SCANLINE to "Scanlines & radar sweep",
+                    dev.vitreo.launcher.core.CYBER_EFFECT_TELEMETRY to "Kiroshi optics telemetry",
+                    dev.vitreo.launcher.core.CYBER_EFFECT_BLOOM to "Neon bloom & ambient drift",
+                    dev.vitreo.launcher.core.CYBER_EFFECT_PANEL_SWEEP to "Panel edge sweeps"
+                )
+                effects.forEachIndexed { index, (key, title) ->
+                    val active = key in a.cyberNightEffects
+                    IosToggleRow(title, active, modifier = Modifier.testTag("cyber_effect_$key")) { enabled ->
+                        val updated = if (enabled) a.cyberNightEffects + key else a.cyberNightEffects - key
+                        onAppearance(a.copy(cyberNightEffects = updated))
+                    }
+                    if (index < effects.lastIndex) IosDivider()
+                }
+            }
+            Text("Select the cyberpunk effects active in Night City mode.",
+                Modifier.padding(horizontal = 17.dp, vertical = 8.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         IosSectionLabel("Status bar appearance")
         IosGroup {
             Column(Modifier.fillMaxWidth().padding(17.dp).testTag("cyber_status_controls")) {

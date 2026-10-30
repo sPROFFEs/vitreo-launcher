@@ -230,12 +230,12 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                                 (lockContentHeight - with(metrics) { clockPixels.toDp() } - 128.dp).coerceAtLeast(0.dp)))) {
                                 if (!preview) onNotification(it) else localMessage = "Unlock to view notifications."
                             }
-                        } else if (options.notificationCount && bridge.access && bridge.connected) {
+                        } else if (options.notificationCount && bridge.access && bridge.connected && notices.isNotEmpty()) {
                             GlassPanel(Modifier.fillMaxWidth().testTag("lock_notifications"), radius = 24f, tint = .22f) {
                                 Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
                                     LauncherSymbol(Icons.Outlined.NotificationsNone, null, tint = Color.White)
                                     Column(Modifier.padding(start = 12.dp)) {
-                                        Text(if (notices.isEmpty()) "No notifications" else "Notifications available", color = Color.White, fontWeight = FontWeight.SemiBold)
+                                        Text(if (notices.size == 1) "1 notification" else "${notices.size} notifications", color = Color.White, fontWeight = FontWeight.SemiBold)
                                         Text("Unlock to view", color = Color.White.copy(alpha = .7f), fontSize = 13.sp)
                                     }
                                 }

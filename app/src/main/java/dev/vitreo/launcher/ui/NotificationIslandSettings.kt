@@ -36,8 +36,18 @@ internal fun NotificationIslandSettings(onAndroidBanners:()->Unit) {
     var hint by remember { mutableStateOf<String?>(null) }
     val lifecycle=LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {
-        val observer=LifecycleEventObserver { _,event -> if(event==Lifecycle.Event.ON_RESUME) NotificationIsland.refresh() }
-        lifecycle.addObserver(observer);onDispose { lifecycle.removeObserver(observer) }
+        NotificationIsland.startEditing(context)
+        val observer=LifecycleEventObserver { _,event ->
+            if(event==Lifecycle.Event.ON_RESUME) {
+                NotificationIsland.refresh()
+                NotificationIsland.startEditing(context)
+            }
+        }
+        lifecycle.addObserver(observer)
+        onDispose {
+            lifecycle.removeObserver(observer)
+            NotificationIsland.stopEditing()
+        }
     }
     fun change(v:IslandLayout) { NotificationIsland.update(v) }
     IosGroup {
@@ -133,10 +143,28 @@ private fun IslandPlacementPreview(a:IslandLayout,peer:Boolean) {
     Canvas(Modifier.fillMaxWidth().height(210.dp).testTag("island_placement_preview")) {
         val scale=minOf(size.width/380f,size.height/440f)
         val ox=(size.width-360*scale)/2
-        drawRoundRect(Color(0xff35363b),Offset(ox,0f),Size(360*scale,440*scale),CornerRadius(20*scale))
-        fun paint(r:dev.vitreo.launcher.core.IslandRect,color:Color) { drawRoundRect(color,Offset(ox+r.left*scale,r.top*scale),Size(r.width*scale,r.height*scale),CornerRadius(12*scale)) }
+        drawRoundRect(Color(0xff2d2e33),Offset(ox,0f),Size(360*scale,440*scale),CornerRadius(22*scale))
+        drawRoundRect(Color(0xff16171b),Offset(ox+6*scale,6*scale),Size(348*scale,428*scale),CornerRadius(18*scale))
+        drawCircle(Color(0xff090a0c),radius=5*scale,center=Offset(ox+180*scale,18*scale))
+
+        fun paint(r:dev.vitreo.launcher.core.IslandRect,color:Color,stroke:Float=0f) {
+            if (stroke>0f) {
+                drawRoundRect(color,Offset(ox+r.left*scale,r.top*scale),Size(r.width*scale,r.height*scale),CornerRadius(12*scale),
+                    style=androidx.compose.ui.graphics.drawscope.Stroke(stroke))
+            } else {
+                drawRoundRect(color,Offset(ox+r.left*scale,r.top*scale),Size(r.width*scale,r.height*scale),CornerRadius(12*scale))
+            }
+        }
         islandBounds(a,360,800,0,36,0,24,peer)?.let { b ->
-            paint(b.touch,Color.Cyan.copy(alpha=.25f));paint(b.capsule,Color.Black);b.handle?.let { paint(it,Color.LightGray) }
+            paint(b.touch,Color(0x2800E5FF))
+            paint(b.touch,Color(0xCC00E5FF),1.5f*scale)
+            paint(b.capsule,Color.Black)
+            paint(b.capsule,Color(0x33FFFFFF),1f*scale)
+            val cy=(b.capsule.top+b.capsule.bottom)/2f*scale
+            val ir=minOf(10f,b.capsule.height*0.28f)*scale
+            drawCircle(Color(0xff3b82f6),radius=ir,center=Offset(ox+(b.capsule.left+14)*scale,cy))
+            drawCircle(Color(0xfff59e0b),radius=ir*0.75f,center=Offset(ox+(b.capsule.right-14)*scale,cy))
+            b.handle?.let { paint(it,Color.LightGray) }
         }
     }
 }

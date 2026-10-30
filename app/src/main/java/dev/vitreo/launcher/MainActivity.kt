@@ -68,7 +68,7 @@ class MainActivity : ComponentActivity() {
         dev.vitreo.launcher.update.AppUpdates.onForeground()
         dev.vitreo.launcher.island.NotificationIsland.refresh()
         if (leftForApp) { leftForApp = false; appReturnSerial++ }
-        revealHomeWhenFocused()
+        revealHome()
         defaultHome = isDefaultHome()
         model.homeRole(defaultHome)
         model.refresh()
@@ -82,17 +82,15 @@ class MainActivity : ComponentActivity() {
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) {
-            revealHomeWhenFocused()
+            revealHome()
             homeFocusedOnce = true
         }
         if (hasFocus && defaultHome && model.systemBackgroundVisible.value) runCatching {
             android.app.WallpaperManager.getInstance(this).setWallpaperOffsets(window.decorView.windowToken, .5f, .5f)
         }
     }
-    private fun revealHomeWhenFocused() {
-        // RESUMED can precede the visible window while Android still animates
-        // its Recents card. Start the icon arrival with actual input focus.
-        if (pendingHomeReveal && hasWindowFocus() && lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
+    private fun revealHome() {
+        if (pendingHomeReveal && lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
             pendingHomeReveal = false
             homeRevealSerial++
         }
@@ -100,8 +98,10 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (homeFocusedOnce && !hasWindowFocus() && intent.action == Intent.ACTION_MAIN &&
-            intent.hasCategory(Intent.CATEGORY_HOME)) pendingHomeReveal = true
+        if (homeFocusedOnce && intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_HOME)) {
+            pendingHomeReveal = true
+            revealHome()
+        }
         // The first HOME after an app restores the place it was opened from.
         // A further HOME closes that folder/search and returns to the first page.
         if (!leftForApp) homeSerial++

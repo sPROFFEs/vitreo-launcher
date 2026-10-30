@@ -18,6 +18,11 @@ class StateCodecTest {
         assertEquals(WALLPAPER_NAMES.lastIndex, Appearance(palette = 999).sanitized().palette)
         val legacy = StateCodec.decode("""{"schema":1,"home":[],"dock":[],"appearance":{"themePreset":1}}""").appearance
         assertEquals(22f, legacy.cyberStatusHeight); assertEquals(.72f, legacy.cyberStatusOpacity)
+        assertEquals(DEFAULT_CYBER_NIGHT_EFFECTS, legacy.cyberNightEffects)
+        val customEffects = LauncherState(appearance = Appearance(themePreset = 1, cyberImmersive = true,
+            cyberNightEffects = setOf(CYBER_EFFECT_RAIN, CYBER_EFFECT_GLITCH))).sanitized()
+        assertEquals(customEffects, StateCodec.decode(StateCodec.encode(customEffects)))
+        assertEquals(setOf(CYBER_EFFECT_RAIN), Appearance(cyberNightEffects = setOf(CYBER_EFFECT_RAIN, "unknown_effect")).sanitized().cyberNightEffects)
         assertEquals(16f, Appearance(cyberStatusHeight = -1f).sanitized().cyberStatusHeight)
         assertEquals(40f, Appearance(cyberStatusHeight = 999f).sanitized().cyberStatusHeight)
         assertEquals(22f, Appearance(cyberStatusHeight = Float.NaN).sanitized().cyberStatusHeight)
