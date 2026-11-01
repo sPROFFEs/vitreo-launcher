@@ -9,7 +9,13 @@ class HomeGridTest {
         assertEquals(apps, pages.flatMap { it.apps }.map { it.entry })
         pages.forEachIndexed { pageIndex, page ->
             val occupied = mutableSetOf<Pair<Int, Int>>()
-            if (page.builtins) repeat(2) { row -> repeat(4) { occupied.add(it to row) } }
+            if (page.builtins) {
+                if (page.builtinClock && page.builtinCalendar) {
+                    repeat(2) { row -> repeat(4) { occupied.add(it to row) } }
+                } else if (page.builtinClock || page.builtinCalendar) {
+                    repeat(2) { row -> repeat(2) { occupied.add(it to row) } }
+                }
+            }
             page.widgets.forEach { widget ->
                 assertEquals(pageIndex, widget.page)
                 repeat(widget.rows) { y -> repeat(widget.columns) { x ->
@@ -75,5 +81,26 @@ class HomeGridTest {
         assertFalse(shouldDismissSurface(100f, -800f))
         assertFalse(shouldDismissSurface(40f, 0f))
         assertFalse(shouldDismissSurface(Float.NaN, 0f))
+    }
+
+    @Test fun individualClockOrCalendarWidgetOnlyReservesHalfTopGrid() {
+        val clockOnly = planHomeGrid(apps, emptyList(), 6, true, builtinClock = true, builtinCalendar = false)
+        assertTrue(clockOnly.first().builtins)
+        assertTrue(clockOnly.first().builtinClock)
+        assertFalse(clockOnly.first().builtinCalendar)
+        assertEquals(20, clockOnly.first().apps.size)
+        assertSafe(clockOnly, 6)
+
+        val calendarOnly = planHomeGrid(apps, emptyList(), 6, true, builtinClock = false, builtinCalendar = true)
+        assertTrue(calendarOnly.first().builtins)
+        assertFalse(calendarOnly.first().builtinClock)
+        assertTrue(calendarOnly.first().builtinCalendar)
+        assertEquals(20, calendarOnly.first().apps.size)
+        assertSafe(calendarOnly, 6)
+
+        val neither = planHomeGrid(apps, emptyList(), 6, true, builtinClock = false, builtinCalendar = false)
+        assertFalse(neither.first().builtins)
+        assertEquals(24, neither.first().apps.size)
+        assertSafe(neither, 6)
     }
 }

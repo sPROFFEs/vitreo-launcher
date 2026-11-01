@@ -123,29 +123,45 @@ fun packIcon(id: String): Bitmap? {
 }
 
 @Composable
-fun CyberHomeWidgets(now: Long, modifier: Modifier, onClock: () -> Unit, onCalendar: () -> Unit) {
+fun CyberHomeWidgets(now: Long, modifier: Modifier, onClock: () -> Unit, onCalendar: () -> Unit,
+    showClock: Boolean = true, showCalendar: Boolean = true) {
+    if (!showClock && !showCalendar) return
     val context = LocalContext.current
     val date = remember(now / 60_000) { Date(now) }
-    Row(modifier.fillMaxWidth().padding(bottom = 7.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        listOf(true, false).forEach { clock ->
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                CyberPanel(Modifier.weight(1f).fillMaxWidth().clickable(onClick = if (clock) onClock else onCalendar)
-                    .testTag(if (clock) "clock_widget_card" else "calendar_widget_card")) {
-                    BoxWithConstraints(Modifier.fillMaxSize().padding(13.dp)) {
-                        val fontScale = LocalDensity.current.fontScale
-                        val large = minOf(if (clock) 36f else 56f, maxWidth.value / (if (clock) 2.9f else 1.8f) / fontScale)
-                        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
-                            Text(if (clock) "LOCAL TIME" else SimpleDateFormat("EEEE", Locale.ENGLISH).format(date).uppercase(Locale.ENGLISH),
-                                color = CyberColors.Red, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(if (clock) DateFormat.getTimeFormat(context).format(date) else SimpleDateFormat("dd", Locale.ENGLISH).format(date),
-                                color = CyberColors.Cyan, fontFamily = CyberFont, fontWeight = FontWeight.SemiBold, fontSize = large.sp, maxLines = 1)
-                            Text(if (clock) SimpleDateFormat("EEE / MMM dd", Locale.ENGLISH).format(date).uppercase(Locale.ENGLISH)
-                                else SimpleDateFormat("MMM / yyyy", Locale.ENGLISH).format(date).uppercase(Locale.ENGLISH),
-                                color = CyberColors.Text, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                    }
+    val contentModifier = modifier.fillMaxWidth().padding(start = 5.dp, end = 5.dp, top = 5.dp, bottom = 10.dp)
+
+    @Composable
+    fun cyberCard(isClock: Boolean, cardModifier: Modifier) {
+        CyberPanel(cardModifier.clickable(onClick = if (isClock) onClock else onCalendar)
+            .testTag(if (isClock) "clock_widget_card" else "calendar_widget_card")) {
+            BoxWithConstraints(Modifier.fillMaxSize().padding(13.dp)) {
+                val fontScale = LocalDensity.current.fontScale
+                val large = minOf(if (isClock) 36f else 56f, maxWidth.value / (if (isClock) 2.9f else 1.8f) / fontScale)
+                Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+                    Text(if (isClock) "LOCAL TIME" else SimpleDateFormat("EEEE", Locale.ENGLISH).format(date).uppercase(Locale.ENGLISH),
+                        color = CyberColors.Red, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(if (isClock) DateFormat.getTimeFormat(context).format(date) else SimpleDateFormat("dd", Locale.ENGLISH).format(date),
+                        color = CyberColors.Cyan, fontFamily = CyberFont, fontWeight = FontWeight.SemiBold, fontSize = large.sp, maxLines = 1)
+                    Text(if (isClock) SimpleDateFormat("EEE / MMM dd", Locale.ENGLISH).format(date).uppercase(Locale.ENGLISH)
+                        else SimpleDateFormat("MMM / yyyy", Locale.ENGLISH).format(date).uppercase(Locale.ENGLISH),
+                        color = CyberColors.Text, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
+        }
+    }
+
+    if (showClock && showCalendar) {
+        Row(contentModifier, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            cyberCard(true, Modifier.weight(1f).fillMaxHeight())
+            cyberCard(false, Modifier.weight(1f).fillMaxHeight())
+        }
+    } else if (showClock) {
+        Row(contentModifier) {
+            cyberCard(true, Modifier.fillMaxWidth(.5f).fillMaxHeight().padding(end = 5.dp))
+        }
+    } else {
+        Row(contentModifier) {
+            cyberCard(false, Modifier.fillMaxWidth(.5f).fillMaxHeight().padding(end = 5.dp))
         }
     }
 }

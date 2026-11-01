@@ -96,6 +96,8 @@ private sealed interface Sheet {
     data object NewFolder : Sheet
     data class PairWith(val app: String) : Sheet
     data class AddToFolder(val app: String) : Sheet
+    data class BuiltinWidget(val kind: String) : Sheet
+    data class AppPickerForWidget(val kind: String) : Sheet
 }
 private data class DragSession(val entry: HomeEntry, val position: Offset)
 private data class WidgetDragSession(val placement: HomeWidgetPlacement, val position: Offset)
@@ -189,8 +191,9 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val rowHeight = if (workspaceWasEditing) (geometry.cells.rowHeight - 33f / geometry.rows)
         .coerceAtLeast(geometry.iconSize + 20f * density.fontScale + 8f) else geometry.cells.rowHeight
     val withWidgets = appearance.showWidgets && geometry.rows >= 4
-    val homeGrid = remember(ui.layout.home, widgets.homePlacements.toList(), geometry.rows, withWidgets) {
-        planHomeGrid(ui.layout.home, widgets.homePlacements.toList(), geometry.rows, withWidgets)
+    val homeGrid = remember(ui.layout.home, widgets.homePlacements.toList(), geometry.rows, withWidgets, appearance.showClockWidget, appearance.showCalendarWidget) {
+        planHomeGrid(ui.layout.home, widgets.homePlacements.toList(), geometry.rows, withWidgets,
+            builtinClock = appearance.showClockWidget, builtinCalendar = appearance.showCalendarWidget)
     }
     val homePages = homeGrid.size + if (widgetDrag != null) 1 else 0
     val pager = rememberPagerState(initialPage = 1, pageCount = { homePages + 2 })
@@ -313,12 +316,73 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
             }
         }
     }
-    fun openCalendar() {
-        val app = ui.apps.firstOrNull { "calendar" in it.packageName || "calendario" in searchKey(it.label) }
-        if (app != null) launch(app.id, null) else model.message("No calendar app is installed.")
+    fun openClockWidget() {
+        val customApp = appearance.clockApp.trim()
+        if (customApp.isNotEmpty()) {
+            val app = ui.apps.firstOrNull { it.id == customApp || it.packageName == customApp }
+            if (app != null) {
+                launch(app.id, null)
+                return
+            }
+        }
+        try {
+            context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS))
+            return
+        } catch (_: Exception) {
+            try {
+                context.startActivity(Intent(AlarmClock.ACTION_SET_ALARM))
+                return
+            } catch (_: Exception) { /* Fall through to catalog search */ }
+        }
+        val app = ui.apps.firstOrNull {
+            val p = it.packageName.lowercase()
+            val l = searchKey(it.label)
+            "clock" in p || "deskclock" in p || "reloj" in l || "clock" in l || "alarm" in l || "alarma" in l
+        }
+        if (app != null) {
+            launch(app.id, null)
+        } else {
+            model.message("No clock app found. Choose an app to link.")
+            pushPage(Sheet.AppPickerForWidget("clock"))
+        }
+    }
+
+    fun openCalendarWidget() {
+        val customApp = appearance.calendarApp.trim()
+        if (customApp.isNotEmpty()) {
+            val app = ui.apps.firstOrNull { it.id == customApp || it.packageName == customApp }
+            if (app != null) {
+                launch(app.id, null)
+                return
+            }
+        }
+        try {
+            val intent = Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_CALENDAR)
+            context.startActivity(intent)
+            return
+        } catch (_: Exception) {
+            try {
+                val intent = Intent(Intent.ACTION_VIEW).setData(
+                    android.provider.CalendarContract.CONTENT_URI.buildUpon().appendPath("time").build()
+                )
+                context.startActivity(intent)
+                return
+            } catch (_: Exception) { /* Fall through to catalog search */ }
+        }
+        val app = ui.apps.firstOrNull {
+            val p = it.packageName.lowercase()
+            val l = searchKey(it.label)
+            "calendar" in p || "calendario" in l || "calendar" in l || "agenda" in l
+        }
+        if (app != null) {
+            launch(app.id, null)
+        } else {
+            model.message("No calendar app found. Choose an app to link.")
+            pushPage(Sheet.AppPickerForWidget("calendar"))
+        }
     }
     val opaqueScreen = sheet == Sheet.NewFolder || sheet == Sheet.Settings || sheet == Sheet.Widgets || sheet is Sheet.Widget || sheet is Sheet.IconPicker || sheet == Sheet.Licenses || sheet == Sheet.Wallpaper ||
-        sheet is Sheet.PairWith || sheet is Sheet.AddToFolder
+        sheet is Sheet.PairWith || sheet is Sheet.AddToFolder || sheet is Sheet.BuiltinWidget || sheet is Sheet.AppPickerForWidget
     val lightWallpaper = appearance.themePreset != 1 && (frame?.brightness ?: 0f) * (1f - appearance.wallpaperDim) > .62f
     val lightChrome = opaqueScreen && sheet != Sheet.Wallpaper && MaterialTheme.colorScheme.background.luminance() > .5f ||
         sheet == null && lightWallpaper
@@ -636,8 +700,9 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                                 todayEditing, { todayEditing = it }, onSearch = ::openSearch,
                                 onSettings = { sheet = Sheet.Settings }, onWidgets = { widgetGalleryHomePage = null; sheet = Sheet.Widgets },
                                 onControls = { if (appearance.controlCenter) sheet = Sheet.Controls },
-                                onClock = { system(AlarmClock.ACTION_SHOW_ALARMS) },
-                                onCalendar = ::openCalendar, onLaunch = ::launch, onEditWidget = { sheet = Sheet.Widget(it) }, active = pager.currentPage == 0 && !modalPresent && !launching)
+                                onClock = ::openClockWidget,
+                                onCalendar = ::openCalendarWidget, onLaunch = ::launch, onEditWidget = { sheet = Sheet.Widget(it) }, active = pager.currentPage == 0 && !modalPresent && !launching,
+                                onEditBuiltin = { pushPage(Sheet.BuiltinWidget(it)) })
                             homePages + 1 -> AppLibrary(ui.apps, apps, suggestions, { openSearch(alphabetical = true) }, ::launch,
                                 ::actions, { title, records, bounds -> folderAnchor = origin(bounds); sheet = Sheet.Category(title, records) })
                             else -> {
@@ -645,12 +710,13 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                                 Box(Modifier.fillMaxSize().padding(bottom = footerHeight)) {
                                     HomeWorkspace(grid, geometry.rows, rowHeight, geometry.iconSize, appearance.showLabels,
                                     editing || drag != null, drag?.entry?.id, widgetDrag?.placement?.id, apps, widgets, now,
-                                    { system(AlarmClock.ACTION_SHOW_ALARMS) }, ::openCalendar, openEntry,
+                                    ::openClockWidget, ::openCalendarWidget, openEntry,
                                     { entry, bounds -> actionTarget = AppActionTarget(entry, bounds) },
                                     { entry -> if (entry is HomeEntry.App) model.removeApp(entry.id) else model.dissolve(entry.id) },
                                     { sheet = Sheet.Widget(it) },
                                     { id, bounds -> if (bounds == null) cellBounds.remove(id) else cellBounds[id] = bounds },
-                                    groupingHover = hovered, groupingTarget = folderTarget)
+                                    groupingHover = hovered, groupingTarget = folderTarget,
+                                    onEditBuiltin = { pushPage(Sheet.BuiltinWidget(it)) })
                                 }
                             }
                         }
@@ -775,7 +841,8 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                             { backupImport.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
                             { reportExport.launch("vitreo-diagnostics-${BuildConfig.VERSION_NAME}.json") }, model::refresh, model::resetLayout,
                             { pushPage(Sheet.Licenses) }, { pushPage(Sheet.Widgets) },
-                            { if (appearance.controlCenter) pushPage(Sheet.Controls) })
+                            { if (appearance.controlCenter) pushPage(Sheet.Controls) },
+                            onPickAppForWidget = { pushPage(Sheet.AppPickerForWidget(it)) })
                         }
                         Sheet.Wallpaper -> {
                             var cachedDraft by remember { mutableStateOf(photoDraft) }
@@ -784,7 +851,9 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                                 { model.discardPhoto(); sheet = Sheet.Settings }, model::savePhoto) }
                         }
                         Sheet.Widgets -> WidgetGallery(widgets, appearance.showWidgets, { model.appearance(ui.layout.appearance.copy(showWidgets = it)) },
-                            onConfigureWidget, ::closeSurface, model::message, widgetGalleryHomePage)
+                            onConfigureWidget, ::closeSurface, model::message, widgetGalleryHomePage,
+                            appearance = ui.layout.appearance, onAppearance = model::appearance,
+                            onEditBuiltin = { pushPage(Sheet.BuiltinWidget(it)) })
                         is Sheet.Widget -> WidgetEditor(widgets, current.id,
                             homeGrid.flatMap { it.widgets }.firstOrNull { it.id == current.id }?.let { cell ->
                                 val saved = widgets.homePlacements.first { it.id == current.id }
@@ -818,6 +887,14 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                         Sheet.NewFolder -> NewFolderSheet(ui.apps, ::closeSurface) { ids, title ->
                             model.createFolder(ids, title); closeSurface()
                         }
+                        is Sheet.BuiltinWidget -> BuiltinWidgetEditor(current.kind, ui.layout.appearance, apps,
+                            model::appearance, { pushPage(Sheet.AppPickerForWidget(it)) }, ::closeSurface)
+                        is Sheet.AppPickerForWidget -> AppPickerForWidgetSheet(current.kind, ui.apps, apps,
+                            if (current.kind == "clock") ui.layout.appearance.clockApp else ui.layout.appearance.calendarApp,
+                            { chosen ->
+                                if (current.kind == "clock") model.appearance(ui.layout.appearance.copy(clockApp = chosen))
+                                else model.appearance(ui.layout.appearance.copy(calendarApp = chosen))
+                            }, ::closeSurface)
                         is Sheet.PairWith, is Sheet.AddToFolder -> Unit
                     }
                 }

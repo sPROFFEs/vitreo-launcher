@@ -29,7 +29,8 @@ internal fun HomeWorkspace(page: HomeGridPage, rows: Int, rowHeight: Float, icon
     editing: Boolean, draggedApp: String?, draggedWidget: Int?, apps: Map<String, AppRecord>, widgets: WidgetController,
     now: Long, onClock: () -> Unit, onCalendar: () -> Unit, onOpen: (HomeEntry, Rect?) -> Unit,
     onActions: (HomeEntry, Rect?) -> Unit, onRemove: (HomeEntry) -> Unit, onEditWidget: (Int) -> Unit,
-    onBounds: (String, Rect?) -> Unit, groupingHover: String? = null, groupingTarget: String? = null) {
+    onBounds: (String, Rect?) -> Unit, groupingHover: String? = null, groupingTarget: String? = null,
+    onEditBuiltin: ((String) -> Unit)? = null) {
     val density = LocalDensity.current
     val reduced = LocalGlass.current.appearance.reducedEffects
     val cyber = LocalCyber.current
@@ -46,7 +47,8 @@ internal fun HomeWorkspace(page: HomeGridPage, rows: Int, rowHeight: Float, icon
         Box(Modifier.fillMaxWidth().height((rows * rowHeight).dp)) {
             if (page.builtins) HomeWidgets(now, Modifier.height((rowHeight * 2).dp).testTag("home_builtin_widgets").graphicsLayer {
                 if (arrival.enabled) { val p = arrival.progress.value; alpha = (p * 3).coerceIn(0f, 1f); translationY = (1f - p) * 24.dp.toPx() }
-            }, onClock, onCalendar)
+            }, onClock, onCalendar, showClock = page.builtinClock, showCalendar = page.builtinCalendar,
+               editing = editing, onEditClock = { onEditBuiltin?.invoke("clock") }, onEditCalendar = { onEditBuiltin?.invoke("calendar") })
             page.apps.forEach { cell -> key(cell.entry.id) {
                 LauncherTile(cell.entry, apps, iconSize.dp, showLabels,
                     position(cell.column, cell.row).width(cellWidth).height(rowHeight.dp)

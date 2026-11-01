@@ -8,17 +8,27 @@ data class HomeWidgetPlacement(val id: Int, val page: Int = 0, val column: Int =
 }
 
 data class HomeAppCell(val entry: HomeEntry, val column: Int, val row: Int)
-data class HomeGridPage(val apps: List<HomeAppCell>, val widgets: List<HomeWidgetPlacement>, val builtins: Boolean)
+data class HomeGridPage(val apps: List<HomeAppCell>, val widgets: List<HomeWidgetPlacement>, val builtins: Boolean,
+    val builtinClock: Boolean = builtins, val builtinCalendar: Boolean = builtins)
 
 /** Reserve widget rectangles first, then flow apps through free cells in their saved order.
  * Repacking after a rotation/font/icon-size change never removes an app or a widget. */
-fun planHomeGrid(entries: List<HomeEntry>, widgets: List<HomeWidgetPlacement>, rows: Int, builtins: Boolean): List<HomeGridPage> {
+fun planHomeGrid(entries: List<HomeEntry>, widgets: List<HomeWidgetPlacement>, rows: Int, builtins: Boolean,
+    builtinClock: Boolean = builtins, builtinCalendar: Boolean = builtins): List<HomeGridPage> {
     require(rows in 1..6)
-    class Page(val hasBuiltinPair: Boolean) {
+    val hasClock = builtins && builtinClock && rows >= 4
+    val hasCalendar = builtins && builtinCalendar && rows >= 4
+    class Page(val hasClockBuiltin: Boolean, val hasCalendarBuiltin: Boolean) {
         val occupied = BooleanArray(rows * GRID_COLUMNS)
         val apps = mutableListOf<HomeAppCell>()
         val widgets = mutableListOf<HomeWidgetPlacement>()
-        init { if (hasBuiltinPair) repeat(2 * GRID_COLUMNS) { occupied[it] = true } }
+        init {
+            if (hasClockBuiltin && hasCalendarBuiltin) {
+                repeat(2 * GRID_COLUMNS) { occupied[it] = true }
+            } else if (hasClockBuiltin || hasCalendarBuiltin) {
+                repeat(2) { r -> repeat(2) { c -> occupied[r * GRID_COLUMNS + c] = true } }
+            }
+        }
         fun fits(column: Int, row: Int, width: Int, height: Int): Boolean =
             column + width <= GRID_COLUMNS && row + height <= rows &&
                 (row until row + height).all { y -> (column until column + width).all { x -> !occupied[y * GRID_COLUMNS + x] } }
@@ -26,8 +36,8 @@ fun planHomeGrid(entries: List<HomeEntry>, widgets: List<HomeWidgetPlacement>, r
             repeat(height) { y -> repeat(width) { x -> occupied[(row + y) * GRID_COLUMNS + column + x] = true } }
         }
     }
-    val pages = mutableListOf(Page(builtins && rows >= 4))
-    fun page(index: Int): Page { while (pages.size <= index) pages.add(Page(false)); return pages[index] }
+    val pages = mutableListOf(Page(hasClock, hasCalendar))
+    fun page(index: Int): Page { while (pages.size <= index) pages.add(Page(false, false)); return pages[index] }
     widgets.distinctBy { it.id }.filter { it.id >= 0 }.forEach { raw ->
         val widget = raw.sanitized().let { it.copy(rows = minOf(it.rows, rows)) }
         var index = widget.page
@@ -58,5 +68,5 @@ fun planHomeGrid(entries: List<HomeEntry>, widgets: List<HomeWidgetPlacement>, r
             appPage++
         }
     }
-    return pages.map { HomeGridPage(it.apps.toList(), it.widgets.toList(), it.hasBuiltinPair) }
+    return pages.map { HomeGridPage(it.apps.toList(), it.widgets.toList(), it.hasClockBuiltin || it.hasCalendarBuiltin, it.hasClockBuiltin, it.hasCalendarBuiltin) }
 }

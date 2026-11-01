@@ -1,5 +1,14 @@
 # Cambios
 
+## 0.10.6
+
+- Fix Clock widget horizontal offset and padding on Home screen so dial marks, hands, and drop shadow never clip or get cut off on the left.
+- Decouple Clock and Calendar widgets: each can now be enabled, placed, and edited individually on the Home screen.
+- Introduce Builtin Widget Editor with live interactive widget previews, Home screen visibility toggles, and direct removal.
+- Allow configuring custom linked applications for Clock and Calendar widgets, with a dedicated searchable application picker and graceful fallback to system apps or search discovery when no default is present.
+- Refine Clock widget dial geometry with 12 baton index marks, authentic baton hour/minute hands, orange second hand with counterweight tail and orange center cap.
+- Refine Calendar widget layout with localized system day of week in iOS Red (#FF3B30), large SF-style numeral, and localized month/year subheader.
+
 ## 0.10.5
 
 - Implement strictly critically damped spring physics (damping ratio = 1.0) across all panels,

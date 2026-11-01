@@ -56,55 +56,163 @@ import java.util.Locale
 import kotlin.math.*
 
 @Composable
-fun HomeWidgets(now: Long, modifier: Modifier = Modifier, onClock: () -> Unit, onCalendar: () -> Unit) {
-    if (LocalCyber.current) { CyberHomeWidgets(now, modifier, onClock, onCalendar); return }
+fun ClockWidgetCard(
+    now: Long,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    editing: Boolean = false,
+    onEdit: (() -> Unit)? = null,
+) {
     val calendar = remember(now) { Calendar.getInstance().apply { timeInMillis = now } }
     val secondsVisible = !LocalGlass.current.appearance.reducedEffects
     val timeLabel = DateFormat.getTimeFormat(LocalContext.current).format(Date(now))
-    Row(modifier.fillMaxWidth().padding(top = 5.dp, bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            GlassPanel(Modifier.weight(1f).fillMaxWidth().semantics { contentDescription = "Clock, $timeLabel" }
-                .clickable(onClick = onClock), radius = 28f, tint = .1f) {
-                Canvas(Modifier.fillMaxSize().padding(16.dp)) {
-                    val r = min(size.width, size.height) * .48f
-                    val center = Offset(size.width / 2, size.height / 2)
-                    drawCircle(Color(0xfff7f7f5), r, center)
-                    repeat(60) { index ->
-                        val angle = index * PI / 30
-                        val inner = r * if (index % 5 == 0) .81f else .9f
-                        drawLine(Color(0xff333336), center + Offset((sin(angle) * inner).toFloat(), (-cos(angle) * inner).toFloat()),
-                            center + Offset((sin(angle) * r * .94f).toFloat(), (-cos(angle) * r * .94f).toFloat()),
-                            strokeWidth = if (index % 5 == 0) 2.dp.toPx() else 1.dp.toPx(), cap = StrokeCap.Round)
-                    }
-                    fun hand(angle: Double, length: Float, width: Float, color: Color) {
-                        drawLine(color, center, center + Offset((sin(angle) * length).toFloat(), (-cos(angle) * length).toFloat()),
-                            width, cap = StrokeCap.Round)
-                    }
-                    val minute = calendar.get(Calendar.MINUTE)
-                    hand((calendar.get(Calendar.HOUR) + minute / 60.0) * PI / 6, r * .52f, 4.dp.toPx(), Color(0xff232326))
-                    hand(minute * PI / 30, r * .73f, 3.dp.toPx(), Color(0xff232326))
-                    if (secondsVisible) hand(calendar.get(Calendar.SECOND) * PI / 30, r * .78f, 1.dp.toPx(), Color(0xffff9f0a))
-                    drawCircle(Color(0xffff9f0a), 3.dp.toPx(), center)
+    val classic = LocalGlass.current.appearance.iosClassic
+
+    Box(modifier.testTag("clock_widget_card")) {
+        GlassPanel(
+            Modifier.fillMaxSize()
+                .semantics { contentDescription = "Clock, $timeLabel" }
+                .clickable(onClick = if (editing && onEdit != null) onEdit else onClick),
+            radius = 28f,
+            tint = if (classic) .18f else .12f
+        ) {
+            Canvas(Modifier.fillMaxSize().padding(14.dp)) {
+                val r = min(size.width, size.height) * .44f
+                val center = Offset(size.width / 2f, size.height / 2f)
+                drawCircle(Color(0xfff7f7f5), r, center)
+                repeat(12) { i ->
+                    val angle = i * PI / 6
+                    val isCardinal = i % 3 == 0
+                    val inner = r * if (isCardinal) .78f else .84f
+                    val outer = r * .93f
+                    drawLine(
+                        color = if (isCardinal) Color(0xff1c1c1e) else Color(0xff8e8e93),
+                        start = center + Offset((sin(angle) * inner).toFloat(), (-cos(angle) * inner).toFloat()),
+                        end = center + Offset((sin(angle) * outer).toFloat(), (-cos(angle) * outer).toFloat()),
+                        strokeWidth = if (isCardinal) 2.5.dp.toPx() else 1.2.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+                }
+                fun hand(angle: Double, length: Float, width: Float, color: Color, tail: Float = 0f) {
+                    val start = if (tail > 0f) center - Offset((sin(angle) * tail).toFloat(), (-cos(angle) * tail).toFloat()) else center
+                    val end = center + Offset((sin(angle) * length).toFloat(), (-cos(angle) * length).toFloat())
+                    drawLine(color, start, end, width, cap = StrokeCap.Round)
+                }
+                val minute = calendar.get(Calendar.MINUTE)
+                val hour = calendar.get(Calendar.HOUR)
+                hand((hour + minute / 60.0) * PI / 6, r * .52f, 3.6.dp.toPx(), Color(0xff1c1c1e))
+                hand(minute * PI / 30, r * .75f, 2.6.dp.toPx(), Color(0xff1c1c1e))
+                if (secondsVisible) {
+                    val sec = calendar.get(Calendar.SECOND)
+                    hand(sec * PI / 30, r * .84f, 1.2.dp.toPx(), Color(0xffff9500), tail = r * .22f)
+                }
+                drawCircle(Color(0xff1c1c1e), 3.2.dp.toPx(), center)
+                if (secondsVisible) drawCircle(Color(0xffff9500), 1.8.dp.toPx(), center)
+            }
+        }
+        if (editing) {
+            IconButton(
+                onClick = { onEdit?.invoke() ?: onClick() },
+                modifier = Modifier.align(Alignment.TopEnd).size(36.dp).padding(4.dp)
+            ) {
+                Box(Modifier.fillMaxSize().clip(CircleShape).background(Color.Black.copy(alpha = .45f)), contentAlignment = Alignment.Center) {
+                    LauncherSymbol(Icons.Outlined.MoreHoriz, "Edit Clock Widget", Modifier.size(18.dp), tint = Color.White)
                 }
             }
         }
-        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(Color(0xfff9f9f6))
-                .clickable(onClick = onCalendar).padding(15.dp).testTag("calendar_widget_card")) {
-                val fontScale = LocalDensity.current.fontScale
-                val captionSize = minOf(12f, maxHeight.value * .15f / fontScale)
-                val daySize = minOf(54f, maxHeight.value * .54f / fontScale)
-                Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
-                Text(SimpleDateFormat("EEEE", Locale.ENGLISH).format(Date(now)).uppercase(Locale.ENGLISH),
-                    fontSize = captionSize.sp, lineHeight = (captionSize * 1.2f).sp,
-                    color = Color(0xffff453a), fontWeight = FontWeight.Medium, maxLines = 1)
-                Text(calendar.get(Calendar.DAY_OF_MONTH).toString(), fontSize = daySize.sp, lineHeight = (daySize * 1.1f).sp,
-                    maxLines = 1, fontWeight = FontWeight.Light, color = Color(0xff171719))
-                Text(SimpleDateFormat("MMMM yyyy", Locale.ENGLISH).format(Date(now)), fontSize = captionSize.sp,
+    }
+}
+
+@Composable
+fun CalendarWidgetCard(
+    now: Long,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    editing: Boolean = false,
+    onEdit: (() -> Unit)? = null,
+) {
+    val calendar = remember(now) { Calendar.getInstance().apply { timeInMillis = now } }
+    val locale = Locale.getDefault()
+    val dayOfWeek = SimpleDateFormat("EEEE", locale).format(Date(now)).uppercase(locale)
+    val dayOfMonth = calendar.get(Calendar.DAY_OF_MONTH).toString()
+    val monthYear = SimpleDateFormat("MMMM yyyy", locale).format(Date(now)).replaceFirstChar { if (it.isLowerCase()) it.titlecase(locale) else it.toString() }
+
+    Box(modifier.testTag("calendar_widget_card")) {
+        BoxWithConstraints(
+            Modifier.fillMaxSize()
+                .clip(RoundedCornerShape(28.dp))
+                .background(Color(0xfff9f9f6))
+                .clickable(onClick = if (editing && onEdit != null) onEdit else onClick)
+                .padding(16.dp)
+        ) {
+            val fontScale = LocalDensity.current.fontScale
+            val captionSize = minOf(13f, maxHeight.value * .15f / fontScale)
+            val daySize = minOf(52f, maxHeight.value * .50f / fontScale)
+
+            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    text = dayOfWeek,
+                    fontSize = captionSize.sp,
                     lineHeight = (captionSize * 1.2f).sp,
-                    color = Color(0xff757579), maxLines = 1)
+                    color = Color(0xffff3b30),
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = .4.sp,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+                Text(
+                    text = dayOfMonth,
+                    fontSize = daySize.sp,
+                    lineHeight = (daySize * 1.05f).sp,
+                    fontWeight = FontWeight.Light,
+                    color = Color(0xff1c1c1e),
+                    maxLines = 1
+                )
+                Text(
+                    text = monthYear,
+                    fontSize = captionSize.sp,
+                    lineHeight = (captionSize * 1.2f).sp,
+                    color = Color(0xff8e8e93),
+                    fontWeight = FontWeight.Normal,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+            }
+        }
+        if (editing) {
+            IconButton(
+                onClick = { onEdit?.invoke() ?: onClick() },
+                modifier = Modifier.align(Alignment.TopEnd).size(36.dp).padding(4.dp)
+            ) {
+                Box(Modifier.fillMaxSize().clip(CircleShape).background(Color.Black.copy(alpha = .45f)), contentAlignment = Alignment.Center) {
+                    LauncherSymbol(Icons.Outlined.MoreHoriz, "Edit Calendar Widget", Modifier.size(18.dp), tint = Color.White)
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun HomeWidgets(now: Long, modifier: Modifier = Modifier, onClock: () -> Unit, onCalendar: () -> Unit,
+    showClock: Boolean = true, showCalendar: Boolean = true,
+    editing: Boolean = false, onEditClock: (() -> Unit)? = null, onEditCalendar: (() -> Unit)? = null) {
+    if (LocalCyber.current) { CyberHomeWidgets(now, modifier, onClock, onCalendar, showClock, showCalendar); return }
+    if (!showClock && !showCalendar) return
+
+    val contentModifier = modifier.fillMaxWidth().padding(start = 5.dp, end = 5.dp, top = 5.dp, bottom = 10.dp)
+
+    if (showClock && showCalendar) {
+        Row(contentModifier, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ClockWidgetCard(now, Modifier.weight(1f).fillMaxHeight(), onClock, editing, onEditClock)
+            CalendarWidgetCard(now, Modifier.weight(1f).fillMaxHeight(), onCalendar, editing, onEditCalendar)
+        }
+    } else if (showClock) {
+        Row(contentModifier) {
+            ClockWidgetCard(now, Modifier.fillMaxWidth(.5f).fillMaxHeight().padding(end = 5.dp), onClock, editing, onEditClock)
+        }
+    } else {
+        Row(contentModifier) {
+            CalendarWidgetCard(now, Modifier.fillMaxWidth(.5f).fillMaxHeight().padding(end = 5.dp), onCalendar, editing, onEditCalendar)
         }
     }
 }
@@ -200,7 +308,8 @@ internal class WidgetHostContainer(context: android.content.Context) : FrameLayo
 @Composable
 fun WidgetGallery(controller: WidgetController, showHomeWidgets: Boolean, onToggleHome: (Boolean) -> Unit,
     onConfigure: (AppWidgetHost, Int, (Boolean) -> Unit) -> Unit, onClose: () -> Unit, onError: (String) -> Unit,
-    initialHomePage: Int? = 0) {
+    initialHomePage: Int? = 0, appearance: dev.vitreo.launcher.core.Appearance? = null,
+    onAppearance: ((dev.vitreo.launcher.core.Appearance) -> Unit)? = null, onEditBuiltin: ((String) -> Unit)? = null) {
     val context = LocalContext.current
     val providers = remember { controller.providers() }
     val focus = LocalFocusManager.current
@@ -234,9 +343,21 @@ fun WidgetGallery(controller: WidgetController, showHomeWidgets: Boolean, onTogg
             item {
                 Text("Add what matters", fontSize = 28.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 15.dp))
                 CompositionLocalProvider(LocalGlassContentColor provides MaterialTheme.colorScheme.onSurface) {
-                    HomeWidgets(LocalHomeClock.current, Modifier.height(190.dp), {}, {})
+                    HomeWidgets(LocalHomeClock.current, Modifier.height(190.dp),
+                        onClock = { onEditBuiltin?.invoke("clock") },
+                        onCalendar = { onEditBuiltin?.invoke("calendar") },
+                        showClock = appearance?.showClockWidget ?: true,
+                        showCalendar = appearance?.showCalendarWidget ?: true)
                 }
-                IosGroup { IosToggleRow("Clock & Calendar on Home", showHomeWidgets, onChange = onToggleHome) }
+                IosGroup {
+                    IosToggleRow("Clock & Calendar on Home", showHomeWidgets, onChange = onToggleHome)
+                    if (showHomeWidgets && appearance != null && onAppearance != null) {
+                        IosDivider()
+                        IosToggleRow("Clock Widget", appearance.showClockWidget) { onAppearance(appearance.copy(showClockWidget = it)) }
+                        IosDivider()
+                        IosToggleRow("Calendar Widget", appearance.showCalendarWidget) { onAppearance(appearance.copy(showCalendarWidget = it)) }
+                    }
+                }
                 IosSectionLabel("Add to")
                 IosSegmented(listOf("Home Screen", "Today"), if (destinationHome) 0 else 1,
                     Modifier.testTag("widget_destination")) { destinationHome = it == 0 }

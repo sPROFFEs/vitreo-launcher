@@ -59,7 +59,8 @@ private fun SettingsFootnote(text: String) {
 fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: () -> Unit,
     onAppearance: (Appearance) -> Unit, onSetHome: () -> Unit, onPhoto: () -> Unit, onEditPhoto: () -> Unit,
     photoBusy: Boolean, onExport: () -> Unit, onImport: () -> Unit, onDiagnostics: () -> Unit, onRefresh: () -> Unit,
-    onReset: () -> Unit, onLicenses: () -> Unit, onWidgets: () -> Unit, onControls: () -> Unit) {
+    onReset: () -> Unit, onLicenses: () -> Unit, onWidgets: () -> Unit, onControls: () -> Unit,
+    onPickAppForWidget: ((String) -> Unit)? = null) {
     var page by rememberSaveable { mutableStateOf(SettingsPage.Root) }
     var confirmation by remember { mutableStateOf<String?>(null) }
     val a = ui.layout.appearance
@@ -159,6 +160,19 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                             IosSegmented(listOf("System", "Light", "Dark"), a.interfaceStyle, Modifier.padding(12.dp)) { onAppearance(a.copy(interfaceStyle = it)) }
                             IosDivider()
                             IosToggleRow("Clock & Calendar on Home", a.showWidgets) { onAppearance(a.copy(showWidgets = it)) }
+                            if (a.showWidgets) {
+                                IosDivider()
+                                IosToggleRow("Clock Widget", a.showClockWidget) { onAppearance(a.copy(showClockWidget = it)) }
+                                IosDivider()
+                                IosToggleRow("Calendar Widget", a.showCalendarWidget) { onAppearance(a.copy(showCalendarWidget = it)) }
+                                IosDivider()
+                                val appsMap = remember(ui.apps) { ui.apps.associateBy { it.id } }
+                                val clockLabel = appsMap[a.clockApp]?.label ?: a.clockApp.takeIf { it.isNotEmpty() } ?: "Default / Auto"
+                                IosRow("Clock App", clockLabel) { onPickAppForWidget?.invoke("clock") }
+                                IosDivider()
+                                val calendarLabel = appsMap[a.calendarApp]?.label ?: a.calendarApp.takeIf { it.isNotEmpty() } ?: "Default / Auto"
+                                IosRow("Calendar App", calendarLabel) { onPickAppForWidget?.invoke("calendar") }
+                            }
                         }
                         SettingsFootnote("Press and hold an app to rearrange Home, create folders or move apps to the dock.")
                     }

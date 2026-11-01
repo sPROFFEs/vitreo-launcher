@@ -134,4 +134,26 @@ class StateCodecTest {
         assertTrue(LayoutOps.removePackages(state, setOf("com.example.one")).appearance.iconOverrides.isEmpty())
         assertEquals(state.appearance.iconOverrides[a], LayoutOps.remapApps(state, mapOf(a to b)).appearance.iconOverrides[b])
     }
+    @Test fun builtinWidgetSettingsRoundTripAndSanitize() {
+        val state = LauncherState(appearance = Appearance(
+            showClockWidget = false,
+            showCalendarWidget = true,
+            clockApp = "com.google.android.deskclock",
+            calendarApp = "com.google.android.calendar"
+        )).sanitized()
+        assertEquals(state, StateCodec.decode(StateCodec.encode(state)))
+
+        val legacy = StateCodec.decode("""{"schema":1,"home":[],"dock":[],"appearance":{}}""").appearance
+        assertTrue(legacy.showClockWidget)
+        assertTrue(legacy.showCalendarWidget)
+        assertEquals("", legacy.clockApp)
+        assertEquals("", legacy.calendarApp)
+
+        val oversized = Appearance(
+            clockApp = "a".repeat(200),
+            calendarApp = "b".repeat(200)
+        ).sanitized()
+        assertEquals(128, oversized.clockApp.length)
+        assertEquals(128, oversized.calendarApp.length)
+    }
 }

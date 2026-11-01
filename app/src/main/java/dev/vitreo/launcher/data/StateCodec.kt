@@ -41,6 +41,10 @@ object StateCodec {
                 put("tintColor", s.appearance.tintColor)
                 put("interfaceStyle", s.appearance.interfaceStyle)
                 put("showWidgets", s.appearance.showWidgets)
+                put("showClockWidget", s.appearance.showClockWidget)
+                put("showCalendarWidget", s.appearance.showCalendarWidget)
+                put("clockApp", s.appearance.clockApp)
+                put("calendarApp", s.appearance.calendarApp)
                 put("iosIcons", s.appearance.iosIcons)
                 put("photoZoom", s.appearance.photoTransform.zoom.toDouble())
                 put("photoX", s.appearance.photoTransform.x.toDouble())
@@ -112,6 +116,10 @@ object StateCodec {
                 tintColor = a.optInt("tintColor", 0xff8fbfff.toInt()),
                 interfaceStyle = a.optInt("interfaceStyle", 0),
                 showWidgets = a.optBoolean("showWidgets", true),
+                showClockWidget = a.optBoolean("showClockWidget", true),
+                showCalendarWidget = a.optBoolean("showCalendarWidget", true),
+                clockApp = a.optString("clockApp", ""),
+                calendarApp = a.optString("calendarApp", ""),
                 iosIcons = a.optBoolean("iosIcons", true),
                 photoTransform = PhotoTransform(a.optDouble("photoZoom", 1.0).toFloat(),
                     a.optDouble("photoX", 0.0).toFloat(), a.optDouble("photoY", 0.0).toFloat()),
