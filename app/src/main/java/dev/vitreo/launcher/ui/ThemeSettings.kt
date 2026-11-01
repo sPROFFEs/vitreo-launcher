@@ -3,6 +3,7 @@ package dev.vitreo.launcher.ui
 import android.graphics.Bitmap
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.*
@@ -78,6 +79,22 @@ fun ThemeSettings(ui: LauncherViewModel.UiState, onAppearance: (Appearance) -> U
     if (a.iconPack.isNotEmpty() && ui.iconPacks.none { it.packageName == a.iconPack })
         Text("The selected pack is unavailable. Theme defaults are being used.", Modifier.padding(17.dp), color = MaterialTheme.colorScheme.primary, fontSize = 13.sp)
     if (a.themePreset == 1) {
+        IosSectionLabel("Night City faction")
+        IosGroup {
+            CyberColors.Factions.forEachIndexed { index, faction ->
+                if (index > 0) IosDivider()
+                Row(Modifier.fillMaxWidth().clickable { onAppearance(a.copy(cyberFaction = index)) }
+                    .padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(16.dp).clip(CutCornerShape(4.dp)).background(faction.accent).border(1.dp, faction.structural, CutCornerShape(4.dp)))
+                    Spacer(Modifier.width(12.dp))
+                    Text(faction.name, Modifier.weight(1f), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, fontFamily = CyberFont)
+                    RadioButton(a.cyberFaction == index, onClick = null)
+                }
+            }
+        }
+        Text("Sets the faction HUD color profile across panels, borders, widgets and indicators.",
+            Modifier.padding(horizontal = 17.dp, vertical = 6.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
         IosSectionLabel("Cyberpunk experience")
         IosGroup {
             PackChoice("Classic · Quiet HUD", !a.cyberImmersive, "cyber_classic") { onAppearance(a.copy(cyberImmersive = false)) }
@@ -90,13 +107,21 @@ fun ThemeSettings(ui: LauncherViewModel.UiState, onAppearance: (Appearance) -> U
             IosSectionLabel("Night City effects")
             IosGroup {
                 val effects = listOf(
-                    dev.vitreo.launcher.core.CYBER_EFFECT_RAIN to "Neon rain",
-                    dev.vitreo.launcher.core.CYBER_EFFECT_GLITCH to "Relic glitch interference",
-                    dev.vitreo.launcher.core.CYBER_EFFECT_GRID to "Cyberspace matrix grid",
+                    dev.vitreo.launcher.core.CYBER_EFFECT_RETICLES to "Kiroshi corner HUD reticles",
+                    dev.vitreo.launcher.core.CYBER_EFFECT_PRESS_GLITCH to "Icon tap Relic RGB glitch",
+                    dev.vitreo.launcher.core.CYBER_EFFECT_CYBERDECK_WIDGETS to "Cyberdeck RAM & Shard widgets",
+                    dev.vitreo.launcher.core.CYBER_EFFECT_QUICKHACK_DOCK to "Quickhack dock tray slots",
+                    dev.vitreo.launcher.core.CYBER_EFFECT_TIER_PIPS to "Cyberware rarity tier pips",
+                    dev.vitreo.launcher.core.CYBER_EFFECT_NETWATCH_SEARCH to "Netwatch terminal search prompt",
+                    dev.vitreo.launcher.core.CYBER_EFFECT_HOLOCALL_NOTICES to "Holocall transmission notifications",
+                    dev.vitreo.launcher.core.CYBER_EFFECT_CYBERWARE_CONTROLS to "Segmented cyberware sliders",
+                    dev.vitreo.launcher.core.CYBER_EFFECT_GLITCH to "Relic malfunction screen glitch",
+                    dev.vitreo.launcher.core.CYBER_EFFECT_RAIN to "Night City neon rain",
+                    dev.vitreo.launcher.core.CYBER_EFFECT_GRID to "Cyberspace matrix 3D grid",
                     dev.vitreo.launcher.core.CYBER_EFFECT_SCANLINE to "Scanlines & radar sweep",
-                    dev.vitreo.launcher.core.CYBER_EFFECT_TELEMETRY to "Kiroshi optics telemetry",
-                    dev.vitreo.launcher.core.CYBER_EFFECT_BLOOM to "Neon bloom & ambient drift",
-                    dev.vitreo.launcher.core.CYBER_EFFECT_PANEL_SWEEP to "Panel edge sweeps"
+                    dev.vitreo.launcher.core.CYBER_EFFECT_TELEMETRY to "Kiroshi optics telemetry ticks",
+                    dev.vitreo.launcher.core.CYBER_EFFECT_BLOOM to "Neon atmospheric bloom",
+                    dev.vitreo.launcher.core.CYBER_EFFECT_PANEL_SWEEP to "Panel border edge sweeps",
                 )
                 effects.forEachIndexed { index, (key, title) ->
                     val active = key in a.cyberNightEffects
@@ -107,7 +132,7 @@ fun ThemeSettings(ui: LauncherViewModel.UiState, onAppearance: (Appearance) -> U
                     if (index < effects.lastIndex) IosDivider()
                 }
             }
-            Text("Select the cyberpunk effects active in Night City mode.",
+            Text("Select the cyberpunk modular effects active in Night City mode.",
                 Modifier.padding(horizontal = 17.dp, vertical = 8.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         IosSectionLabel("Status bar appearance")

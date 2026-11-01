@@ -161,5 +161,40 @@ fun CyberAmbient(modifier: Modifier = Modifier) {
             drawLine(CyberColors.Yellow.copy(alpha = 0.4f), Offset(bX, bY), Offset(bX + bLen, bY), 1.5.dp.toPx())
             drawLine(CyberColors.Yellow.copy(alpha = 0.4f), Offset(bX, bY), Offset(bX, bY + bLen), 1.5.dp.toPx())
         }
+
+        // 7. KIROSHI CORNER RETICLES: Diegetic ocular HUD brackets & telemetry
+        if (CYBER_EFFECT_RETICLES in active) {
+            val reticleColor = CyberColors.Cyan.copy(alpha = 0.45f + pulse * 0.2f)
+            val accentColor = CyberColors.Yellow.copy(alpha = 0.55f)
+            val cornerLen = 22.dp.toPx()
+            val strokeW = 1.5.dp.toPx()
+            val m = 10.dp.toPx()
+
+            // Top-Left corner bracket
+            drawLine(reticleColor, Offset(m, m), Offset(m + cornerLen, m), strokeW)
+            drawLine(reticleColor, Offset(m, m), Offset(m, m + cornerLen), strokeW)
+            drawLine(accentColor, Offset(m + 4.dp.toPx(), m + 4.dp.toPx()), Offset(m + 9.dp.toPx(), m + 4.dp.toPx()), 1.dp.toPx())
+
+            // Top-Right corner bracket
+            drawLine(reticleColor, Offset(w - m - cornerLen, m), Offset(w - m, m), strokeW)
+            drawLine(reticleColor, Offset(w - m, m), Offset(w - m, m + cornerLen), strokeW)
+            drawLine(accentColor, Offset(w - m - 9.dp.toPx(), m + 4.dp.toPx()), Offset(w - m - 4.dp.toPx(), m + 4.dp.toPx()), 1.dp.toPx())
+
+            // Bottom-Left corner bracket
+            drawLine(reticleColor, Offset(m, h - m - cornerLen), Offset(m, h - m), strokeW)
+            drawLine(reticleColor, Offset(m, h - m), Offset(m + cornerLen, h - m), strokeW)
+
+            // Bottom-Right corner bracket
+            drawLine(reticleColor, Offset(w - m, h - m - cornerLen), Offset(w - m, h - m), strokeW)
+            drawLine(reticleColor, Offset(w - m - cornerLen, h - m), Offset(w - m, h - m), strokeW)
+
+            // Distance / Scale ticks along left border
+            val leftScaleY = h * 0.48f
+            for (step in 0..4) {
+                val tickY = leftScaleY + step * 7.dp.toPx()
+                val tickLen = if (step == 2) 8.dp.toPx() else 4.dp.toPx()
+                drawLine(CyberColors.Cyan.copy(alpha = 0.35f), Offset(m, tickY), Offset(m + tickLen, tickY), 1.dp.toPx())
+            }
+        }
     }
 }

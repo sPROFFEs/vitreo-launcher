@@ -1,5 +1,19 @@
 # Cambios
 
+## 0.10.9
+
+- Major Cyberpunk 2077 HUD & immersion overhaul with full modular customization:
+  - Night City Factions: Selectable sub-theme color profiles in Settings → Themes & Icons (Kiroshi Optics Yellow & Red, Arasaka Corporate Blood Red & Carbon, Netrunner Matrix Green & Cyan, Trauma Team Medical Cyan & Amber).
+  - Kiroshi Optics HUD Reticles: Diegetic corner brackets `[ + ]`, ocular distance scales, and azimuth telemetry along screen perimeters.
+  - Relic Malfunction Press Glitch: Tactile chromatic aberration and RGB split (red/cyan channel displacement) when tapping icons and interactive surfaces.
+  - Cyberware Rarity Tier Pips: Distinctive angled rarity pips (Iconic Gold, Tier 5 Purple, Tier 4 Cyan) on app icons, emulating installed cyberware modules.
+  - Cyberdeck RAM & Shard Widgets: Redesigned widgets featuring live military chronometer `21:42:08 SEC`, active segmented RAM buffer graph `[■■■■■■■□□□]`, and Militech Encrypted Data Shard calendar with clearance telemetry.
+  - Quickhack Dock Tray: Themed dock featuring segmented deck slots `[01]`, `[02]`, `[03]`, `[04]` connected by printed circuit traces and status indicators.
+  - Netwatch Terminal Search: Home search pill styled as an authentic `NETWATCH // QUERY █` prompt with block cursor and Rajdhani typography.
+  - Holocall Notifications: Alert cards styled as incoming fixer holocalls and high-clearance encrypted shard transmissions.
+  - Segmented Cyberware Sliders: Control Center volume and brightness sliders with stepped digital ladder meters and percentage readouts.
+  - Modular Effects Toggles: All 15 Cyberpunk effects can be individually enabled or disabled in Settings → Themes & Icons.
+
 ## 0.10.8
 
 - Fidelity overhaul for iOS 16 Classic and Modern Liquid Glass materials:

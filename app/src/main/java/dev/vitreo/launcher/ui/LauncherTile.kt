@@ -95,6 +95,19 @@ fun EntryIcon(entry: HomeEntry, apps: Map<String, AppRecord>, size: Dp, modifier
                 listOf(Color.White.copy(alpha = .12f), Color.Transparent, Color.Black.copy(alpha = .07f)))))
             }
         }
+        if (cyber && dev.vitreo.launcher.core.CYBER_EFFECT_TIER_PIPS in appearance.cyberNightEffects && entry is HomeEntry.App) {
+            val tier = (entry.id.hashCode().ushr(1)) % 3
+            val tierColor = when (tier) { 0 -> CyberColors.Yellow; 1 -> Color(0xffbc55ff); else -> CyberColors.Cyan }
+            Canvas(Modifier.align(Alignment.TopEnd).size(size * .24f)) {
+                val path = Path().apply {
+                    moveTo(0f, 0f)
+                    lineTo(this@Canvas.size.width, 0f)
+                    lineTo(this@Canvas.size.width, this@Canvas.size.height)
+                    close()
+                }
+                drawPath(path, tierColor.copy(alpha = .85f))
+            }
+        }
     }
 }
 
@@ -164,8 +177,17 @@ fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, l
         }) {
             EntryIcon(entry, apps, iconSize)
             if (pressed && !editing && !appearance.reducedEffects) {
-                Box(Modifier.matchParentSize().clip(if (cyber) CyberShape else IconShape)
-                    .background(Color.Black.copy(alpha = if (cyber) .10f else .16f)))
+                if (cyber && dev.vitreo.launcher.core.CYBER_EFFECT_PRESS_GLITCH in appearance.cyberNightEffects) {
+                    Box(Modifier.matchParentSize().offset(x = (-3).dp).clip(CyberShape)
+                        .background(CyberColors.Red.copy(alpha = .38f)))
+                    Box(Modifier.matchParentSize().offset(x = 3.dp).clip(CyberShape)
+                        .background(CyberColors.Cyan.copy(alpha = .32f)))
+                    Box(Modifier.matchParentSize().clip(CyberShape)
+                        .background(CyberColors.Yellow.copy(alpha = .22f)))
+                } else {
+                    Box(Modifier.matchParentSize().clip(if (cyber) CyberShape else IconShape)
+                        .background(Color.Black.copy(alpha = if (cyber) .10f else .16f)))
+                }
             }
             if (groupingHover) Box(Modifier.matchParentSize().border(if (groupingTarget) 3.dp else 1.dp,
                 if (cyber) CyberColors.Cyan else Color.White.copy(alpha = if (groupingTarget) .95f else .5f),

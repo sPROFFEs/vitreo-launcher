@@ -51,6 +51,7 @@ object StateCodec {
                 put("photoY", s.appearance.photoTransform.y.toDouble())
                 put("wallpaperDim", s.appearance.wallpaperDim.toDouble())
                 put("themePreset", s.appearance.themePreset)
+                put("cyberFaction", s.appearance.cyberFaction)
                 put("cyberEffects", s.appearance.cyberEffects)
                 put("cyberImmersive", s.appearance.cyberImmersive)
                 put("cyberNightEffects", JSONArray(s.appearance.cyberNightEffects.toList()))
@@ -125,6 +126,7 @@ object StateCodec {
                     a.optDouble("photoX", 0.0).toFloat(), a.optDouble("photoY", 0.0).toFloat()),
                 wallpaperDim = a.optDouble("wallpaperDim", .12).toFloat(),
                 themePreset = a.optInt("themePreset", 0),
+                cyberFaction = a.optInt("cyberFaction", 0),
                 cyberEffects = a.optBoolean("cyberEffects", true),
                 cyberImmersive = a.optBoolean("cyberImmersive", false),
                 cyberNightEffects = a.optJSONArray("cyberNightEffects")?.let { strings(it, 32).toSet() } ?: DEFAULT_CYBER_NIGHT_EFFECTS,

@@ -14,10 +14,12 @@ import androidx.compose.ui.unit.sp
 fun VitreoTheme(style: Int = 0, preset: Int = 0, content: @Composable () -> Unit) {
     val cyber = preset == 1
     val dark = style == 2 || style == 0 && isSystemInDarkTheme()
-    val colors = if (cyber) darkColorScheme(primary = CyberColors.Cyan, onPrimary = CyberColors.Background,
-        secondary = CyberColors.Red, background = CyberColors.Background, surface = CyberColors.Panel,
-        surfaceVariant = Color(0xff202c37), onSurface = CyberColors.Text, onSurfaceVariant = Color(0xffa8bac4),
-        outline = CyberColors.Red.copy(alpha = .7f), error = CyberColors.Red)
+    val appearance = LocalGlass.current.appearance
+    val palette = CyberColors.forFaction(appearance.cyberFaction)
+    val colors = if (cyber) darkColorScheme(primary = palette.accent, onPrimary = palette.background,
+        secondary = palette.structural, background = palette.background, surface = palette.panel,
+        surfaceVariant = Color(0xff202c37), onSurface = palette.text, onSurfaceVariant = Color(0xffa8bac4),
+        outline = palette.structural.copy(alpha = .7f), error = palette.structural)
     else if (dark) darkColorScheme(primary = Color(0xff0a84ff), secondary = Color(0xff30d158),
         background = Color.Black, surface = Color(0xff1c1c1e), surfaceVariant = Color(0xff2c2c2e),
         onSurface = Color(0xfff5f5f7), onSurfaceVariant = Color(0xff98989d), outline = Color(0xff38383a))
@@ -43,6 +45,6 @@ fun VitreoTheme(style: Int = 0, preset: Int = 0, content: @Composable () -> Unit
         labelMedium = TextStyle(fontFamily = font, fontSize = 12.sp, lineHeight = 16.sp),
         labelSmall = TextStyle(fontFamily = font, fontSize = 11.sp, lineHeight = 13.sp))
     MaterialTheme(colorScheme = colors, typography = type) {
-        CompositionLocalProvider(LocalContentColor provides colors.onSurface, LocalCyber provides cyber, content = content)
+        CompositionLocalProvider(LocalContentColor provides colors.onSurface, LocalCyber provides cyber, LocalCyberPalette provides palette, content = content)
     }
 }

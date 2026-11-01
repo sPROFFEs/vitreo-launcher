@@ -17,6 +17,14 @@ const val CYBER_EFFECT_GRID = "grid"
 const val CYBER_EFFECT_TELEMETRY = "telemetry"
 const val CYBER_EFFECT_BLOOM = "bloom"
 const val CYBER_EFFECT_PANEL_SWEEP = "panel_sweep"
+const val CYBER_EFFECT_RETICLES = "reticles"
+const val CYBER_EFFECT_PRESS_GLITCH = "press_glitch"
+const val CYBER_EFFECT_CYBERDECK_WIDGETS = "cyberdeck_widgets"
+const val CYBER_EFFECT_QUICKHACK_DOCK = "quickhack_dock"
+const val CYBER_EFFECT_TIER_PIPS = "tier_pips"
+const val CYBER_EFFECT_NETWATCH_SEARCH = "netwatch_search"
+const val CYBER_EFFECT_HOLOCALL_NOTICES = "holocall_notices"
+const val CYBER_EFFECT_CYBERWARE_CONTROLS = "cyberware_controls"
 
 val CYBER_NIGHT_EFFECTS: List<String> = listOf(
     CYBER_EFFECT_RAIN,
@@ -26,6 +34,14 @@ val CYBER_NIGHT_EFFECTS: List<String> = listOf(
     CYBER_EFFECT_TELEMETRY,
     CYBER_EFFECT_BLOOM,
     CYBER_EFFECT_PANEL_SWEEP,
+    CYBER_EFFECT_RETICLES,
+    CYBER_EFFECT_PRESS_GLITCH,
+    CYBER_EFFECT_CYBERDECK_WIDGETS,
+    CYBER_EFFECT_QUICKHACK_DOCK,
+    CYBER_EFFECT_TIER_PIPS,
+    CYBER_EFFECT_NETWATCH_SEARCH,
+    CYBER_EFFECT_HOLOCALL_NOTICES,
+    CYBER_EFFECT_CYBERWARE_CONTROLS,
 )
 
 val DEFAULT_CYBER_NIGHT_EFFECTS: Set<String> = CYBER_NIGHT_EFFECTS.toSet()
@@ -66,6 +82,7 @@ data class Appearance(
     val photoTransform: PhotoTransform = PhotoTransform(),
     val wallpaperDim: Float = .12f,
     val themePreset: Int = 0,
+    val cyberFaction: Int = 0,
     val cyberEffects: Boolean = true,
     val cyberImmersive: Boolean = false,
     val cyberNightEffects: Set<String> = DEFAULT_CYBER_NIGHT_EFFECTS,
@@ -101,6 +118,7 @@ data class Appearance(
         photoTransform = photoTransform.sanitized(),
         wallpaperDim = if (wallpaperDim.isFinite()) wallpaperDim.coerceIn(0f, .6f) else .12f,
         themePreset = themePreset.coerceIn(0, 1),
+        cyberFaction = cyberFaction.coerceIn(0, 3),
         cyberNightEffects = cyberNightEffects.intersect(DEFAULT_CYBER_NIGHT_EFFECTS),
         cyberStatusHeight = if (cyberStatusHeight.isFinite()) cyberStatusHeight.coerceIn(16f, 40f) else 22f,
         cyberStatusOpacity = if (cyberStatusOpacity.isFinite()) cyberStatusOpacity.coerceIn(.2f, 1f) else .72f,

@@ -29,6 +29,10 @@ class StateCodecTest {
         assertEquals(.2f, Appearance(cyberStatusOpacity = -1f).sanitized().cyberStatusOpacity)
         assertEquals(1f, Appearance(cyberStatusOpacity = 9f).sanitized().cyberStatusOpacity)
         assertEquals(.72f, Appearance(cyberStatusOpacity = Float.POSITIVE_INFINITY).sanitized().cyberStatusOpacity)
+        val withFaction = LauncherState(appearance = Appearance(themePreset = 1, cyberFaction = 2)).sanitized()
+        assertEquals(withFaction, StateCodec.decode(StateCodec.encode(withFaction)))
+        assertEquals(3, Appearance(cyberFaction = 99).sanitized().cyberFaction)
+        assertEquals(0, Appearance(cyberFaction = -1).sanitized().cyberFaction)
     }
     @Test fun builtInOverridesAreAllowlistedPortableAndFollowAliasChanges() {
         val icon = IconOverride(THEME_ICON_PACK, "photos")

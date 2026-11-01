@@ -743,6 +743,17 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                         .onGloballyPositioned { dockBounds = it.boundsInRoot() },
                         radius = if (appearance.themePreset == 1) 35f else if (appearance.iosClassic) 32f else minOf(44f, dockHeight * .45f),
                         tint = if (appearance.iosClassic) .36f else .18f) {
+                        if (appearance.themePreset == 1 && dev.vitreo.launcher.core.CYBER_EFFECT_QUICKHACK_DOCK in appearance.cyberNightEffects) {
+                            Canvas(Modifier.matchParentSize()) {
+                                val slotW = size.width / DOCK_SLOTS
+                                for (slot in 0 until DOCK_SLOTS) {
+                                    val left = slot * slotW
+                                    val top = size.height - 8.dp.toPx()
+                                    drawLine(CyberColors.Cyan.copy(alpha = .45f), Offset(left + 8.dp.toPx(), top), Offset(left + slotW - 8.dp.toPx(), top), 1.dp.toPx())
+                                    drawLine(CyberColors.Yellow.copy(alpha = .7f), Offset(left + slotW / 2 - 6.dp.toPx(), top), Offset(left + slotW / 2 + 6.dp.toPx(), top), 1.5.dp.toPx())
+                                }
+                            }
+                        }
                         Row(Modifier.fillMaxWidth().height(dockHeight.dp).padding(horizontal = (if (appearance.themePreset == 1) 10f else IosDesign.DockInnerInset).dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                             repeat(DOCK_SLOTS) { slot ->
                                 val id = ui.layout.dock.getOrNull(slot)

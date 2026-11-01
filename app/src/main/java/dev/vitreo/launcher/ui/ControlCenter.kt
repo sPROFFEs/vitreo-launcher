@@ -187,6 +187,20 @@ private fun ControlSlider(title: String, icon: ImageVector, value: Float, enable
             Box(Modifier.fillMaxSize().testTag("control_slider_lens:$title")) {
                 Box(Modifier.fillMaxWidth().fillMaxHeight(display).align(Alignment.BottomCenter)
                     .background(if (cyber) CyberColors.Cyan.copy(alpha = .8f) else Color(0xfffaf8f4).copy(alpha = .96f)))
+                if (cyber && dev.vitreo.launcher.core.CYBER_EFFECT_CYBERWARE_CONTROLS in LocalGlass.current.appearance.cyberNightEffects) {
+                    Canvas(Modifier.fillMaxSize()) {
+                        val numRungs = 12
+                        val rungH = size.height / numRungs
+                        for (i in 1 until numRungs) {
+                            val y = i * rungH
+                            drawLine(CyberColors.Background.copy(alpha = .6f), Offset(4.dp.toPx(), y), Offset(size.width - 4.dp.toPx(), y), 1.5.dp.toPx())
+                        }
+                    }
+                    Text("${(display * 100).toInt()}%",
+                        color = if (display > .8f) CyberColors.Background else CyberColors.Cyan,
+                        fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = CyberFont,
+                        modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp))
+                }
                 Crossfade(icon, Modifier.align(Alignment.BottomCenter).padding(bottom = if (cyber) 18.dp else 22.dp).size(27.dp),
                     tween(if (reduced || cyber) 0 else 100), label = "Slider symbol") { symbol ->
                     ControlSymbol(symbol, null, Modifier.size(27.dp), tint = ink)

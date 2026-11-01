@@ -77,7 +77,12 @@ internal fun HomePageControl(position: () -> Float, pages: Int, showPages: Boole
                 } else Row(Modifier.height(32.dp).testTag("library_button").clickable(onClick = onSearch)
                     .padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                     LauncherSymbol(Icons.Outlined.Search, null, Modifier.size(14.dp), tint = ink)
-                    Text("Search", color = ink, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 5.dp))
+                    val searchLabel = if (LocalCyber.current && dev.vitreo.launcher.core.CYBER_EFFECT_NETWATCH_SEARCH in LocalGlass.current.appearance.cyberNightEffects) {
+                        "NETWATCH // QUERY █"
+                    } else "Search"
+                    Text(searchLabel, color = ink, fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                        fontFamily = if (LocalCyber.current) CyberFont else null,
+                        modifier = Modifier.padding(start = 5.dp))
                 }
             }
         }
