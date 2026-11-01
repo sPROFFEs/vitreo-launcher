@@ -70,6 +70,9 @@ fun ClockWidgetCard(
     val timeLabel = DateFormat.getTimeFormat(LocalContext.current).format(Date(now))
     val classic = LocalGlass.current.appearance.iosClassic
     val isDark = MaterialTheme.colorScheme.background.luminance() < .5f
+    val cyber = LocalCyber.current
+    val palette = LocalCyberPalette.current
+    val cyberdeckMode = dev.vitreo.launcher.core.CYBER_EFFECT_CYBERDECK_WIDGETS in LocalGlass.current.appearance.cyberNightEffects
 
     Box(modifier.testTag("clock_widget_card")) {
         GlassPanel(
@@ -80,42 +83,84 @@ fun ClockWidgetCard(
             material = GlassMaterial.Regular,
             tint = if (classic) (if (isDark) .72f else .78f) else (if (isDark) .64f else .70f)
         ) {
-            Canvas(Modifier.fillMaxSize().padding(14.dp)) {
-                val r = min(size.width, size.height) * .44f
-                val center = Offset(size.width / 2f, size.height / 2f)
-                val dialColor = if (isDark) Color(0xff151518) else Color(0xfff7f7f5)
-                val tickPrimary = if (isDark) Color.White else Color(0xff1c1c1e)
-                val tickSecondary = if (isDark) Color(0xff636366) else Color(0xff8e8e93)
-                val handColor = if (isDark) Color.White else Color(0xff1c1c1e)
-                drawCircle(dialColor, r, center)
-                repeat(12) { i ->
-                    val angle = i * PI / 6
-                    val isCardinal = i % 3 == 0
-                    val inner = r * if (isCardinal) .78f else .84f
-                    val outer = r * .93f
-                    drawLine(
-                        color = if (isCardinal) tickPrimary else tickSecondary,
-                        start = center + Offset((sin(angle) * inner).toFloat(), (-cos(angle) * inner).toFloat()),
-                        end = center + Offset((sin(angle) * outer).toFloat(), (-cos(angle) * outer).toFloat()),
-                        strokeWidth = if (isCardinal) 2.5.dp.toPx() else 1.2.dp.toPx(),
-                        cap = StrokeCap.Round
-                    )
+            if (cyber) {
+                BoxWithConstraints(Modifier.fillMaxSize().padding(14.dp)) {
+                    val fontScale = LocalDensity.current.fontScale
+                    val large = minOf(if (cyberdeckMode) 26f else 32f, maxWidth.value / 2.6f / fontScale)
+                    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+                        if (cyberdeckMode) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text("// CYBERDECK 2.1", color = palette.accent, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = CyberFont)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(Modifier.size(5.dp).background(palette.info, CircleShape))
+                                    Text(" ONLINE", color = palette.info, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, fontFamily = CyberFont)
+                                }
+                            }
+                            Text(SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(now)),
+                                color = palette.info, fontFamily = CyberFont, fontWeight = FontWeight.Bold, fontSize = large.sp, maxLines = 1)
+                            Column {
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    Text("RAM ", color = palette.structural, fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = CyberFont)
+                                    Canvas(Modifier.weight(1f).height(5.dp)) {
+                                        val totalSegs = 8
+                                        val activeSegs = 6
+                                        val gap = 2.dp.toPx()
+                                        val segWidth = (size.width - (totalSegs - 1) * gap) / totalSegs
+                                        for (i in 0 until totalSegs) {
+                                            val x = i * (segWidth + gap)
+                                            drawRect(if (i < activeSegs) palette.accent else palette.structural.copy(alpha = .25f),
+                                                Offset(x, 0f), androidx.compose.ui.geometry.Size(segWidth, size.height))
+                                        }
+                                    }
+                                    Text(" 8/8", color = palette.info, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, fontFamily = CyberFont)
+                                }
+                                Text("NIGHT CITY // SEC: OPTIMAL", color = palette.text.copy(alpha = .7f), fontSize = 10.sp, fontFamily = CyberFont, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                            }
+                        } else {
+                            Text("LOCAL TIME", color = palette.structural, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, fontFamily = CyberFont, maxLines = 1)
+                            Text(DateFormat.getTimeFormat(LocalContext.current).format(Date(now)), color = palette.info, fontFamily = CyberFont, fontWeight = FontWeight.SemiBold, fontSize = large.sp, maxLines = 1)
+                            Text(SimpleDateFormat("EEE / MMM dd", Locale.ENGLISH).format(Date(now)).uppercase(Locale.ENGLISH), color = palette.text, fontSize = 12.sp, fontFamily = CyberFont, maxLines = 1)
+                        }
+                    }
                 }
-                fun hand(angle: Double, length: Float, width: Float, color: Color, tail: Float = 0f) {
-                    val start = if (tail > 0f) center - Offset((sin(angle) * tail).toFloat(), (-cos(angle) * tail).toFloat()) else center
-                    val end = center + Offset((sin(angle) * length).toFloat(), (-cos(angle) * length).toFloat())
-                    drawLine(color, start, end, width, cap = StrokeCap.Round)
+            } else {
+                Canvas(Modifier.fillMaxSize().padding(14.dp)) {
+                    val r = min(size.width, size.height) * .44f
+                    val center = Offset(size.width / 2f, size.height / 2f)
+                    val dialColor = if (isDark) Color(0xff151518) else Color(0xfff7f7f5)
+                    val tickPrimary = if (isDark) Color.White else Color(0xff1c1c1e)
+                    val tickSecondary = if (isDark) Color(0xff636366) else Color(0xff8e8e93)
+                    val handColor = if (isDark) Color.White else Color(0xff1c1c1e)
+                    drawCircle(dialColor, r, center)
+                    repeat(12) { i ->
+                        val angle = i * PI / 6
+                        val isCardinal = i % 3 == 0
+                        val inner = r * if (isCardinal) .78f else .84f
+                        val outer = r * .93f
+                        drawLine(
+                            color = if (isCardinal) tickPrimary else tickSecondary,
+                            start = center + Offset((sin(angle) * inner).toFloat(), (-cos(angle) * inner).toFloat()),
+                            end = center + Offset((sin(angle) * outer).toFloat(), (-cos(angle) * outer).toFloat()),
+                            strokeWidth = if (isCardinal) 2.5.dp.toPx() else 1.2.dp.toPx(),
+                            cap = StrokeCap.Round
+                        )
+                    }
+                    fun hand(angle: Double, length: Float, width: Float, color: Color, tail: Float = 0f) {
+                        val start = if (tail > 0f) center - Offset((sin(angle) * tail).toFloat(), (-cos(angle) * tail).toFloat()) else center
+                        val end = center + Offset((sin(angle) * length).toFloat(), (-cos(angle) * length).toFloat())
+                        drawLine(color, start, end, width, cap = StrokeCap.Round)
+                    }
+                    val minute = calendar.get(Calendar.MINUTE)
+                    val hour = calendar.get(Calendar.HOUR)
+                    hand((hour + minute / 60.0) * PI / 6, r * .52f, 3.6.dp.toPx(), handColor)
+                    hand(minute * PI / 30, r * .75f, 2.6.dp.toPx(), handColor)
+                    if (secondsVisible) {
+                        val sec = calendar.get(Calendar.SECOND)
+                        hand(sec * PI / 30, r * .84f, 1.2.dp.toPx(), Color(0xffff9f0a), tail = r * .22f)
+                    }
+                    drawCircle(handColor, 3.2.dp.toPx(), center)
+                    if (secondsVisible) drawCircle(Color(0xffff9f0a), 1.8.dp.toPx(), center)
                 }
-                val minute = calendar.get(Calendar.MINUTE)
-                val hour = calendar.get(Calendar.HOUR)
-                hand((hour + minute / 60.0) * PI / 6, r * .52f, 3.6.dp.toPx(), handColor)
-                hand(minute * PI / 30, r * .75f, 2.6.dp.toPx(), handColor)
-                if (secondsVisible) {
-                    val sec = calendar.get(Calendar.SECOND)
-                    hand(sec * PI / 30, r * .84f, 1.2.dp.toPx(), Color(0xffff9f0a), tail = r * .22f)
-                }
-                drawCircle(handColor, 3.2.dp.toPx(), center)
-                if (secondsVisible) drawCircle(Color(0xffff9f0a), 1.8.dp.toPx(), center)
             }
         }
         if (editing) {
@@ -147,6 +192,9 @@ fun CalendarWidgetCard(
 
     val classic = LocalGlass.current.appearance.iosClassic
     val isDark = MaterialTheme.colorScheme.background.luminance() < .5f
+    val cyber = LocalCyber.current
+    val palette = LocalCyberPalette.current
+    val cyberdeckMode = dev.vitreo.launcher.core.CYBER_EFFECT_CYBERDECK_WIDGETS in LocalGlass.current.appearance.cyberNightEffects
 
     Box(modifier.testTag("calendar_widget_card")) {
         GlassPanel(
@@ -157,39 +205,64 @@ fun CalendarWidgetCard(
             material = GlassMaterial.Regular,
             tint = if (classic) (if (isDark) .72f else .78f) else (if (isDark) .64f else .70f)
         ) {
-            BoxWithConstraints(Modifier.fillMaxSize().padding(16.dp)) {
-                val fontScale = LocalDensity.current.fontScale
-                val captionSize = minOf(13f, maxHeight.value * .15f / fontScale)
-                val daySize = minOf(52f, maxHeight.value * .50f / fontScale)
+            if (cyber) {
+                BoxWithConstraints(Modifier.fillMaxSize().padding(14.dp)) {
+                    val fontScale = LocalDensity.current.fontScale
+                    val large = minOf(48f, maxWidth.value / 1.8f / fontScale)
+                    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+                        if (cyberdeckMode) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text("// DATA SHARD", color = palette.structural, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = CyberFont)
+                                Text("TIER 5", color = palette.accent, fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = CyberFont)
+                            }
+                            Text(dayOfMonth, color = palette.info, fontFamily = CyberFont, fontWeight = FontWeight.Bold, fontSize = large.sp, maxLines = 1)
+                            Column {
+                                Text(SimpleDateFormat("yyyy.MM.dd /// EEE", Locale.ENGLISH).format(Date(now)).uppercase(Locale.ENGLISH),
+                                    color = palette.text, fontSize = 11.sp, fontFamily = CyberFont, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                Text("CLEARANCE: GRANTED", color = palette.accent, fontSize = 10.sp, fontFamily = CyberFont, maxLines = 1)
+                            }
+                        } else {
+                            Text(dayOfWeek, color = palette.structural, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, fontFamily = CyberFont, maxLines = 1)
+                            Text(dayOfMonth, color = palette.info, fontFamily = CyberFont, fontWeight = FontWeight.SemiBold, fontSize = large.sp, maxLines = 1)
+                            Text(monthYear.uppercase(Locale.ENGLISH), color = palette.text, fontSize = 12.sp, fontFamily = CyberFont, maxLines = 1)
+                        }
+                    }
+                }
+            } else {
+                BoxWithConstraints(Modifier.fillMaxSize().padding(16.dp)) {
+                    val fontScale = LocalDensity.current.fontScale
+                    val captionSize = minOf(13f, maxHeight.value * .15f / fontScale)
+                    val daySize = minOf(52f, maxHeight.value * .50f / fontScale)
 
-                Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
-                    Text(
-                        text = dayOfWeek,
-                        fontSize = captionSize.sp,
-                        lineHeight = (captionSize * 1.2f).sp,
-                        color = Color(0xffff3b30),
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = .4.sp,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = dayOfMonth,
-                        fontSize = daySize.sp,
-                        lineHeight = (daySize * 1.05f).sp,
-                        fontWeight = FontWeight.Light,
-                        color = if (isDark) Color.White else Color(0xff1c1c1e),
-                        maxLines = 1
-                    )
-                    Text(
-                        text = monthYear,
-                        fontSize = captionSize.sp,
-                        lineHeight = (captionSize * 1.2f).sp,
-                        color = if (isDark) Color(0xff98989d) else Color(0xff8e8e93),
-                        fontWeight = FontWeight.Normal,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                    )
+                    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+                        Text(
+                            text = dayOfWeek,
+                            fontSize = captionSize.sp,
+                            lineHeight = (captionSize * 1.2f).sp,
+                            color = Color(0xffff3b30),
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = .4.sp,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = dayOfMonth,
+                            fontSize = daySize.sp,
+                            lineHeight = (daySize * 1.05f).sp,
+                            fontWeight = FontWeight.Light,
+                            color = if (isDark) Color.White else Color(0xff1c1c1e),
+                            maxLines = 1
+                        )
+                        Text(
+                            text = monthYear,
+                            fontSize = captionSize.sp,
+                            lineHeight = (captionSize * 1.2f).sp,
+                            color = if (isDark) Color(0xff98989d) else Color(0xff8e8e93),
+                            fontWeight = FontWeight.Normal,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
         }

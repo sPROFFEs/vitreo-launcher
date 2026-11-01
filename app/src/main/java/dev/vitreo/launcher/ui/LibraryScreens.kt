@@ -60,7 +60,11 @@ fun Spotlight(records: List<AppRecord>, apps: Map<String, AppRecord>, suggestion
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         keyboardActions = KeyboardActions(onSearch = { results.firstOrNull()?.let { onLaunch(it.id, null) } }),
                         decorationBox = { inner ->
-                            if (query.isEmpty()) Text("Search", color = Color.White.copy(alpha = .6f), fontSize = 18.sp)
+                            if (query.isEmpty()) {
+                                val prompt = if (LocalCyber.current && dev.vitreo.launcher.core.CYBER_EFFECT_NETWATCH_SEARCH in LocalGlass.current.appearance.cyberNightEffects)
+                                    "NETWATCH // TERMINAL QUERY █" else "Search"
+                                Text(prompt, color = Color.White.copy(alpha = .6f), fontSize = 18.sp, fontFamily = if (LocalCyber.current) CyberFont else null)
+                            }
                             inner()
                         })
                     if (query.isNotEmpty()) LauncherSymbol(Icons.Outlined.Cancel, "Clear Search",

@@ -670,7 +670,11 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
             background?.let { Image(it.asImageBitmap(), null, Modifier.fillMaxSize().graphicsLayer { alpha = localBackgroundAlpha.value }, contentScale = ContentScale.Crop) }
             if (appearance.themePreset == 1) {
                 Box(Modifier.fillMaxSize().testTag("cyber_backdrop"))
-                if (appearance.cyberImmersive && appearance.cyberEffects && !appearance.reducedEffects && sheet == null) CyberAmbient()
+                val hasAmbientEffects = appearance.cyberImmersive || appearance.cyberNightEffects.any {
+                    it in setOf(CYBER_EFFECT_RETICLES, CYBER_EFFECT_TELEMETRY, CYBER_EFFECT_BLOOM,
+                                CYBER_EFFECT_GRID, CYBER_EFFECT_RAIN, CYBER_EFFECT_SCANLINE, CYBER_EFFECT_GLITCH)
+                }
+                if (hasAmbientEffects && appearance.cyberEffects && !appearance.reducedEffects && sheet == null) CyberAmbient()
             }
             Box(Modifier.fillMaxSize().windowInsetsPadding(if (integratedBar) WindowInsets.navigationBars.union(
                 WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)) else WindowInsets.systemBars.union(WindowInsets.displayCutout))
@@ -744,13 +748,19 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                         radius = if (appearance.themePreset == 1) 35f else if (appearance.iosClassic) 32f else minOf(44f, dockHeight * .45f),
                         tint = if (appearance.iosClassic) .36f else .18f) {
                         if (appearance.themePreset == 1 && dev.vitreo.launcher.core.CYBER_EFFECT_QUICKHACK_DOCK in appearance.cyberNightEffects) {
+                            val palette = CyberColors.forFaction(appearance.cyberFaction)
                             Canvas(Modifier.matchParentSize()) {
                                 val slotW = size.width / DOCK_SLOTS
                                 for (slot in 0 until DOCK_SLOTS) {
                                     val left = slot * slotW
-                                    val top = size.height - 8.dp.toPx()
-                                    drawLine(CyberColors.Cyan.copy(alpha = .45f), Offset(left + 8.dp.toPx(), top), Offset(left + slotW - 8.dp.toPx(), top), 1.dp.toPx())
-                                    drawLine(CyberColors.Yellow.copy(alpha = .7f), Offset(left + slotW / 2 - 6.dp.toPx(), top), Offset(left + slotW / 2 + 6.dp.toPx(), top), 1.5.dp.toPx())
+                                    val bottom = size.height - 4.dp.toPx()
+                                    val top = 4.dp.toPx()
+                                    drawLine(palette.info.copy(alpha = .45f), Offset(left + 6.dp.toPx(), bottom), Offset(left + slotW - 6.dp.toPx(), bottom), 1.5.dp.toPx())
+                                    drawLine(palette.accent.copy(alpha = .8f), Offset(left + slotW / 2 - 8.dp.toPx(), bottom), Offset(left + slotW / 2 + 8.dp.toPx(), bottom), 2.dp.toPx())
+                                    drawLine(palette.structural.copy(alpha = .5f), Offset(left + 6.dp.toPx(), bottom - 6.dp.toPx()), Offset(left + 6.dp.toPx(), bottom), 1.5.dp.toPx())
+                                    drawLine(palette.structural.copy(alpha = .5f), Offset(left + slotW - 6.dp.toPx(), bottom - 6.dp.toPx()), Offset(left + slotW - 6.dp.toPx(), bottom), 1.5.dp.toPx())
+                                    drawLine(palette.structural.copy(alpha = .3f), Offset(left + 6.dp.toPx(), top), Offset(left + 6.dp.toPx(), top + 4.dp.toPx()), 1.dp.toPx())
+                                    drawLine(palette.structural.copy(alpha = .3f), Offset(left + slotW - 6.dp.toPx(), top), Offset(left + slotW - 6.dp.toPx(), top + 4.dp.toPx()), 1.dp.toPx())
                                 }
                             }
                         }

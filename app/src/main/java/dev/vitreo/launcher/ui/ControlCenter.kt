@@ -138,6 +138,7 @@ private fun ControlSlider(title: String, icon: ImageVector, value: Float, enable
     val change by rememberUpdatedState(onChange)
     val finish by rememberUpdatedState(onFinish)
     val cyber = LocalCyber.current
+    val palette = LocalCyberPalette.current
     val classic = !cyber && LocalGlass.current.appearance.iosClassic
     val reduced = LocalGlass.current.appearance.reducedEffects
     val rangeValue = value.coerceIn(0f, 1f)
@@ -187,18 +188,18 @@ private fun ControlSlider(title: String, icon: ImageVector, value: Float, enable
         }, radius = if (cyber) 31f else if (classic) 20f else 40f, tint = if (classic) .26f else .16f, interactive = enabled) {
             Box(Modifier.fillMaxSize().testTag("control_slider_lens:$title")) {
                 Box(Modifier.fillMaxWidth().fillMaxHeight(display).align(Alignment.BottomCenter)
-                    .background(if (cyber) CyberColors.Cyan.copy(alpha = .8f) else Color(0xfffaf8f4).copy(alpha = .96f)))
+                    .background(if (cyber) palette.accent.copy(alpha = .85f) else Color(0xfffaf8f4).copy(alpha = .96f)))
                 if (cyber && dev.vitreo.launcher.core.CYBER_EFFECT_CYBERWARE_CONTROLS in LocalGlass.current.appearance.cyberNightEffects) {
                     Canvas(Modifier.fillMaxSize()) {
                         val numRungs = 12
                         val rungH = size.height / numRungs
                         for (i in 1 until numRungs) {
                             val y = i * rungH
-                            drawLine(CyberColors.Background.copy(alpha = .6f), Offset(4.dp.toPx(), y), Offset(size.width - 4.dp.toPx(), y), 1.5.dp.toPx())
+                            drawLine(palette.background.copy(alpha = .7f), Offset(4.dp.toPx(), y), Offset(size.width - 4.dp.toPx(), y), 1.5.dp.toPx())
                         }
                     }
                     Text("${(display * 100).toInt()}%",
-                        color = if (display > .8f) CyberColors.Background else CyberColors.Cyan,
+                        color = if (display > .8f) palette.background else palette.accent,
                         fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = CyberFont,
                         modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp))
                 }

@@ -16,7 +16,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.*
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -30,6 +32,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.layout.ContentScale
 import dev.vitreo.launcher.core.HomeEntry
 import dev.vitreo.launcher.data.AppRecord
+import kotlinx.coroutines.launch
+import kotlin.math.sin
 
 fun entryLabel(entry: HomeEntry, apps: Map<String, AppRecord>): String = when (entry) {
     is HomeEntry.Folder -> entry.title
@@ -40,10 +44,11 @@ fun entryLabel(entry: HomeEntry, apps: Map<String, AppRecord>): String = when (e
 fun EntryIcon(entry: HomeEntry, apps: Map<String, AppRecord>, size: Dp, modifier: Modifier = Modifier) {
     val appearance = LocalGlass.current.appearance
     val cyber = LocalCyber.current
+    val palette = LocalCyberPalette.current
     val shape = if (cyber) CyberShape else IconShape
     Box(modifier.size(size).testTag("icon_art:${entry.id}").shadow(size * .05f, shape, ambientColor = Color.Black.copy(alpha = .2f),
         spotColor = Color.Black.copy(alpha = .22f)).clip(shape)
-        .then(if (cyber) Modifier.background(CyberColors.Panel).border(1.dp, CyberColors.Red.copy(alpha = .55f), shape) else Modifier)) {
+        .then(if (cyber) Modifier.background(palette.panel).border(1.dp, palette.structural.copy(alpha = .7f), shape) else Modifier)) {
         if (entry is HomeEntry.Folder) {
             GlassPanel(Modifier.fillMaxSize(), radius = size.value * .235f, tint = if (appearance.iosClassic) .38f else .18f) {}
             Column(Modifier.fillMaxSize().padding(size * .10f), verticalArrangement = Arrangement.SpaceEvenly) {
@@ -70,11 +75,25 @@ fun EntryIcon(entry: HomeEntry, apps: Map<String, AppRecord>, size: Dp, modifier
                 Image(external.asImageBitmap(), null, Modifier.fillMaxSize().padding(if (cyber) size * .08f else 0.dp)
                     .testTag("external_icon:${entry.id}"), contentScale = ContentScale.Fit)
             } else if (cyber) {
-                if (bundled != null) Image(painterResource(bundled), null, Modifier.fillMaxSize().padding(size * .08f)
-                    .then(if (themeKind != null) Modifier.testTag("theme_icon:${entry.id}:$themeKind") else Modifier),
-                    colorFilter = ColorFilter.tint(CyberColors.Cyan))
-                else if (app?.icon != null) Image(app.icon.asImageBitmap(), null, Modifier.fillMaxSize().padding(size * .15f), contentScale = ContentScale.Fit)
-                else Icon(Icons.Outlined.Android, null, Modifier.align(Alignment.Center).size(size * .6f), tint = CyberColors.Cyan)
+                if (bundled != null) {
+                    Image(painterResource(bundled), null, Modifier.fillMaxSize().padding(size * .08f)
+                        .then(if (themeKind != null) Modifier.testTag("theme_icon:${entry.id}:$themeKind") else Modifier),
+                        colorFilter = ColorFilter.tint(palette.cyan))
+                } else if (app?.icon != null) {
+                    Canvas(Modifier.fillMaxSize()) {
+                        val strokeW = 1.dp.toPx()
+                        val tickLen = 6.dp.toPx()
+                        drawLine(palette.structural.copy(alpha = .18f), Offset(this.size.width * .22f, 0f), Offset(this.size.width * .22f, this.size.height), strokeW)
+                        drawLine(palette.structural.copy(alpha = .18f), Offset(this.size.width * .78f, 0f), Offset(this.size.width * .78f, this.size.height), strokeW)
+                        drawLine(palette.accent.copy(alpha = .65f), Offset(2.dp.toPx(), 2.dp.toPx()), Offset(2.dp.toPx() + tickLen, 2.dp.toPx()), strokeW)
+                        drawLine(palette.accent.copy(alpha = .65f), Offset(2.dp.toPx(), 2.dp.toPx()), Offset(2.dp.toPx(), 2.dp.toPx() + tickLen), strokeW)
+                        drawLine(palette.info.copy(alpha = .65f), Offset(this.size.width - 2.dp.toPx() - tickLen, this.size.height - 2.dp.toPx()), Offset(this.size.width - 2.dp.toPx(), this.size.height - 2.dp.toPx()), strokeW)
+                        drawLine(palette.info.copy(alpha = .65f), Offset(this.size.width - 2.dp.toPx(), this.size.height - 2.dp.toPx() - tickLen), Offset(this.size.width - 2.dp.toPx(), this.size.height - 2.dp.toPx()), strokeW)
+                    }
+                    Image(app.icon.asImageBitmap(), null, Modifier.fillMaxSize().padding(size * .14f), contentScale = ContentScale.Fit)
+                } else {
+                    Icon(Icons.Outlined.Android, null, Modifier.align(Alignment.Center).size(size * .6f), tint = palette.cyan)
+                }
             } else if (kind != null) {
                 IosAppIcon(kind, style, Color(appearance.tintColor), Modifier.fillMaxSize()
                     .then(if (themeKind != null) Modifier.testTag("theme_icon:${entry.id}:$themeKind") else Modifier))
@@ -96,16 +115,26 @@ fun EntryIcon(entry: HomeEntry, apps: Map<String, AppRecord>, size: Dp, modifier
             }
         }
         if (cyber && dev.vitreo.launcher.core.CYBER_EFFECT_TIER_PIPS in appearance.cyberNightEffects && entry is HomeEntry.App) {
-            val tier = (entry.id.hashCode().ushr(1)) % 3
-            val tierColor = when (tier) { 0 -> CyberColors.Yellow; 1 -> Color(0xffbc55ff); else -> CyberColors.Cyan }
-            Canvas(Modifier.align(Alignment.TopEnd).size(size * .24f)) {
+            val tier = (entry.id.hashCode().ushr(1)) % 5
+            val tierColor = when (tier) {
+                0 -> Color(0xffcfd8dc)
+                1 -> Color(0xff00ff66)
+                2 -> palette.cyan
+                3 -> Color(0xffbc55ff)
+                else -> CyberColors.Yellow
+            }
+            Canvas(Modifier.align(Alignment.TopStart).size(size * .28f)) {
+                val w = this.size.width
+                val h = this.size.height
                 val path = Path().apply {
                     moveTo(0f, 0f)
-                    lineTo(this@Canvas.size.width, 0f)
-                    lineTo(this@Canvas.size.width, this@Canvas.size.height)
+                    lineTo(w, 0f)
+                    lineTo(0f, h)
                     close()
                 }
-                drawPath(path, tierColor.copy(alpha = .85f))
+                drawPath(path, tierColor.copy(alpha = .92f))
+                drawLine(Color.Black.copy(alpha = .6f), Offset(w * .12f, h * .88f), Offset(w * .88f, h * .12f), 1.dp.toPx())
+                drawCircle(Color.White, 1.2.dp.toPx(), Offset(w * .28f, h * .28f))
             }
         }
     }
@@ -152,9 +181,19 @@ fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, l
         jitterY = rememberUpdatedState(0f)
     }
     val label = entryLabel(entry, apps)
+    val palette = LocalCyberPalette.current
     val interactions = remember { MutableInteractionSource() }
     val pressed by interactions.collectIsPressedAsState()
     var iconBounds by remember { mutableStateOf<Rect?>(null) }
+    val glitchTrigger = remember { Animatable(0f) }
+    val coroutineScope = rememberCoroutineScope()
+    LaunchedEffect(pressed) {
+        if (pressed && cyber && dev.vitreo.launcher.core.CYBER_EFFECT_PRESS_GLITCH in appearance.cyberNightEffects) {
+            glitchTrigger.snapTo(1f)
+        } else if (!pressed && glitchTrigger.value > 0f) {
+            glitchTrigger.animateTo(0f, tween(180, easing = LinearEasing))
+        }
+    }
     val scale = animateFloatAsState(if (pressed && !editing && !appearance.reducedEffects) (if (cyber) .97f else .92f) else 1f,
         if (appearance.reducedEffects) tween(0) else if (cyber) tween(90) else LauncherMotion.iconPress(), label = "icon press")
     val groupScale by animateFloatAsState(if (groupingTarget) 1.13f else if (groupingHover) 1.06f else 1f,
@@ -164,7 +203,15 @@ fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, l
         .semantics {
             if (!labels) contentDescription = label
             if (entry is HomeEntry.App && apps[entry.id] == null) stateDescription = "Unavailable"
-        }.combinedClickable(interactionSource = interactions, indication = null, role = Role.Button, onClick = { onClick(iconBounds) },
+        }.combinedClickable(interactionSource = interactions, indication = null, role = Role.Button, onClick = {
+            if (cyber && dev.vitreo.launcher.core.CYBER_EFFECT_PRESS_GLITCH in appearance.cyberNightEffects) {
+                coroutineScope.launch {
+                    glitchTrigger.snapTo(1f)
+                    glitchTrigger.animateTo(0f, tween(160, easing = LinearEasing))
+                }
+            }
+            onClick(iconBounds)
+        },
             onLongClickLabel = "Actions for $label", onLongClick = if (editing) null else ({ onActions(iconBounds) }))
         .alpha(if (dragging) .2f else if (entry is HomeEntry.App && apps[entry.id] == null) .5f else 1f)
         .padding(top = 7.dp, bottom = 5.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -176,21 +223,25 @@ fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, l
             scaleY = scale.value * groupScale
         }) {
             EntryIcon(entry, apps, iconSize)
-            if (pressed && !editing && !appearance.reducedEffects) {
-                if (cyber && dev.vitreo.launcher.core.CYBER_EFFECT_PRESS_GLITCH in appearance.cyberNightEffects) {
-                    Box(Modifier.matchParentSize().offset(x = (-3).dp).clip(CyberShape)
-                        .background(CyberColors.Red.copy(alpha = .38f)))
-                    Box(Modifier.matchParentSize().offset(x = 3.dp).clip(CyberShape)
-                        .background(CyberColors.Cyan.copy(alpha = .32f)))
-                    Box(Modifier.matchParentSize().clip(CyberShape)
-                        .background(CyberColors.Yellow.copy(alpha = .22f)))
-                } else {
-                    Box(Modifier.matchParentSize().clip(if (cyber) CyberShape else IconShape)
-                        .background(Color.Black.copy(alpha = if (cyber) .10f else .16f)))
+            val glitch = if (pressed) 1f else glitchTrigger.value
+            if (cyber && dev.vitreo.launcher.core.CYBER_EFFECT_PRESS_GLITCH in appearance.cyberNightEffects && (pressed || glitch > 0f)) {
+                val glitchOffset = 3.5.dp * glitch
+                Box(Modifier.matchParentSize().offset(x = -glitchOffset, y = -1.dp).clip(CyberShape)
+                    .background(palette.red.copy(alpha = .42f * glitch)))
+                Box(Modifier.matchParentSize().offset(x = glitchOffset, y = 1.dp).clip(CyberShape)
+                    .background(palette.cyan.copy(alpha = .38f * glitch)))
+                Box(Modifier.matchParentSize().clip(CyberShape)
+                    .background(palette.accent.copy(alpha = .22f * glitch)))
+                Canvas(Modifier.matchParentSize().clip(CyberShape)) {
+                    val sliceY = this.size.height * (.35f + .3f * sin(glitch * 14f))
+                    drawRect(Color.White.copy(alpha = .5f * glitch), Offset(0f, sliceY), Size(this.size.width, 2.5.dp.toPx()))
                 }
+            } else if (pressed && !editing && !appearance.reducedEffects) {
+                Box(Modifier.matchParentSize().clip(if (cyber) CyberShape else IconShape)
+                    .background(Color.Black.copy(alpha = if (cyber) .10f else .16f)))
             }
             if (groupingHover) Box(Modifier.matchParentSize().border(if (groupingTarget) 3.dp else 1.dp,
-                if (cyber) CyberColors.Cyan else Color.White.copy(alpha = if (groupingTarget) .95f else .5f),
+                if (cyber) palette.cyan else Color.White.copy(alpha = if (groupingTarget) .95f else .5f),
                 if (cyber) CyberShape else IconShape).testTag(if (groupingTarget) "folder_drop_ready" else "folder_drop_hover"))
             if (editing && onRemove != null) Box(Modifier.offset((-5).dp, (-5).dp).size(23.dp)
                 .background(Color(0xffd5d7db), CircleShape).clickable(onClick = onRemove), contentAlignment = Alignment.Center) {
@@ -198,7 +249,7 @@ fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, l
             }
         }
         if (labels) Text(label, Modifier.fillMaxWidth().padding(top = 6.dp, start = 1.dp, end = 1.dp)
-            .then(if (cyber) Modifier.background(CyberColors.Background.copy(alpha = .86f), androidx.compose.foundation.shape.CutCornerShape(3.dp))
+            .then(if (cyber) Modifier.background(palette.background.copy(alpha = .86f), androidx.compose.foundation.shape.CutCornerShape(3.dp))
                 .padding(horizontal = 3.dp, vertical = 1.dp) else Modifier),
             maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
             style = TextStyle(fontSize = 12.sp, lineHeight = if (cyber) TextUnit.Unspecified else 14.sp, color = contentColor, fontFamily = if (cyber) CyberFont else null,

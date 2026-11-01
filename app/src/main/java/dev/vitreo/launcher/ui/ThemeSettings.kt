@@ -103,38 +103,36 @@ fun ThemeSettings(ui: LauncherViewModel.UiState, onAppearance: (Appearance) -> U
         }
         Text("Immersive adds dynamic rain, drifting neon light, scanning HUD, 3D cyberspace grid and relic glitch effects. Classic keeps the restrained appearance. Both keep your layout and wallpaper.",
             Modifier.padding(17.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (a.cyberImmersive) {
-            IosSectionLabel("Night City effects")
-            IosGroup {
-                val effects = listOf(
-                    dev.vitreo.launcher.core.CYBER_EFFECT_RETICLES to "Kiroshi corner HUD reticles",
-                    dev.vitreo.launcher.core.CYBER_EFFECT_PRESS_GLITCH to "Icon tap Relic RGB glitch",
-                    dev.vitreo.launcher.core.CYBER_EFFECT_CYBERDECK_WIDGETS to "Cyberdeck RAM & Shard widgets",
-                    dev.vitreo.launcher.core.CYBER_EFFECT_QUICKHACK_DOCK to "Quickhack dock tray slots",
-                    dev.vitreo.launcher.core.CYBER_EFFECT_TIER_PIPS to "Cyberware rarity tier pips",
-                    dev.vitreo.launcher.core.CYBER_EFFECT_NETWATCH_SEARCH to "Netwatch terminal search prompt",
-                    dev.vitreo.launcher.core.CYBER_EFFECT_HOLOCALL_NOTICES to "Holocall transmission notifications",
-                    dev.vitreo.launcher.core.CYBER_EFFECT_CYBERWARE_CONTROLS to "Segmented cyberware sliders",
-                    dev.vitreo.launcher.core.CYBER_EFFECT_GLITCH to "Relic malfunction screen glitch",
-                    dev.vitreo.launcher.core.CYBER_EFFECT_RAIN to "Night City neon rain",
-                    dev.vitreo.launcher.core.CYBER_EFFECT_GRID to "Cyberspace matrix 3D grid",
-                    dev.vitreo.launcher.core.CYBER_EFFECT_SCANLINE to "Scanlines & radar sweep",
-                    dev.vitreo.launcher.core.CYBER_EFFECT_TELEMETRY to "Kiroshi optics telemetry ticks",
-                    dev.vitreo.launcher.core.CYBER_EFFECT_BLOOM to "Neon atmospheric bloom",
-                    dev.vitreo.launcher.core.CYBER_EFFECT_PANEL_SWEEP to "Panel border edge sweeps",
-                )
-                effects.forEachIndexed { index, (key, title) ->
-                    val active = key in a.cyberNightEffects
-                    IosToggleRow(title, active, modifier = Modifier.testTag("cyber_effect_$key")) { enabled ->
-                        val updated = if (enabled) a.cyberNightEffects + key else a.cyberNightEffects - key
-                        onAppearance(a.copy(cyberNightEffects = updated))
-                    }
-                    if (index < effects.lastIndex) IosDivider()
+        IosSectionLabel("Night City modular effects")
+        IosGroup {
+            val effects = listOf(
+                dev.vitreo.launcher.core.CYBER_EFFECT_RETICLES to "Kiroshi corner HUD reticles",
+                dev.vitreo.launcher.core.CYBER_EFFECT_PRESS_GLITCH to "Icon tap Relic RGB glitch",
+                dev.vitreo.launcher.core.CYBER_EFFECT_CYBERDECK_WIDGETS to "Cyberdeck RAM & Shard widgets",
+                dev.vitreo.launcher.core.CYBER_EFFECT_QUICKHACK_DOCK to "Quickhack dock tray slots",
+                dev.vitreo.launcher.core.CYBER_EFFECT_TIER_PIPS to "Cyberware rarity tier pips",
+                dev.vitreo.launcher.core.CYBER_EFFECT_NETWATCH_SEARCH to "Netwatch terminal search prompt",
+                dev.vitreo.launcher.core.CYBER_EFFECT_HOLOCALL_NOTICES to "Holocall transmission notifications",
+                dev.vitreo.launcher.core.CYBER_EFFECT_CYBERWARE_CONTROLS to "Segmented cyberware sliders",
+                dev.vitreo.launcher.core.CYBER_EFFECT_GLITCH to "Relic malfunction screen glitch",
+                dev.vitreo.launcher.core.CYBER_EFFECT_RAIN to "Night City neon rain",
+                dev.vitreo.launcher.core.CYBER_EFFECT_GRID to "Cyberspace matrix 3D grid",
+                dev.vitreo.launcher.core.CYBER_EFFECT_SCANLINE to "Scanlines & radar sweep",
+                dev.vitreo.launcher.core.CYBER_EFFECT_TELEMETRY to "Kiroshi optics telemetry ticks",
+                dev.vitreo.launcher.core.CYBER_EFFECT_BLOOM to "Neon atmospheric bloom",
+                dev.vitreo.launcher.core.CYBER_EFFECT_PANEL_SWEEP to "Panel border edge sweeps",
+            )
+            effects.forEachIndexed { index, (key, title) ->
+                val active = key in a.cyberNightEffects
+                IosToggleRow(title, active, modifier = Modifier.testTag("cyber_effect_$key")) { enabled ->
+                    val updated = if (enabled) a.cyberNightEffects + key else a.cyberNightEffects - key
+                    onAppearance(a.copy(cyberNightEffects = updated))
                 }
+                if (index < effects.lastIndex) IosDivider()
             }
-            Text("Select the cyberpunk modular effects active in Night City mode.",
-                Modifier.padding(horizontal = 17.dp, vertical = 8.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        Text("Customize individual HUD, audio-visual, icon and interface cyber-effects.",
+            Modifier.padding(horizontal = 17.dp, vertical = 8.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         IosSectionLabel("Status bar appearance")
         IosGroup {
             Column(Modifier.fillMaxWidth().padding(17.dp).testTag("cyber_status_controls")) {

@@ -1,5 +1,20 @@
 # Cambios
 
+## 0.10.10
+
+- Comprehensive fix and modular activation for all 15 Cyberpunk 2077 Night City effects:
+  - App icons & HUD framing:
+    - Fixed Cyberware Tier Rarity Pips (`CYBER_EFFECT_TIER_PIPS`): moved from clipped cut corner to the top-start anchor, featuring 5 distinct cyberware rarity tiers (Common white-gray, Uncommon green, Rare cyan, Epic purple, Legendary/Iconic gold) with high-contrast diegetic chip corners and indicator dots.
+    - App Icon Diegetic HUD Styling: normal installed apps now feature cyberpunk HUD corner brackets, subtle telemetry grid backing, and faction-adaptive borders so non-bundled apps integrate naturally into Night City.
+    - Tactile Relic RGB Press Glitch (`CYBER_EFFECT_PRESS_GLITCH`): animated 160ms burst on tap and press, rendering displaced red and cyan chromatic aberration channels and scanline interference across app tiles.
+  - Settings modular visibility:
+    - The "Night City modular effects" section and all 15 toggles are now directly visible and customizable whenever the Cyberpunk theme is selected, decoupled from the Immersive preset.
+  - Ambient and surface effects:
+    - Reticles, telemetry, bloom, cyberspace grid, acid rain, scanlines, and glitch effects now dynamically render whenever toggled on and adapt to the active faction's color profile (Kiroshi, Arasaka, Netrunner, Trauma Team).
+    - Quickhack Dock (`CYBER_EFFECT_QUICKHACK_DOCK`): updated with faction-adaptive bus sockets, corner ticks, and memory rails.
+    - Control Center Sliders (`CYBER_EFFECT_CYBERWARE_CONTROLS`): updated with active faction accent neon fill, ladder rungs, and percentage readouts.
+    - Standalone Home Widgets: standalone Clock and Calendar widget cards on Home now dynamically adapt to Cyberdeck digital RAM chronometers and Data Shard calendar cards in Cyberpunk theme.
+
 ## 0.10.9
 
 - Major Cyberpunk 2077 HUD & immersion overhaul with full modular customization:
