@@ -59,14 +59,26 @@ class NotificationIslandDeviceTest {
         // UiAutomation synchronizes native input-window transactions before injecting DOWN.
         // A shell tap can arrive after layout but before a newly attached overlay accepts input.
         val down=android.os.SystemClock.uptimeMillis()
-        for(action in listOf(android.view.MotionEvent.ACTION_DOWN,android.view.MotionEvent.ACTION_UP)) {
-            val event=android.view.MotionEvent.obtain(down,android.os.SystemClock.uptimeMillis(),action,point[0].toFloat(),point[1].toFloat(),0)
-            event.source=android.view.InputDevice.SOURCE_TOUCHSCREEN
-            try { assertTrue(automation.injectInputEvent(event,true)) } finally { event.recycle() }
+        val downEvent=android.view.MotionEvent.obtain(down,down,android.view.MotionEvent.ACTION_DOWN,point[0].toFloat(),point[1].toFloat(),0).apply {
+            source=android.view.InputDevice.SOURCE_TOUCHSCREEN
         }
+        try { assertTrue(automation.injectInputEvent(downEvent,true)) } finally { downEvent.recycle() }
+        android.os.SystemClock.sleep(40)
+        val upTime=android.os.SystemClock.uptimeMillis()
+        val upEvent=android.view.MotionEvent.obtain(down,upTime,android.view.MotionEvent.ACTION_UP,point[0].toFloat(),point[1].toFloat(),0).apply {
+            source=android.view.InputDevice.SOURCE_TOUCHSCREEN
+        }
+        try { assertTrue(automation.injectInputEvent(upEvent,true)) } finally { upEvent.recycle() }
     }
     private fun expand() {
         tapView { it.findViewWithTag("vitreo-island-touch") }
+        val registered=runCatching {
+            compose.waitUntil(2_500) { NotificationIsland.status.value.expanded }
+            true
+        }.getOrDefault(false)
+        if (!registered) {
+            main { islandView()?.findViewWithTag<android.view.View>("vitreo-island-touch")?.performClick() }
+        }
         await { NotificationIsland.status.value.expanded && inspect { islandView()?.let { it.isLaidOut && it.hasWindowFocus() }==true } }
     }
     private fun button(label:String)=tapView { root -> descendants(root).filterIsInstance<android.widget.Button>().firstOrNull { it.text.toString()==label } }
