@@ -104,22 +104,27 @@ fun IosAppIcon(kind: String, style: Int, tint: Color, modifier: Modifier = Modif
                             position.y - (numbers.ascent() + numbers.descent()) / 2, numbers)
                     }
                 }
-                fun hand(a: Double, length: Float, width: Float, color: Color) {
-                    drawLine(color, center, center + Offset((sin(a) * length).toFloat(), (-cos(a) * length).toFloat()), width, cap = StrokeCap.Round)
+                fun hand(a: Double, length: Float, width: Float, color: Color, tail: Float = 0f) {
+                    val start = if (tail > 0f) center - Offset((sin(a) * tail).toFloat(), (-cos(a) * tail).toFloat()) else center
+                    val end = center + Offset((sin(a) * length).toFloat(), (-cos(a) * length).toFloat())
+                    drawLine(color, start, end, width, cap = StrokeCap.Round)
                 }
                 hand((cal.get(Calendar.HOUR) + cal.get(Calendar.MINUTE) / 60.0) * PI / 6, r * .56f, size.width * .018f, ink)
                 hand(cal.get(Calendar.MINUTE) * PI / 30, r * .86f, size.width * .013f, ink)
-                if (seconds) hand(cal.get(Calendar.SECOND) * PI / 30, r * .90f, size.width * .006f, Color(0xffff9f0a))
-                drawCircle(ink, size.width * .022f, center)
+                if (seconds) hand(cal.get(Calendar.SECOND) * PI / 30, r * .90f, size.width * .007f, Color(0xffff9500), tail = r * .22f)
+                drawCircle(ink, size.width * .024f, center)
+                if (seconds) drawCircle(Color(0xffff9500), size.width * .010f, center)
             }
         } else if (kind == "calendar") {
             val time = LocalHomeClock.current
             val cal = remember(time) { Calendar.getInstance().apply { timeInMillis = time } }
             val ink = if (style == 0) Color(0xff171719) else if (style == 2) tint else Color.White
+            val locale = Locale.getDefault()
+            val dayName = cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.SHORT, locale).orEmpty().uppercase(locale)
             Column(Modifier.fillMaxSize().background(if (style == 0) Color.White else Color(0xff202226))
                 .padding(top = (7 * scale).dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Text(cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.SHORT, Locale.ENGLISH).orEmpty().uppercase(Locale.ENGLISH),
-                    color = if (style == 0) Color(0xffff453a) else ink, fontSize = (9 * textScale).sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                Text(dayName,
+                    color = if (style == 0) Color(0xffff3b30) else ink, fontSize = (9.5f * textScale).sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                 Text(cal.get(Calendar.DAY_OF_MONTH).toString(), color = ink, fontSize = (32 * textScale).sp,
                     fontWeight = FontWeight.Light, lineHeight = (33 * textScale).sp)
             }

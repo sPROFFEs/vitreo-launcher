@@ -1,5 +1,20 @@
 # Cambios
 
+## 0.10.5
+
+- Implement strictly critically damped spring physics (damping ratio = 1.0) across all panels,
+  menus, switches and navigation transitions to eliminate unnatural oscillations and mirror
+  Apple Fluid Interfaces.
+- Add authentic tactile icon press response: 0.92 scale compression with a subtle dark scrim
+  overlay and snappy return spring.
+- Upgrade icon squircle geometry (IconShape) to a 192-point continuous superellipse, eliminating
+  polygonal faceting on high-DPI displays.
+- Introduce organic, multi-axis icon jiggle mode with alternating rotation (±2.2°) and 2D
+  translation jitter (X/Y) with randomized phase and frequency across icons.
+- Add counterweight tail and secondary orange cap to the live Clock icon; localize live Calendar
+  day name to the system locale with iOS system red header.
+- Smooth out return-to-home arrival zoom transition to match iOS SpringBoard's natural deceleration.
+
 ## 0.10.3
 
 - Refine iOS 26 Control Center using the supplied component kits: larger primary

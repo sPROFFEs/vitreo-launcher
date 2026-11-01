@@ -63,15 +63,19 @@ fun IosSlider(value: Float, onChange: (Float) -> Unit, modifier: Modifier = Modi
         })
 }
 
-/** Continuous corners, independent of the Android device's adaptive icon mask. */
+/** Continuous corners, independent of the Android device's adaptive icon mask.
+ * 192-point superellipse provides smooth G2-like continuous curvature without polygonal faceting. */
 object IconShape : Shape {
     override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
         val path = Path()
-        repeat(97) { index ->
-            val angle = index * 2.0 * PI / 96
+        val steps = 192
+        val halfW = size.width * .5
+        val halfH = size.height * .5
+        repeat(steps + 1) { index ->
+            val angle = index * 2.0 * PI / steps
             val x = cos(angle); val y = sin(angle)
-            val px = (size.width * .5 * (1 + sign(x) * abs(x).pow(.42))).toFloat()
-            val py = (size.height * .5 * (1 + sign(y) * abs(y).pow(.42))).toFloat()
+            val px = (halfW * (1 + sign(x) * abs(x).pow(.42))).toFloat()
+            val py = (halfH * (1 + sign(y) * abs(y).pow(.42))).toFloat()
             if (index == 0) path.moveTo(px, py) else path.lineTo(px, py)
         }
         path.close()
@@ -85,7 +89,7 @@ fun IosSwitch(checked: Boolean, enabled: Boolean = true) {
     val shape = if (cyber) CyberShape else CircleShape
     val reduced = LocalGlass.current.appearance.reducedEffects
     val x by animateDpAsState(if (checked) 22.dp else 2.dp,
-        if (reduced) tween(0) else spring(dampingRatio = .85f, stiffness = 650f), label = "switch")
+        if (reduced) tween(0) else spring(dampingRatio = 1f, stiffness = 750f), label = "switch")
     Box(Modifier.size(51.dp, 31.dp).clip(shape).background(
         if (checked) (if (cyber) CyberColors.Red else Color(0xff34c759)).copy(alpha = if (enabled) 1f else .45f)
         else MaterialTheme.colorScheme.onSurface.copy(alpha = .15f))) {

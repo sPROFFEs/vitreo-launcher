@@ -104,17 +104,43 @@ fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, l
     onClick: (Rect?) -> Unit, onActions: (Rect?) -> Unit, onBounds: (Rect) -> Unit = {}, onRemove: (() -> Unit)? = null, groupingHover: Boolean = false, groupingTarget: Boolean = false) {
     val appearance = LocalGlass.current.appearance
     val cyber = LocalCyber.current
-    val angle: State<Float> = if (editing && !appearance.reducedEffects && !cyber) {
-        val transition = rememberInfiniteTransition(label = "jiggle")
-        transition.animateFloat(-1.1f, 1.1f,
-            infiniteRepeatable(tween(150 + (entry.id.hashCode().ushr(1) % 60)), RepeatMode.Reverse), label = "icon")
+    val isJiggling = editing && !appearance.reducedEffects && !cyber
+    val hash = entry.id.hashCode()
+    val jiggleTransition = rememberInfiniteTransition(label = "jiggle")
+    val duration = 135 + (hash.ushr(1) % 35)
+    val angleRange = if (hash % 2 == 0) 2.2f else -2.2f
+    val angle: State<Float> = if (isJiggling) {
+        jiggleTransition.animateFloat(
+            initialValue = -angleRange,
+            targetValue = angleRange,
+            animationSpec = infiniteRepeatable(tween(duration, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+            label = "iconAngle"
+        )
+    } else rememberUpdatedState(0f)
+    val jitterX: State<Float> = if (isJiggling) {
+        val xOffset = if (hash % 3 == 0) .55f else -.55f
+        jiggleTransition.animateFloat(
+            initialValue = -xOffset,
+            targetValue = xOffset,
+            animationSpec = infiniteRepeatable(tween(duration + 18, easing = LinearEasing), RepeatMode.Reverse),
+            label = "iconJitterX"
+        )
+    } else rememberUpdatedState(0f)
+    val jitterY: State<Float> = if (isJiggling) {
+        val yOffset = if (hash % 4 == 0) .42f else -.42f
+        jiggleTransition.animateFloat(
+            initialValue = -yOffset,
+            targetValue = yOffset,
+            animationSpec = infiniteRepeatable(tween(duration - 14, easing = LinearEasing), RepeatMode.Reverse),
+            label = "iconJitterY"
+        )
     } else rememberUpdatedState(0f)
     val label = entryLabel(entry, apps)
     val interactions = remember { MutableInteractionSource() }
     val pressed by interactions.collectIsPressedAsState()
     var iconBounds by remember { mutableStateOf<Rect?>(null) }
-    val scale = animateFloatAsState(if (pressed && !editing && !appearance.reducedEffects) (if (cyber) .97f else .94f) else 1f,
-        if (appearance.reducedEffects) tween(0) else if (cyber) tween(90) else spring(dampingRatio = .72f, stiffness = 650f), label = "icon press")
+    val scale = animateFloatAsState(if (pressed && !editing && !appearance.reducedEffects) (if (cyber) .97f else .92f) else 1f,
+        if (appearance.reducedEffects) tween(0) else if (cyber) tween(90) else LauncherMotion.iconPress(), label = "icon press")
     val groupScale by animateFloatAsState(if (groupingTarget) 1.13f else if (groupingHover) 1.06f else 1f,
         if (appearance.reducedEffects) tween(0) else spring(dampingRatio = .86f, stiffness = 550f), label = "folder drop target")
     val contentColor = LocalGlassContentColor.current
@@ -127,9 +153,17 @@ fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, l
         .alpha(if (dragging) .2f else if (entry is HomeEntry.App && apps[entry.id] == null) .5f else 1f)
         .padding(top = 7.dp, bottom = 5.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.onGloballyPositioned { iconBounds = it.boundsInRoot() }.graphicsLayer {
-            rotationZ = if (groupingHover) 0f else angle.value; scaleX = scale.value * groupScale; scaleY = scale.value * groupScale
+            translationX = if (groupingHover) 0f else jitterX.value.dp.toPx()
+            translationY = if (groupingHover) 0f else jitterY.value.dp.toPx()
+            rotationZ = if (groupingHover) 0f else angle.value
+            scaleX = scale.value * groupScale
+            scaleY = scale.value * groupScale
         }) {
             EntryIcon(entry, apps, iconSize)
+            if (pressed && !editing && !appearance.reducedEffects) {
+                Box(Modifier.matchParentSize().clip(if (cyber) CyberShape else IconShape)
+                    .background(Color.Black.copy(alpha = if (cyber) .10f else .16f)))
+            }
             if (groupingHover) Box(Modifier.matchParentSize().border(if (groupingTarget) 3.dp else 1.dp,
                 if (cyber) CyberColors.Cyan else Color.White.copy(alpha = if (groupingTarget) .95f else .5f),
                 if (cyber) CyberShape else IconShape).testTag(if (groupingTarget) "folder_drop_ready" else "folder_drop_hover"))

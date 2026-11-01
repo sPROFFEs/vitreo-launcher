@@ -22,9 +22,11 @@ import kotlin.math.abs
 
 /** Motion roles adapted from Folio's MIT FolioTokens.kt (see third_party/folio/PROVENANCE.md). */
 object LauncherMotion {
-    fun <T> panel(cyber: Boolean = false) = spring<T>(dampingRatio = if (cyber) 1f else .9f, stiffness = if (cyber) 1000f else 460f)
-    fun <T> menu(cyber: Boolean = false) = spring<T>(dampingRatio = if (cyber) 1f else .9f, stiffness = if (cyber) 1200f else 620f)
-    fun <T> close() = spring<T>(dampingRatio = 1f, stiffness = 700f)
+    fun <T> panel(cyber: Boolean = false) = spring<T>(dampingRatio = 1f, stiffness = if (cyber) 1000f else 520f)
+    fun <T> menu(cyber: Boolean = false) = spring<T>(dampingRatio = 1f, stiffness = if (cyber) 1200f else 750f)
+    fun <T> close() = spring<T>(dampingRatio = 1f, stiffness = 720f)
+    fun <T> iconPress() = spring<T>(dampingRatio = 1f, stiffness = 900f)
+    fun <T> folderExpand() = spring<T>(dampingRatio = 1f, stiffness = 480f)
 }
 
 enum class SurfaceKind { Folder, Category, Search, Controls, Notifications, Page }
