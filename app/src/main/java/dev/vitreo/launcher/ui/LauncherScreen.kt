@@ -670,11 +670,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
             background?.let { Image(it.asImageBitmap(), null, Modifier.fillMaxSize().graphicsLayer { alpha = localBackgroundAlpha.value }, contentScale = ContentScale.Crop) }
             if (appearance.themePreset == 1) {
                 Box(Modifier.fillMaxSize().testTag("cyber_backdrop"))
-                val hasAmbientEffects = appearance.cyberImmersive || appearance.cyberNightEffects.any {
-                    it in setOf(CYBER_EFFECT_RETICLES, CYBER_EFFECT_TELEMETRY, CYBER_EFFECT_BLOOM,
-                                CYBER_EFFECT_GRID, CYBER_EFFECT_RAIN, CYBER_EFFECT_SCANLINE, CYBER_EFFECT_GLITCH)
-                }
-                if (hasAmbientEffects && appearance.cyberEffects && !appearance.reducedEffects && sheet == null) CyberAmbient()
+                if (appearance.cyberImmersive && appearance.cyberEffects && !appearance.reducedEffects && sheet == null) CyberAmbient()
             }
             Box(Modifier.fillMaxSize().windowInsetsPadding(if (integratedBar) WindowInsets.navigationBars.union(
                 WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)) else WindowInsets.systemBars.union(WindowInsets.displayCutout))
