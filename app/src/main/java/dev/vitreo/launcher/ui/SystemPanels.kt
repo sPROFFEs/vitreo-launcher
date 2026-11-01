@@ -206,7 +206,8 @@ internal fun NotificationCenter(onClose: () -> Unit, onAccess: () -> Unit, onErr
                             backgroundContent = { Box(Modifier.fillMaxSize().padding(20.dp), contentAlignment = Alignment.CenterEnd) { Text("Clear", color = Color.White) } }) {
                             GlassPanel(Modifier.fillMaxWidth().testTag("notice:${notice.key}")
                                 .animateContentSize(if (reduced) tween(0) else LauncherMotion.panel()),
-                                radius = if (appearance.iosClassic) 22f else 26f, tint = .32f, material = GlassMaterial.Regular) {
+                                radius = if (appearance.iosClassic) 20f else 26f,
+                                tint = if (appearance.iosClassic) .36f else .28f, material = GlassMaterial.Regular) {
                                 Column(Modifier.fillMaxWidth().clickable {
                                     val intent = notice.intent
                                     if (intent != null) { if(dev.vitreo.launcher.data.launchNotification(context,intent)) onClose() else onError("This notification is no longer available.") }

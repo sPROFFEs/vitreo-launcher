@@ -55,7 +55,7 @@ internal fun HomePageControl(position: () -> Float, pages: Int, showPages: Boole
     val ink = LocalGlassContentColor.current
     val reduced = LocalGlass.current.appearance.reducedEffects
     Box(Modifier.fillMaxWidth().height(46.dp), contentAlignment = Alignment.Center) {
-        GlassPanel(radius = 18f, tint = .1f, interactive = !showPages) {
+        GlassPanel(radius = 18f, tint = if (LocalGlass.current.appearance.iosClassic) .28f else .14f, interactive = !showPages) {
             AnimatedContent(showPages, transitionSpec = {
                 (fadeIn(tween(if (reduced) 0 else 120)) togetherWith fadeOut(tween(if (reduced) 0 else 90)))
                     .using(SizeTransform { _, _ -> if (reduced) tween(0) else LauncherMotion.panel() })

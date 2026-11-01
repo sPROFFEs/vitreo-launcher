@@ -1,5 +1,15 @@
 # Cambios
 
+## 0.10.8
+
+- Fidelity overhaul for iOS 16 Classic and Modern Liquid Glass materials:
+  - iOS 16 Classic: Pure silky Gaussian blur without sharp wallpaper bleed-through, refined translucent Apple material opacities for the Dock, folders, cards, and capsules, subtle 0.5dp hairline perimeter border for dark and light modes, and soft 3dp elevation drop shadows.
+  - Modern Liquid Glass (iOS 26): Light/dark adaptive beveled specular edge highlights with ground occlusion on light cards, rich crystalline and smoked obsidian transmission body, and continuous C2 refractive curvature.
+- Dynamic theme-adaptive styling for built-in widgets:
+  - Calendar widget: Fully adopts regular glass material, transitioning from a flat opaque card to authentic iOS frosted glass with dynamic dark/light typography (system red day name, white numeral in dark mode, charcoal in light mode).
+  - Clock widget: Dial and hands adapt dynamically to dark and light modes (black dial with white hands and orange second hand in dark mode, white dial with charcoal hands in light mode).
+- Home folders & Dock fidelity: Updated squircle corner ratios and authentic Apple system material opacities.
+
 ## 0.10.7
 
 - Fix Clock widget card bounds and column gutter alignment: widgets now align pixel-perfectly with icon columns and provide full shadow clearance, completely eliminating left-edge clipping.

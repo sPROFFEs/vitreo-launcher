@@ -33,6 +33,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -68,6 +69,7 @@ fun ClockWidgetCard(
     val secondsVisible = !LocalGlass.current.appearance.reducedEffects
     val timeLabel = DateFormat.getTimeFormat(LocalContext.current).format(Date(now))
     val classic = LocalGlass.current.appearance.iosClassic
+    val isDark = MaterialTheme.colorScheme.background.luminance() < .5f
 
     Box(modifier.testTag("clock_widget_card")) {
         GlassPanel(
@@ -75,19 +77,24 @@ fun ClockWidgetCard(
                 .semantics { contentDescription = "Clock, $timeLabel" }
                 .clickable(onClick = if (editing && onEdit != null) onEdit else onClick),
             radius = 28f,
-            tint = if (classic) .18f else .12f
+            material = GlassMaterial.Regular,
+            tint = if (classic) (if (isDark) .72f else .78f) else (if (isDark) .64f else .70f)
         ) {
             Canvas(Modifier.fillMaxSize().padding(14.dp)) {
                 val r = min(size.width, size.height) * .44f
                 val center = Offset(size.width / 2f, size.height / 2f)
-                drawCircle(Color(0xfff7f7f5), r, center)
+                val dialColor = if (isDark) Color(0xff151518) else Color(0xfff7f7f5)
+                val tickPrimary = if (isDark) Color.White else Color(0xff1c1c1e)
+                val tickSecondary = if (isDark) Color(0xff636366) else Color(0xff8e8e93)
+                val handColor = if (isDark) Color.White else Color(0xff1c1c1e)
+                drawCircle(dialColor, r, center)
                 repeat(12) { i ->
                     val angle = i * PI / 6
                     val isCardinal = i % 3 == 0
                     val inner = r * if (isCardinal) .78f else .84f
                     val outer = r * .93f
                     drawLine(
-                        color = if (isCardinal) Color(0xff1c1c1e) else Color(0xff8e8e93),
+                        color = if (isCardinal) tickPrimary else tickSecondary,
                         start = center + Offset((sin(angle) * inner).toFloat(), (-cos(angle) * inner).toFloat()),
                         end = center + Offset((sin(angle) * outer).toFloat(), (-cos(angle) * outer).toFloat()),
                         strokeWidth = if (isCardinal) 2.5.dp.toPx() else 1.2.dp.toPx(),
@@ -101,14 +108,14 @@ fun ClockWidgetCard(
                 }
                 val minute = calendar.get(Calendar.MINUTE)
                 val hour = calendar.get(Calendar.HOUR)
-                hand((hour + minute / 60.0) * PI / 6, r * .52f, 3.6.dp.toPx(), Color(0xff1c1c1e))
-                hand(minute * PI / 30, r * .75f, 2.6.dp.toPx(), Color(0xff1c1c1e))
+                hand((hour + minute / 60.0) * PI / 6, r * .52f, 3.6.dp.toPx(), handColor)
+                hand(minute * PI / 30, r * .75f, 2.6.dp.toPx(), handColor)
                 if (secondsVisible) {
                     val sec = calendar.get(Calendar.SECOND)
-                    hand(sec * PI / 30, r * .84f, 1.2.dp.toPx(), Color(0xffff9500), tail = r * .22f)
+                    hand(sec * PI / 30, r * .84f, 1.2.dp.toPx(), Color(0xffff9f0a), tail = r * .22f)
                 }
-                drawCircle(Color(0xff1c1c1e), 3.2.dp.toPx(), center)
-                if (secondsVisible) drawCircle(Color(0xffff9500), 1.8.dp.toPx(), center)
+                drawCircle(handColor, 3.2.dp.toPx(), center)
+                if (secondsVisible) drawCircle(Color(0xffff9f0a), 1.8.dp.toPx(), center)
             }
         }
         if (editing) {
@@ -139,50 +146,51 @@ fun CalendarWidgetCard(
     val monthYear = SimpleDateFormat("MMMM yyyy", locale).format(Date(now)).replaceFirstChar { if (it.isLowerCase()) it.titlecase(locale) else it.toString() }
 
     val classic = LocalGlass.current.appearance.iosClassic
-    val shape = RoundedCornerShape(28.dp)
+    val isDark = MaterialTheme.colorScheme.background.luminance() < .5f
 
     Box(modifier.testTag("calendar_widget_card")) {
-        BoxWithConstraints(
+        GlassPanel(
             Modifier.fillMaxSize()
-                .shadow(if (classic) 1.dp else 6.dp, shape, clip = false,
-                    ambientColor = Color.Black.copy(alpha = .10f), spotColor = Color.Black.copy(alpha = .12f))
-                .clip(shape)
-                .background(Color(0xfff9f9f6))
-                .clickable(onClick = if (editing && onEdit != null) onEdit else onClick)
-                .padding(16.dp)
+                .semantics { contentDescription = "Calendar, $dayOfWeek $dayOfMonth $monthYear" }
+                .clickable(onClick = if (editing && onEdit != null) onEdit else onClick),
+            radius = 28f,
+            material = GlassMaterial.Regular,
+            tint = if (classic) (if (isDark) .72f else .78f) else (if (isDark) .64f else .70f)
         ) {
-            val fontScale = LocalDensity.current.fontScale
-            val captionSize = minOf(13f, maxHeight.value * .15f / fontScale)
-            val daySize = minOf(52f, maxHeight.value * .50f / fontScale)
+            BoxWithConstraints(Modifier.fillMaxSize().padding(16.dp)) {
+                val fontScale = LocalDensity.current.fontScale
+                val captionSize = minOf(13f, maxHeight.value * .15f / fontScale)
+                val daySize = minOf(52f, maxHeight.value * .50f / fontScale)
 
-            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
-                Text(
-                    text = dayOfWeek,
-                    fontSize = captionSize.sp,
-                    lineHeight = (captionSize * 1.2f).sp,
-                    color = Color(0xffff3b30),
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = .4.sp,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
-                Text(
-                    text = dayOfMonth,
-                    fontSize = daySize.sp,
-                    lineHeight = (daySize * 1.05f).sp,
-                    fontWeight = FontWeight.Light,
-                    color = Color(0xff1c1c1e),
-                    maxLines = 1
-                )
-                Text(
-                    text = monthYear,
-                    fontSize = captionSize.sp,
-                    lineHeight = (captionSize * 1.2f).sp,
-                    color = Color(0xff8e8e93),
-                    fontWeight = FontWeight.Normal,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
+                Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+                    Text(
+                        text = dayOfWeek,
+                        fontSize = captionSize.sp,
+                        lineHeight = (captionSize * 1.2f).sp,
+                        color = Color(0xffff3b30),
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = .4.sp,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = dayOfMonth,
+                        fontSize = daySize.sp,
+                        lineHeight = (daySize * 1.05f).sp,
+                        fontWeight = FontWeight.Light,
+                        color = if (isDark) Color.White else Color(0xff1c1c1e),
+                        maxLines = 1
+                    )
+                    Text(
+                        text = monthYear,
+                        fontSize = captionSize.sp,
+                        lineHeight = (captionSize * 1.2f).sp,
+                        color = if (isDark) Color(0xff98989d) else Color(0xff8e8e93),
+                        fontWeight = FontWeight.Normal,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
             }
         }
         if (editing) {

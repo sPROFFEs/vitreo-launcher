@@ -118,7 +118,7 @@ private fun PanelControl(title: String, icon: ImageVector, modifier: Modifier = 
     GlassPanel(modifier.graphicsLayer { scaleX = scale; scaleY = scale }.clip(shape).testTag("control:$title").semantics {
         contentDescription = title
         stateDescription = if (!enabled) "Unavailable" else if (active) "On" else "Open"
-    }.clickable(interaction, null, enabled = enabled, role = Role.Button, onClick = onClick), radius = radius, tint = .14f, interactive = enabled) {
+    }.clickable(interaction, null, enabled = enabled, role = Role.Button, onClick = onClick), radius = radius, tint = if (classic) .26f else .16f, interactive = enabled) {
         Row(Modifier.fillMaxSize().background(fill)
             .graphicsLayer { alpha = if (enabled) 1f else .35f }.padding(if (wide) 16.dp else 0.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = if (wide) Arrangement.spacedBy(12.dp) else Arrangement.Center) {
@@ -183,7 +183,7 @@ private fun ControlSlider(title: String, icon: ImageVector, value: Float, enable
     })) {
         GlassPanel(Modifier.fillMaxSize().graphicsLayer {
             scaleY = stretch; transformOrigin = TransformOrigin(.5f, anchor)
-        }, radius = if (cyber) 31f else if (classic) 20f else 40f, tint = .13f, interactive = enabled) {
+        }, radius = if (cyber) 31f else if (classic) 20f else 40f, tint = if (classic) .26f else .16f, interactive = enabled) {
             Box(Modifier.fillMaxSize().testTag("control_slider_lens:$title")) {
                 Box(Modifier.fillMaxWidth().fillMaxHeight(display).align(Alignment.BottomCenter)
                     .background(if (cyber) CyberColors.Cyan.copy(alpha = .8f) else Color(0xfffaf8f4).copy(alpha = .96f)))
@@ -446,7 +446,7 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
 private fun ConnectivityTile(modifier: Modifier, airplane: Boolean?, wifi: Boolean?, bluetooth: Boolean?,
     onSystem: (String) -> Unit, onExpand: () -> Unit) {
     val modern = !LocalCyber.current && !LocalGlass.current.appearance.iosClassic
-    GlassPanel(modifier, radius = if (LocalGlass.current.appearance.iosClassic) 24f else 30f, tint = .2f) {
+    GlassPanel(modifier, radius = if (LocalGlass.current.appearance.iosClassic) 24f else 30f, tint = if (LocalGlass.current.appearance.iosClassic) .28f else .20f) {
         BoxWithConstraints(Modifier.fillMaxSize().padding(12.dp)) {
             val diameter = minOf(if (modern) 56.dp else 42.dp, (maxHeight - 6.dp) / 2, (maxWidth - 6.dp) / 2)
             Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -487,7 +487,7 @@ private fun MediaTile(modifier: Modifier, media: NowPlaying, legacyActive: Boole
     expanded: Boolean = false, onExpand: () -> Unit = {}) {
     val active = if (media.available) media.playing else legacyActive
     fun openPlayer() { if (!SystemBridge.openPlayer()) onUtility("music") }
-    GlassPanel(modifier, radius = if (LocalGlass.current.appearance.iosClassic) 24f else 30f, tint = .16f) {
+    GlassPanel(modifier, radius = if (LocalGlass.current.appearance.iosClassic) 24f else 30f, tint = if (LocalGlass.current.appearance.iosClassic) .28f else .20f) {
         Column(Modifier.fillMaxSize().padding(if (expanded) 22.dp else 12.dp), verticalArrangement = Arrangement.SpaceBetween) {
             Row(Modifier.fillMaxWidth().height(if (expanded) 100.dp else 40.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(if (expanded) 100.dp else if (LocalCyber.current) 35.dp else 40.dp).clip(if (LocalCyber.current) CyberControlShape else RoundedCornerShape(9.dp)).background(Color.White.copy(alpha = .1f)).clickable { openPlayer() }, contentAlignment = Alignment.Center) {

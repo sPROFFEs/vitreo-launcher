@@ -54,7 +54,8 @@ fun FolderSheet(folder: HomeEntry.Folder, apps: Map<String, AppRecord>, onClose:
                 cursorBrush = SolidColor(Color.White),
                 textStyle = TextStyle(color = Color.White, fontSize = 32.sp, textAlign = TextAlign.Center, fontWeight = if (LocalCyber.current) FontWeight.Medium else FontWeight.Normal),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp).testTag("folder_name"))
-            GlassPanel(Modifier.fillMaxWidth().heightIn(max = (3 * (iconSize + 42f) + 30f).dp).weight(1f, fill = false).testTag("folder_panel"), radius = 40f,
+            GlassPanel(Modifier.fillMaxWidth().heightIn(max = (3 * (iconSize + 42f) + 30f).dp).weight(1f, fill = false).testTag("folder_panel"),
+                radius = if (LocalGlass.current.appearance.iosClassic) 32f else 38f,
                 material = GlassMaterial.Regular) {
                 HorizontalPager(pager, Modifier.fillMaxSize()) { page ->
                     LazyVerticalGrid(GridCells.Fixed(columns), Modifier.fillMaxSize().padding(15.dp),

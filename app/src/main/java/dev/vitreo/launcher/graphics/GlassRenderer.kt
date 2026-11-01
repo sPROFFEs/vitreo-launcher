@@ -46,6 +46,7 @@ class GlassRenderer(private val context: Context) {
     private val bounds = RectF()
     private var borderWidth = 0
     private var borderHeight = 0
+    private var borderDark = false
 
     fun configure(frame: WallpaperFrame?, viewport: Viewport, appearance: Appearance, radius: Float, tint: Float,
         regular: Boolean = false, touchX: Float = .5f, touchY: Float = .5f, pressed: Float = 0f, foregroundDark: Boolean = false) {
@@ -85,11 +86,14 @@ class GlassRenderer(private val context: Context) {
         // previews, Control Center). The sampled material must follow that same ink.
         val materialDark = !foregroundDark
         val backdropBrightness = (f?.brightness ?: 0f) * (1f - appearance.wallpaperDim)
-        val opacity = if (regular) max(panelTint, if (materialDark) { if (classic) .64f else .62f } else .66f)
-            else max(panelTint, if (classic) .22f else if (foregroundDark) .18f else if (backdropBrightness > .65f) .35f else .13f)
+        val opacity = if (regular) max(panelTint, if (materialDark) { if (classic) .68f else .62f } else .66f)
+            else max(panelTint, if (classic) (if (materialDark) .40f else .36f)
+                else if (foregroundDark) .22f
+                else if (backdropBrightness > .65f) .36f
+                else .18f)
         val materialColor = if (classic) {
             if (materialDark) Color.rgb(28, 28, 30) else Color.rgb(246, 246, 248)
-        } else if (materialDark) Color.rgb(23, 25, 32) else Color.rgb(248, 249, 253)
+        } else if (materialDark) Color.rgb(20, 22, 28) else Color.rgb(248, 250, 254)
         if (appearance.opaquePanels || f == null || viewport.width <= 1f) {
             paint.shader = null; paint.color = materialColor
             canvas.drawRoundRect(bounds, radius, radius, paint)
@@ -119,12 +123,14 @@ class GlassRenderer(private val context: Context) {
         if (!usedAgsl) {
             // Blend cached textures rather than re-blurring or rebuilding a bitmap.
             // Clear controls retain wallpaper detail on Android 12 and in Battery Saver.
-            align(fallbackSharp!!, f.sharp, x, y)
-            paint.shader = fallbackSharp; paint.color = Color.WHITE
-            canvas.drawRoundRect(bounds, radius, radius, paint)
-            val frost = if (classic) (if (regular) .9f + .1f * appearance.frost else .82f + .18f * appearance.frost) else if (regular) max(.78f, appearance.frost) else appearance.frost
+            if (!classic) {
+                align(fallbackSharp!!, f.sharp, x, y)
+                paint.shader = fallbackSharp; paint.color = Color.WHITE
+                canvas.drawRoundRect(bounds, radius, radius, paint)
+            }
+            val frost = if (classic) 1f else if (regular) max(.78f, appearance.frost) else appearance.frost
             align(fallback!!, f.frosted, x, y)
-            paint.shader = fallback; paint.alpha = (frost * 255).toInt()
+            paint.shader = fallback; paint.alpha = if (classic) 255 else (frost * 255).toInt()
             canvas.drawRoundRect(bounds, radius, radius, paint)
             paint.shader = null; paint.color = Color.argb((appearance.wallpaperDim * 255).toInt(), 0, 0, 0)
             canvas.drawRoundRect(bounds, radius, radius, paint)
@@ -137,12 +143,24 @@ class GlassRenderer(private val context: Context) {
                 paint.shader = null
             }
         }
-        if (width != borderWidth || height != borderHeight) {
-            borderWidth = width; borderHeight = height
-            border.shader = LinearGradient(0f, 0f, width.toFloat(), height.toFloat(),
-                intArrayOf(0x70ffffff, 0x12ffffff, 0x06ffffff, 0x48ffffff), null, Shader.TileMode.CLAMP)
+        if (classic) {
+            border.shader = null
+            border.color = if (materialDark) Color.argb(28, 255, 255, 255) else Color.argb(16, 0, 0, 0)
+            border.strokeWidth = density * .5f
+            bounds.inset(border.strokeWidth * .5f, border.strokeWidth * .5f)
+            canvas.drawRoundRect(bounds, max(0f, radius - .3f * density), max(0f, radius - .3f * density), border)
+            return
         }
-        if (classic) return
+        if (width != borderWidth || height != borderHeight || materialDark != borderDark) {
+            borderWidth = width; borderHeight = height; borderDark = materialDark
+            border.shader = if (materialDark) {
+                LinearGradient(0f, 0f, width.toFloat(), height.toFloat(),
+                    intArrayOf(0x78ffffff, 0x18ffffff, 0x08ffffff, 0x4cffffff), null, Shader.TileMode.CLAMP)
+            } else {
+                LinearGradient(0f, 0f, width.toFloat(), height.toFloat(),
+                    intArrayOf(0x90ffffff.toInt(), 0x25ffffff, 0x10000000, 0x22000000), null, Shader.TileMode.CLAMP)
+            }
+        }
         border.strokeWidth = density * .65f
         bounds.inset(border.strokeWidth * .5f, border.strokeWidth * .5f)
         canvas.drawRoundRect(bounds, max(0f, radius - .4f * density), max(0f, radius - .4f * density), border)

@@ -70,8 +70,8 @@ fun GlassPanel(modifier: Modifier = Modifier, radius: Float = 28f, tint: Float =
     var coordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var placedPosition by remember { mutableStateOf(Offset.Zero) }
     val shape = RoundedCornerShape(visualRadius.dp)
-    Box(modifier.then(gesture).shadow(if (classic) 1.dp else 6.dp, shape, clip = false,
-        ambientColor = Color.Black.copy(alpha = .10f), spotColor = Color.Black.copy(alpha = .12f)).graphicsLayer {
+    Box(modifier.then(gesture).shadow(if (classic) 3.dp else 6.dp, shape, clip = false,
+        ambientColor = Color.Black.copy(alpha = if (classic) .08f else .10f), spotColor = Color.Black.copy(alpha = if (classic) .10f else .12f)).graphicsLayer {
         scaleX = 1f + light.value * if (classic) .003f else .008f; scaleY = scaleX
         rotationX = if (classic) 0f else (touch.y - .5f) * light.value * -2.5f
         rotationY = if (classic) 0f else (touch.x - .5f) * light.value * 2.5f

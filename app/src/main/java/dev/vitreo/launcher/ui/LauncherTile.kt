@@ -45,7 +45,7 @@ fun EntryIcon(entry: HomeEntry, apps: Map<String, AppRecord>, size: Dp, modifier
         spotColor = Color.Black.copy(alpha = .22f)).clip(shape)
         .then(if (cyber) Modifier.background(CyberColors.Panel).border(1.dp, CyberColors.Red.copy(alpha = .55f), shape) else Modifier)) {
         if (entry is HomeEntry.Folder) {
-            GlassPanel(Modifier.fillMaxSize(), radius = size.value * .25f, tint = .12f) {}
+            GlassPanel(Modifier.fillMaxSize(), radius = size.value * .235f, tint = if (appearance.iosClassic) .38f else .18f) {}
             Column(Modifier.fillMaxSize().padding(size * .10f), verticalArrangement = Arrangement.SpaceEvenly) {
                 repeat(3) { row ->
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
