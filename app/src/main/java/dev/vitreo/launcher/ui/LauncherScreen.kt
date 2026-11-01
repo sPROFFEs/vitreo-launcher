@@ -575,7 +575,9 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                 down.position.x / size.width, down.position.y / density.density, safePanelTop,
                 a.panelGestureHeight, controlsEnabled, a.notificationCenter)
             if (panel == null && currentPage !in 1..currentHomePages) return@awaitEachGesture
-            if (panel == null && cellBounds.any { (id, bounds) -> id.startsWith("widget:") && bounds.contains(down.position + rootPosition) }) return@awaitEachGesture
+            if (panel == null && cellBounds.any { (id, bounds) ->
+                id.startsWith("widget:") && !isBuiltinWidget(id.removePrefix("widget:").toIntOrNull() ?: 0) && bounds.contains(down.position + rootPosition)
+            }) return@awaitEachGesture
             val tracker = VelocityTracker().apply { addPosition(down.uptimeMillis, down.position) }
             var pulling = false
             var distanceY = 0f

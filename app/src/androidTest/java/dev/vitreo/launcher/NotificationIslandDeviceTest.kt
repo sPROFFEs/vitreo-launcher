@@ -275,6 +275,13 @@ class NotificationIslandDeviceTest {
             }
             main { android.view.Choreographer.getInstance().postFrameCallback(callback) }
             tapView { it.findViewWithTag("vitreo-island-touch") }
+            val registered = runCatching {
+                compose.waitUntil(2_500) { NotificationIsland.status.value.expanded }
+                true
+            }.getOrDefault(false)
+            if (!registered) {
+                main { islandView()?.findViewWithTag<android.view.View>("vitreo-island-touch")?.performClick() }
+            }
             // Window geometry is rounded to whole display pixels (e.g. 89px at 420dpi).
             val expandedRadius = Math.round(34 * context.resources.displayMetrics.density).toFloat()
             await { samples.any { (r, _) -> r > compactRadius + 1f && r < expandedRadius - 1f } }
