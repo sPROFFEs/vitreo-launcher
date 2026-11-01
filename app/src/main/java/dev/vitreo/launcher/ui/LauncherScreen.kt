@@ -557,47 +557,13 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val currentAppearance by rememberUpdatedState(appearance)
     val safePanelTop by rememberUpdatedState(if (integratedBar) 8f else WindowInsets.statusBars.getTop(density) / density.density)
     val gestureModifier = if (editing && (modalPresent || launching)) Modifier else if (editing) Modifier.pointerInput(editing) {
-        awaitEachGesture {
-            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            if (currentModal || currentSheet != null) return@awaitEachGesture
-            val global = down.position + rootPosition
-            val isItemTouch = cellBounds.any { (_, bounds) -> bounds.contains(global) }
-            var isDragging = false
-            var lastPosition = down.position
-
-            try {
-                while (true) {
-                    val event = awaitPointerEvent(PointerEventPass.Initial)
-                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                    if (!change.pressed) {
-                        if (isDragging) {
-                            change.consume()
-                            drop()
-                        } else if (!isItemTouch && (change.position - down.position).getDistance() < viewConfiguration.touchSlop) {
-                            editing = false
-                        }
-                        break
-                    }
-                    val totalDistance = (change.position - down.position).getDistance()
-                    if (!isDragging && isItemTouch && totalDistance > viewConfiguration.touchSlop) {
-                        startDrag(down.position)
-                        isDragging = drag != null || widgetDrag != null
-                        lastPosition = change.position
-                    }
-                    if (isDragging) {
-                        change.consume()
-                        val delta = change.position - lastPosition
-                        lastPosition = change.position
-                        drag = drag?.let { it.copy(position = it.position + delta) }
-                        widgetDrag = widgetDrag?.let { it.copy(position = it.position + delta) }
-                    }
-                }
-            } finally {
-                if (isDragging && (drag != null || widgetDrag != null)) {
-                    drop()
-                }
-            }
-        }
+        detectDragGesturesAfterLongPress(onDragStart = { startDrag(it) },
+            onDrag = { change, amount -> if (drag != null || widgetDrag != null) {
+                change.consume()
+                drag = drag?.let { it.copy(position = it.position + amount) }
+                widgetDrag = widgetDrag?.let { it.copy(position = it.position + amount) }
+            } },
+            onDragEnd = { drop() }, onDragCancel = { drag = null; widgetDrag = null; folderTarget = null })
     } else Modifier.pointerInput(editing) {
         // Observe before the home scroll container. It otherwise owns vertical
         // drags even when all rows fit, preventing the Spotlight gesture.
@@ -614,28 +580,27 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
             var pulling = false
             var distanceY = 0f
             var released = false
-            var itemDragging = false
-            val startedOnItem = cellBounds.any { (_, bounds) -> bounds.contains(down.position + rootPosition) }
+            var iconDragging = false
+            val startedOnIcon = cellBounds.any { (id, bounds) -> !id.startsWith("widget:") && bounds.contains(down.position + rootPosition) }
             try {
                 while (true) {
                     val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: break
                     tracker.addPosition(change.uptimeMillis, change.position)
                     if (!change.pressed) {
                         released = true
-                        if (itemDragging) { change.consume(); drop(); editing = true }
+                        if (iconDragging) { change.consume(); drop(); editing = true }
                         else if (pulling) change.consume()
                         break
                     }
                     val distance = change.position - down.position
-                    if (!pulling && startedOnItem && (itemDragging || change.uptimeMillis - down.uptimeMillis >= viewConfiguration.longPressTimeoutMillis && distance.getDistance() > viewConfiguration.touchSlop)) {
-                        if (!itemDragging) {
+                    if (!pulling && startedOnIcon && (iconDragging || change.uptimeMillis - down.uptimeMillis >= viewConfiguration.longPressTimeoutMillis && distance.getDistance() > viewConfiguration.touchSlop)) {
+                        if (!iconDragging) {
                             actionTarget = null; choiceSheet = null; actionReturn = null
-                            startDrag(down.position); itemDragging = drag != null || widgetDrag != null
+                            startDrag(down.position); iconDragging = drag != null
                         }
-                        if (itemDragging) {
+                        if (iconDragging) {
                             change.consume()
                             drag = drag?.copy(position = change.position + rootPosition)
-                            widgetDrag = widgetDrag?.copy(position = change.position + rootPosition)
                             continue
                         }
                     }
@@ -654,7 +619,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                     }
                 }
             } finally {
-                if (itemDragging && !released) { drag = null; widgetDrag = null; folderTarget = null }
+                if (iconDragging && !released) { drag = null; folderTarget = null }
                 if (pulling) {
                     val velocity = if (released) tracker.calculateVelocity().y / density.density else 0f
                     if (!released || !shouldOpenHomePanel(distanceY / density.density, velocity)) sheet = null
