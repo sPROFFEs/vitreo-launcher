@@ -44,7 +44,7 @@ fun LockNotificationCards(notices: List<LockNotice>, modifier: Modifier = Modifi
                             if (notice.time > 0) Text(android.text.format.DateUtils.getRelativeTimeSpanString(notice.time,System.currentTimeMillis(),60_000).toString(),
                                 Modifier.padding(start=8.dp),color=Color.White.copy(alpha=.65f),fontSize=11.sp,maxLines=1)
                         }
-                        Text(if (holocall) "INCOMING TRANSMISSION /// TIER 5 DATA" else (if(notice.count==1) "Notification · Unlock to view" else "${notice.count} notifications · Unlock to view"),
+                        Text(if(notice.count==1) "Notification · Unlock to view" else "${notice.count} notifications · Unlock to view",
                             color=if (holocall) CyberColors.Cyan else Color.White.copy(alpha=.72f),fontFamily=if (LocalCyber.current) CyberFont else null,fontSize=12.sp)
                     }
                 }
