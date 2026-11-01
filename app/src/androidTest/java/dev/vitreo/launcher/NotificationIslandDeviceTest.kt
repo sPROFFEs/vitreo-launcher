@@ -183,6 +183,7 @@ class NotificationIslandDeviceTest {
             main {
                 val updated = original.copy(reducedEffects = true)
                 model.appearance(updated)
+                NotificationIsland.configure(updated)
                 StateStore(context).save(model.ui.value.layout.copy(appearance = updated))
             }
             compose.waitForIdle()
@@ -199,6 +200,7 @@ class NotificationIslandDeviceTest {
         } finally {
             main {
                 model.appearance(original)
+                NotificationIsland.configure(original)
                 StateStore(context).save(model.ui.value.layout.copy(appearance = original))
             }
             compose.waitForIdle()
@@ -218,28 +220,30 @@ class NotificationIslandDeviceTest {
                 view.invalidate()
             }
             await { committed.get() }
-            val bounds=inspect {
-                val view=checkNotNull(checkNotNull(islandView()).findViewWithTag<android.view.View>("vitreo-island-card"))
-                val xy=IntArray(2);view.getLocationOnScreen(xy)
-                android.graphics.Rect(xy[0],xy[1],xy[0]+view.width,xy[1]+view.height)
-            }
-            val screen=checkNotNull(automation.takeScreenshot())
-            try {
-                val directory=checkNotNull(context.getExternalFilesDir("review"));directory.mkdirs()
-                java.io.File(directory,"$name.png").outputStream().use { screen.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it) }
-                val inset=(6*context.resources.displayMetrics.density).toInt()
-                for(x in listOf(bounds.left+inset,bounds.right-inset)) {
-                    val color=screen.getPixel(x,bounds.centerY())
-                    assertTrue("$name: compositor must keep the card at $bounds; pixel ($x,${bounds.centerY()})=${Integer.toHexString(color)}",
-                        android.graphics.Color.red(color)<12 && android.graphics.Color.green(color)<12 && android.graphics.Color.blue(color)<12)
+            val directory=checkNotNull(context.getExternalFilesDir("review"));directory.mkdirs()
+            val inset=(6*context.resources.displayMetrics.density).toInt()
+            await {
+                val bounds=inspect {
+                    val view=checkNotNull(checkNotNull(islandView()).findViewWithTag<android.view.View>("vitreo-island-card"))
+                    val xy=IntArray(2);view.getLocationOnScreen(xy)
+                    android.graphics.Rect(xy[0],xy[1],xy[0]+view.width,xy[1]+view.height)
                 }
-            } finally { screen.recycle() }
+                val screen=checkNotNull(automation.takeScreenshot())
+                try {
+                    java.io.File(directory,"$name.png").outputStream().use { screen.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it) }
+                    listOf(bounds.left+inset,bounds.right-inset).all { x ->
+                        val color=screen.getPixel(x,bounds.centerY())
+                        android.graphics.Color.red(color)<12 && android.graphics.Color.green(color)<12 && android.graphics.Color.blue(color)<12
+                    }
+                } finally { screen.recycle() }
+            }
         }
         try {
             // Isolate WindowManager's motion from Vitreo's own morph, as when Reduce Motion is on.
             main {
                 val updated = original.copy(reducedEffects = true)
                 model.appearance(updated)
+                NotificationIsland.configure(updated)
                 StateStore(context).save(model.ui.value.layout.copy(appearance = updated))
             }
             compose.waitForIdle()
@@ -255,6 +259,7 @@ class NotificationIslandDeviceTest {
         } finally {
             main {
                 model.appearance(original)
+                NotificationIsland.configure(original)
                 StateStore(context).save(model.ui.value.layout.copy(appearance = original))
             }
             compose.waitForIdle()

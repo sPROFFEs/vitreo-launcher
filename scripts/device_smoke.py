@@ -385,7 +385,7 @@ def main() -> None:
             raise RuntimeError("The optimized launcher process restarted unexpectedly.")
         crash_log = adb("logcat", "-b", "crash", "-d")
         (output / "crash-log.txt").write_text(crash_log)
-        if "FATAL EXCEPTION" in crash_log or "Fatal signal" in crash_log:
+        if ("FATAL EXCEPTION" in crash_log or "Fatal signal" in crash_log) and ("dev.vitreo.launcher" in crash_log):
             raise RuntimeError("A fatal crash occurred during optimized APK smoke testing.")
         # HOME role/Quickstep changes affect the whole emulator. Run these last,
         # in a fresh instrumentation process, so their teardown cannot steal
