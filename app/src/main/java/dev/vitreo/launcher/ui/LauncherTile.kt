@@ -106,35 +106,38 @@ fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, l
     val cyber = LocalCyber.current
     val isJiggling = editing && !appearance.reducedEffects && !cyber
     val hash = entry.id.hashCode()
-    val jiggleTransition = rememberInfiniteTransition(label = "jiggle")
-    val duration = 135 + (hash.ushr(1) % 35)
-    val angleRange = if (hash % 2 == 0) 2.2f else -2.2f
-    val angle: State<Float> = if (isJiggling) {
-        jiggleTransition.animateFloat(
+    val angle: State<Float>
+    val jitterX: State<Float>
+    val jitterY: State<Float>
+    if (isJiggling) {
+        val jiggleTransition = rememberInfiniteTransition(label = "jiggle")
+        val duration = 135 + (hash.ushr(1) % 35)
+        val angleRange = if (hash % 2 == 0) 2.2f else -2.2f
+        angle = jiggleTransition.animateFloat(
             initialValue = -angleRange,
             targetValue = angleRange,
             animationSpec = infiniteRepeatable(tween(duration, easing = FastOutSlowInEasing), RepeatMode.Reverse),
             label = "iconAngle"
         )
-    } else rememberUpdatedState(0f)
-    val jitterX: State<Float> = if (isJiggling) {
         val xOffset = if (hash % 3 == 0) .55f else -.55f
-        jiggleTransition.animateFloat(
+        jitterX = jiggleTransition.animateFloat(
             initialValue = -xOffset,
             targetValue = xOffset,
             animationSpec = infiniteRepeatable(tween(duration + 18, easing = LinearEasing), RepeatMode.Reverse),
             label = "iconJitterX"
         )
-    } else rememberUpdatedState(0f)
-    val jitterY: State<Float> = if (isJiggling) {
         val yOffset = if (hash % 4 == 0) .42f else -.42f
-        jiggleTransition.animateFloat(
+        jitterY = jiggleTransition.animateFloat(
             initialValue = -yOffset,
             targetValue = yOffset,
             animationSpec = infiniteRepeatable(tween(duration - 14, easing = LinearEasing), RepeatMode.Reverse),
             label = "iconJitterY"
         )
-    } else rememberUpdatedState(0f)
+    } else {
+        angle = rememberUpdatedState(0f)
+        jitterX = rememberUpdatedState(0f)
+        jitterY = rememberUpdatedState(0f)
+    }
     val label = entryLabel(entry, apps)
     val interactions = remember { MutableInteractionSource() }
     val pressed by interactions.collectIsPressedAsState()
