@@ -180,7 +180,11 @@ class NotificationIslandDeviceTest {
         val original=model.ui.value.layout.appearance
         try {
             // Use the real setting so Compose and listener reconnections agree.
-            main { model.appearance(original.copy(reducedEffects=true)) }
+            main {
+                val updated = original.copy(reducedEffects = true)
+                model.appearance(updated)
+                StateStore(context).save(model.ui.value.layout.copy(appearance = updated))
+            }
             compose.waitForIdle()
             await { StateStore(context).load().state.appearance.reducedEffects }
             main { assertTrue(NotificationIsland.preview(context)) }
@@ -193,7 +197,10 @@ class NotificationIslandDeviceTest {
             await { !NotificationIsland.status.value.visible }
             assertFalse(inspect { old.isAttachedToWindow })
         } finally {
-            main { model.appearance(original) }
+            main {
+                model.appearance(original)
+                StateStore(context).save(model.ui.value.layout.copy(appearance = original))
+            }
             compose.waitForIdle()
             await { StateStore(context).load().state.appearance.reducedEffects==original.reducedEffects }
         }
@@ -230,7 +237,11 @@ class NotificationIslandDeviceTest {
         }
         try {
             // Isolate WindowManager's motion from Vitreo's own morph, as when Reduce Motion is on.
-            main { model.appearance(original.copy(reducedEffects=true)) }
+            main {
+                val updated = original.copy(reducedEffects = true)
+                model.appearance(updated)
+                StateStore(context).save(model.ui.value.layout.copy(appearance = updated))
+            }
             compose.waitForIdle()
             await { StateStore(context).load().state.appearance.reducedEffects }
             main { assertTrue(NotificationIsland.preview(context)) }
@@ -242,7 +253,10 @@ class NotificationIslandDeviceTest {
             await { inspect { islandView()?.let { it.isLaidOut && it.width<context.resources.displayMetrics.widthPixels }==true } }
             assertSurfaceAtCard("island-collapsed-position")
         } finally {
-            main { model.appearance(original) }
+            main {
+                model.appearance(original)
+                StateStore(context).save(model.ui.value.layout.copy(appearance = original))
+            }
             compose.waitForIdle()
             await { StateStore(context).load().state.appearance.reducedEffects==original.reducedEffects }
         }
