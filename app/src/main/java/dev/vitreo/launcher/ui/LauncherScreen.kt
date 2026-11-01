@@ -317,6 +317,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         }
     }
     fun openClockWidget() {
+        if ((context as? Activity)?.hasWindowFocus() == false) return
         val customApp = appearance.clockApp.trim()
         if (customApp.isNotEmpty()) {
             val app = ui.apps.firstOrNull { it.id == customApp || it.packageName == customApp }
@@ -348,6 +349,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     }
 
     fun openCalendarWidget() {
+        if ((context as? Activity)?.hasWindowFocus() == false) return
         val customApp = appearance.calendarApp.trim()
         if (customApp.isNotEmpty()) {
             val app = ui.apps.firstOrNull { it.id == customApp || it.packageName == customApp }

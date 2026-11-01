@@ -173,6 +173,7 @@ class HomeIntegrationTest {
                 // Focus can be reported before SurfaceFlinger publishes the overlay's
                 // input region. UiAutomation synchronizes that transaction; shell input
                 // can hit Home instead and leave the foreign window open on API 31.
+                automation.waitForIdle(500, 5_000)
                 val down=android.os.SystemClock.uptimeMillis()
                 for(action in listOf(android.view.MotionEvent.ACTION_DOWN,android.view.MotionEvent.ACTION_UP)) {
                     val event=android.view.MotionEvent.obtain(down,android.os.SystemClock.uptimeMillis(),action,100f,450f,0)
