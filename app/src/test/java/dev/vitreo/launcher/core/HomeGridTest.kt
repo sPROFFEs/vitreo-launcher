@@ -103,4 +103,44 @@ class HomeGridTest {
         assertEquals(24, neither.first().apps.size)
         assertSafe(neither, 6)
     }
+
+    @Test fun builtinWidgetsCanBePlacedOnAnyPageAndCellFreely() {
+        val movedClock = HomeWidgetPlacement(ID_BUILTIN_CLOCK, page = 1, column = 0, row = 2)
+        val movedCalendar = HomeWidgetPlacement(ID_BUILTIN_CALENDAR, page = 0, column = 2, row = 4)
+        val pages = planHomeGrid(apps, listOf(movedClock, movedCalendar), 6, true)
+
+        assertFalse(pages[0].builtinClock)
+        assertTrue(pages[0].builtinCalendar)
+        assertEquals(movedCalendar, pages[0].calendarPlacement)
+        assertNull(pages[0].clockPlacement)
+        assertEquals(20, pages[0].apps.size)
+
+        assertTrue(pages[1].builtinClock)
+        assertFalse(pages[1].builtinCalendar)
+        assertEquals(movedClock, pages[1].clockPlacement)
+        assertNull(pages[1].calendarPlacement)
+        assertEquals(20, pages[1].apps.size)
+
+        val p0CalendarCells = setOf(2 to 4, 3 to 4, 2 to 5, 3 to 5)
+        pages[0].apps.forEach { cell ->
+            assertFalse(p0CalendarCells.contains(cell.column to cell.row))
+        }
+        val p1ClockCells = setOf(0 to 2, 1 to 2, 0 to 3, 1 to 3)
+        pages[1].apps.forEach { cell ->
+            assertFalse(p1ClockCells.contains(cell.column to cell.row))
+        }
+        assertEquals(apps, pages.flatMap { it.apps }.map { it.entry })
+    }
+
+    @Test fun builtinWidgetsCanBeSwappedAtTopRow() {
+        val swapped = listOf(
+            HomeWidgetPlacement(ID_BUILTIN_CALENDAR, page = 0, column = 0, row = 0),
+            HomeWidgetPlacement(ID_BUILTIN_CLOCK, page = 0, column = 2, row = 0),
+        )
+        val pages = planHomeGrid(apps, swapped, 6, true)
+        assertEquals(0, pages[0].calendarPlacement?.column)
+        assertEquals(2, pages[0].clockPlacement?.column)
+        assertEquals(16, pages[0].apps.size)
+        assertEquals(apps, pages.flatMap { it.apps }.map { it.entry })
+    }
 }

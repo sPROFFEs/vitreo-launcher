@@ -25,6 +25,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.vitreo.launcher.core.Appearance
 import dev.vitreo.launcher.core.HomeEntry
+import dev.vitreo.launcher.core.HomeWidgetPlacement
+import dev.vitreo.launcher.core.ID_BUILTIN_CALENDAR
+import dev.vitreo.launcher.core.ID_BUILTIN_CLOCK
 import dev.vitreo.launcher.data.AppRecord
 
 @Composable
@@ -35,6 +38,7 @@ internal fun BuiltinWidgetEditor(
     onAppearance: (Appearance) -> Unit,
     onPickApp: (String) -> Unit,
     onClose: () -> Unit,
+    onResetPosition: ((HomeWidgetPlacement) -> Unit)? = null,
 ) {
     val isClock = kind == "clock"
     val title = if (isClock) "Clock Widget" else "Calendar Widget"
@@ -86,6 +90,22 @@ internal fun BuiltinWidgetEditor(
                         onAppearance(appearance.copy(showCalendarWidget = enabled, showWidgets = newShowWidgets))
                     }
                 }
+            }
+
+            if (isShownOnHome && onResetPosition != null) {
+                IosSectionLabel("Placement")
+                IosGroup {
+                    IosRow("Reset Position to Top of Home") {
+                        val defaultCol = if (isClock) 0 else if (appearance.showClockWidget) 2 else 0
+                        onResetPosition(HomeWidgetPlacement(if (isClock) ID_BUILTIN_CLOCK else ID_BUILTIN_CALENDAR, page = 0, column = defaultCol, row = 0))
+                    }
+                }
+                Text(
+                    "In Edit Home Screen (jiggle mode), hold and drag this widget to place it anywhere on any page.",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                )
             }
 
             IosSectionLabel("Widget Actions")

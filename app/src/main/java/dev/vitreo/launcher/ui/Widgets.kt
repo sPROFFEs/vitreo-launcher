@@ -30,6 +30,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -137,10 +138,15 @@ fun CalendarWidgetCard(
     val dayOfMonth = calendar.get(Calendar.DAY_OF_MONTH).toString()
     val monthYear = SimpleDateFormat("MMMM yyyy", locale).format(Date(now)).replaceFirstChar { if (it.isLowerCase()) it.titlecase(locale) else it.toString() }
 
+    val classic = LocalGlass.current.appearance.iosClassic
+    val shape = RoundedCornerShape(28.dp)
+
     Box(modifier.testTag("calendar_widget_card")) {
         BoxWithConstraints(
             Modifier.fillMaxSize()
-                .clip(RoundedCornerShape(28.dp))
+                .shadow(if (classic) 1.dp else 6.dp, shape, clip = false,
+                    ambientColor = Color.Black.copy(alpha = .10f), spotColor = Color.Black.copy(alpha = .12f))
+                .clip(shape)
                 .background(Color(0xfff9f9f6))
                 .clickable(onClick = if (editing && onEdit != null) onEdit else onClick)
                 .padding(16.dp)
@@ -199,7 +205,7 @@ fun HomeWidgets(now: Long, modifier: Modifier = Modifier, onClock: () -> Unit, o
     if (LocalCyber.current) { CyberHomeWidgets(now, modifier, onClock, onCalendar, showClock, showCalendar); return }
     if (!showClock && !showCalendar) return
 
-    val contentModifier = modifier.fillMaxWidth().padding(start = 5.dp, end = 5.dp, top = 5.dp, bottom = 10.dp)
+    val contentModifier = modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp)
 
     if (showClock && showCalendar) {
         Row(contentModifier, horizontalArrangement = Arrangement.spacedBy(10.dp)) {

@@ -1,5 +1,14 @@
 # Cambios
 
+## 0.10.7
+
+- Fix Clock widget card bounds and column gutter alignment: widgets now align pixel-perfectly with icon columns and provide full shadow clearance, completely eliminating left-edge clipping.
+- Free widget movement across the entire Home screen: Clock, Calendar, and native widgets can now be dragged, moved, or swapped across any column, row, and page.
+- Immediate drag in edit (jiggle) mode: touching any app icon or widget and moving starts dragging immediately without needing an awkward second long press, matching iOS SpringBoard.
+- Authentic live widget drag preview: dragging Clock, Calendar, or native widgets renders a live elevated preview scaled to 1.05x with iOS drop shadow floating under finger.
+- Add "Reset Position to Top of Home" shortcut in Builtin Widget Editor to quickly return Clock or Calendar to the top grid row.
+- Harmonize Calendar widget drop shadow with GlassPanel elevation.
+
 ## 0.10.6
 
 - Fix Clock widget horizontal offset and padding on Home screen so dial marks, hands, and drop shadow never clip or get cut off on the left.

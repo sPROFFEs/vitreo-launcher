@@ -39,16 +39,52 @@ internal fun HomeWorkspace(page: HomeGridPage, rows: Int, rowHeight: Float, icon
     BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = (if (cyber) 18f else IosDesign.HomeInset).dp).verticalScroll(rememberScrollState())
         .onGloballyPositioned { origin = it.positionInRoot() }) {
         val cellWidth = maxWidth / GRID_COLUMNS
+        val widgetGutter = ((cellWidth - iconSize.dp) / 2).coerceIn(6.dp, 20.dp)
         @Composable fun position(column: Int, row: Int): Modifier {
             val target = with(density) { IntOffset((cellWidth * column).roundToPx(), (rowHeight.dp * row).roundToPx()) }
             val offset = animateIntOffsetAsState(target, if (reduced) tween(0) else LauncherMotion.panel(cyber), label = "home cell")
             return Modifier.offset { offset.value }
         }
         Box(Modifier.fillMaxWidth().height((rows * rowHeight).dp)) {
-            if (page.builtins) HomeWidgets(now, Modifier.height((rowHeight * 2).dp).testTag("home_builtin_widgets").graphicsLayer {
-                if (arrival.enabled) { val p = arrival.progress.value; alpha = (p * 3).coerceIn(0f, 1f); translationY = (1f - p) * 24.dp.toPx() }
-            }, onClock, onCalendar, showClock = page.builtinClock, showCalendar = page.builtinCalendar,
-               editing = editing, onEditClock = { onEditBuiltin?.invoke("clock") }, onEditCalendar = { onEditBuiltin?.invoke("calendar") })
+            if (page.clockPlacement != null || page.calendarPlacement != null) {
+                Box(Modifier.fillMaxSize().testTag("home_builtin_widgets")) {
+                    page.clockPlacement?.let { placement ->
+                        key("widget:${placement.id}") {
+                            Box(position(placement.column, placement.row).width(cellWidth * placement.columns)
+                                .height((rowHeight * placement.rows).dp).padding(start = widgetGutter, end = widgetGutter, top = 6.dp, bottom = 6.dp)
+                                .testTag("home_widget:${placement.id}").onGloballyPositioned { onBounds("widget:${placement.id}", it.boundsInRoot()) }
+                                .graphicsLayer {
+                                    val p = if (arrival.enabled) arrival.progress.value else 1f
+                                    alpha = if (draggedWidget == placement.id) .25f else (p * 3).coerceIn(0f, 1f)
+                                    translationY = (1f - p) * 24.dp.toPx()
+                                }) {
+                                ClockWidgetCard(now, Modifier.fillMaxSize(), onClock, editing, onEdit = { onEditBuiltin?.invoke("clock") })
+                            }
+                            DisposableEffect(placement.id) { onDispose { onBounds("widget:${placement.id}", null) } }
+                        }
+                    }
+                    page.calendarPlacement?.let { placement ->
+                        key("widget:${placement.id}") {
+                            Box(position(placement.column, placement.row).width(cellWidth * placement.columns)
+                                .height((rowHeight * placement.rows).dp).padding(start = widgetGutter, end = widgetGutter, top = 6.dp, bottom = 6.dp)
+                                .testTag("home_widget:${placement.id}").onGloballyPositioned { onBounds("widget:${placement.id}", it.boundsInRoot()) }
+                                .graphicsLayer {
+                                    val p = if (arrival.enabled) arrival.progress.value else 1f
+                                    alpha = if (draggedWidget == placement.id) .25f else (p * 3).coerceIn(0f, 1f)
+                                    translationY = (1f - p) * 24.dp.toPx()
+                                }) {
+                                CalendarWidgetCard(now, Modifier.fillMaxSize(), onCalendar, editing, onEdit = { onEditBuiltin?.invoke("calendar") })
+                            }
+                            DisposableEffect(placement.id) { onDispose { onBounds("widget:${placement.id}", null) } }
+                        }
+                    }
+                }
+            } else if (page.builtins) {
+                HomeWidgets(now, Modifier.height((rowHeight * 2).dp).testTag("home_builtin_widgets").graphicsLayer {
+                    if (arrival.enabled) { val p = arrival.progress.value; alpha = (p * 3).coerceIn(0f, 1f); translationY = (1f - p) * 24.dp.toPx() }
+                }, onClock, onCalendar, showClock = page.builtinClock, showCalendar = page.builtinCalendar,
+                   editing = editing, onEditClock = { onEditBuiltin?.invoke("clock") }, onEditCalendar = { onEditBuiltin?.invoke("calendar") })
+            }
             page.apps.forEach { cell -> key(cell.entry.id) {
                 LauncherTile(cell.entry, apps, iconSize.dp, showLabels,
                     position(cell.column, cell.row).width(cellWidth).height(rowHeight.dp)
@@ -61,7 +97,7 @@ internal fun HomeWorkspace(page: HomeGridPage, rows: Int, rowHeight: Float, icon
             } }
             page.widgets.forEach { placement -> key("widget:${placement.id}") {
                 Column(position(placement.column, placement.row).width(cellWidth * placement.columns)
-                    .height((rowHeight * placement.rows).dp).padding(horizontal = 5.dp, vertical = 5.dp)
+                    .height((rowHeight * placement.rows).dp).padding(start = widgetGutter, end = widgetGutter, top = 6.dp, bottom = 6.dp)
                     .testTag("home_widget:${placement.id}").onGloballyPositioned { onBounds("widget:${placement.id}", it.boundsInRoot()) }
                     .graphicsLayer {
                         val p = if (arrival.enabled) arrival.progress.value else 1f

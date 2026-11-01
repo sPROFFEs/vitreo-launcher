@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableIntStateOf
 import dev.vitreo.launcher.core.HomeWidgetPlacement
+import dev.vitreo.launcher.core.isBuiltinWidget
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -32,10 +33,10 @@ class WidgetController(context: Context) {
             .distinct().filter { it in owned && manager.getAppWidgetInfo(it) != null }.take(8))
         runCatching {
             val array = JSONArray(preferences.getString("home", "[]").orEmpty().take(8192))
-            repeat(minOf(array.length(), 8)) { index ->
+            repeat(minOf(array.length(), 16)) { index ->
                 val item = array.optJSONObject(index) ?: return@repeat
                 val id = item.optInt("id", -1)
-                if (id in ids && homePlacements.none { it.id == id }) homePlacements.add(HomeWidgetPlacement(id,
+                if ((id in ids || isBuiltinWidget(id)) && homePlacements.none { it.id == id }) homePlacements.add(HomeWidgetPlacement(id,
                     item.optInt("page"), item.optInt("column"), item.optInt("row"),
                     item.optInt("columns", 2), item.optInt("rows", 2)).sanitized())
             }
@@ -82,7 +83,7 @@ class WidgetController(context: Context) {
         return id in ids
     }
     fun placeOnHome(placement: HomeWidgetPlacement) {
-        if (placement.id !in ids) return
+        if (placement.id !in ids && !isBuiltinWidget(placement.id)) return
         homePlacements.removeAll { it.id == placement.id }
         homePlacements.add(placement.sanitized())
         save()
@@ -97,10 +98,15 @@ class WidgetController(context: Context) {
         ids.remove(id); ids.add(destination, id)
         save()
     }
-    fun remove(id: Int) { ids.remove(id); homePlacements.removeAll { it.id == id }; host.deleteAppWidgetId(id); save() }
+    fun remove(id: Int) {
+        ids.remove(id)
+        homePlacements.removeAll { it.id == id }
+        if (id >= 0) host.deleteAppWidgetId(id)
+        save()
+    }
     fun refresh() {
         if (ids.removeAll { manager.getAppWidgetInfo(it) == null }) {
-            homePlacements.removeAll { it.id !in ids }; save()
+            homePlacements.removeAll { it.id !in ids && !isBuiltinWidget(it.id) }; save()
         }
     }
     private fun save() {

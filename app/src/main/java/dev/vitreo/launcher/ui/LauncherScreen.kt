@@ -537,7 +537,10 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         val id = cellBounds.entries.firstOrNull { it.value.contains(global) }?.key
         if (id?.startsWith("widget:") == true) {
             val widgetId = id.removePrefix("widget:").toIntOrNull()
-            homeGrid.flatMap { it.widgets }.firstOrNull { it.id == widgetId }?.let {
+            val allWidgets = homeGrid.flatMap { page ->
+                page.widgets + listOfNotNull(page.clockPlacement, page.calendarPlacement)
+            }
+            allWidgets.firstOrNull { it.id == widgetId }?.let {
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 widgetDrag = WidgetDragSession(it, global)
             }
@@ -554,13 +557,47 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val currentAppearance by rememberUpdatedState(appearance)
     val safePanelTop by rememberUpdatedState(if (integratedBar) 8f else WindowInsets.statusBars.getTop(density) / density.density)
     val gestureModifier = if (editing && (modalPresent || launching)) Modifier else if (editing) Modifier.pointerInput(editing) {
-        detectDragGesturesAfterLongPress(onDragStart = { startDrag(it) },
-            onDrag = { change, amount -> if (drag != null || widgetDrag != null) {
-                change.consume()
-                drag = drag?.let { it.copy(position = it.position + amount) }
-                widgetDrag = widgetDrag?.let { it.copy(position = it.position + amount) }
-            } },
-            onDragEnd = { drop() }, onDragCancel = { drag = null; widgetDrag = null; folderTarget = null })
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            if (currentModal || currentSheet != null) return@awaitEachGesture
+            val global = down.position + rootPosition
+            val isItemTouch = cellBounds.any { (_, bounds) -> bounds.contains(global) }
+            var isDragging = false
+            var lastPosition = down.position
+
+            try {
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                    if (!change.pressed) {
+                        if (isDragging) {
+                            change.consume()
+                            drop()
+                        } else if (!isItemTouch && (change.position - down.position).getDistance() < viewConfiguration.touchSlop) {
+                            editing = false
+                        }
+                        break
+                    }
+                    val totalDistance = (change.position - down.position).getDistance()
+                    if (!isDragging && isItemTouch && totalDistance > viewConfiguration.touchSlop) {
+                        startDrag(down.position)
+                        isDragging = drag != null || widgetDrag != null
+                        lastPosition = change.position
+                    }
+                    if (isDragging) {
+                        change.consume()
+                        val delta = change.position - lastPosition
+                        lastPosition = change.position
+                        drag = drag?.let { it.copy(position = it.position + delta) }
+                        widgetDrag = widgetDrag?.let { it.copy(position = it.position + delta) }
+                    }
+                }
+            } finally {
+                if (isDragging && (drag != null || widgetDrag != null)) {
+                    drop()
+                }
+            }
+        }
     } else Modifier.pointerInput(editing) {
         // Observe before the home scroll container. It otherwise owns vertical
         // drags even when all rows fit, preventing the Spotlight gesture.
@@ -577,27 +614,28 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
             var pulling = false
             var distanceY = 0f
             var released = false
-            var iconDragging = false
-            val startedOnIcon = cellBounds.any { (id, bounds) -> !id.startsWith("widget:") && bounds.contains(down.position + rootPosition) }
+            var itemDragging = false
+            val startedOnItem = cellBounds.any { (_, bounds) -> bounds.contains(down.position + rootPosition) }
             try {
                 while (true) {
                     val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: break
                     tracker.addPosition(change.uptimeMillis, change.position)
                     if (!change.pressed) {
                         released = true
-                        if (iconDragging) { change.consume(); drop(); editing = true }
+                        if (itemDragging) { change.consume(); drop(); editing = true }
                         else if (pulling) change.consume()
                         break
                     }
                     val distance = change.position - down.position
-                    if (!pulling && startedOnIcon && (iconDragging || change.uptimeMillis - down.uptimeMillis >= viewConfiguration.longPressTimeoutMillis && distance.getDistance() > viewConfiguration.touchSlop)) {
-                        if (!iconDragging) {
+                    if (!pulling && startedOnItem && (itemDragging || change.uptimeMillis - down.uptimeMillis >= viewConfiguration.longPressTimeoutMillis && distance.getDistance() > viewConfiguration.touchSlop)) {
+                        if (!itemDragging) {
                             actionTarget = null; choiceSheet = null; actionReturn = null
-                            startDrag(down.position); iconDragging = drag != null
+                            startDrag(down.position); itemDragging = drag != null || widgetDrag != null
                         }
-                        if (iconDragging) {
+                        if (itemDragging) {
                             change.consume()
                             drag = drag?.copy(position = change.position + rootPosition)
+                            widgetDrag = widgetDrag?.copy(position = change.position + rootPosition)
                             continue
                         }
                     }
@@ -616,7 +654,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                     }
                 }
             } finally {
-                if (iconDragging && !released) { drag = null; folderTarget = null }
+                if (itemDragging && !released) { drag = null; widgetDrag = null; folderTarget = null }
                 if (pulling) {
                     val velocity = if (released) tracker.calculateVelocity().y / density.density else 0f
                     if (!released || !shouldOpenHomePanel(distanceY / density.density, velocity)) sheet = null
@@ -774,12 +812,22 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                     IntOffset((session.position.x - rootPosition.x - px / 2).roundToInt(), (session.position.y - rootPosition.y - px / 2).roundToInt()) })
             }
             widgetDrag?.let { session ->
-                GlassPanel(Modifier.offset {
-                    IntOffset((session.position.x - rootPosition.x - 75.dp.toPx()).roundToInt(),
-                        (session.position.y - rootPosition.y - 50.dp.toPx()).roundToInt())
-                }.size(150.dp, 100.dp), radius = 24f) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Move Widget", color = LocalGlassContentColor.current)
+                val cardWidth = with(density) { (geometry.cells.cellWidth * session.placement.columns).dp }
+                val cardHeight = with(density) { (rowHeight * session.placement.rows).dp }
+                Box(Modifier.offset {
+                    IntOffset((session.position.x - rootPosition.x - cardWidth.toPx() / 2f).roundToInt(),
+                        (session.position.y - rootPosition.y - cardHeight.toPx() / 2f).roundToInt())
+                }.size(cardWidth, cardHeight).graphicsLayer {
+                    scaleX = 1.05f; scaleY = 1.05f
+                    alpha = 0.92f
+                    shadowElevation = 16f
+                }) {
+                    when (session.placement.id) {
+                        ID_BUILTIN_CLOCK -> ClockWidgetCard(now, Modifier.fillMaxSize(), onClick = {})
+                        ID_BUILTIN_CALENDAR -> CalendarWidgetCard(now, Modifier.fillMaxSize(), onClick = {})
+                        else -> GlassPanel(Modifier.fillMaxSize(), radius = 24f) {
+                            NativeWidgetContent(widgets, session.placement.id, Modifier.fillMaxSize(), fitToBounds = true)
+                        }
                     }
                 }
             }
@@ -888,7 +936,8 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                             model.createFolder(ids, title); closeSurface()
                         }
                         is Sheet.BuiltinWidget -> BuiltinWidgetEditor(current.kind, ui.layout.appearance, apps,
-                            model::appearance, { pushPage(Sheet.AppPickerForWidget(it)) }, ::closeSurface)
+                            model::appearance, { pushPage(Sheet.AppPickerForWidget(it)) }, ::closeSurface,
+                            onResetPosition = { widgets.placeOnHome(it) })
                         is Sheet.AppPickerForWidget -> AppPickerForWidgetSheet(current.kind, ui.apps, apps,
                             if (current.kind == "clock") ui.layout.appearance.clockApp else ui.layout.appearance.calendarApp,
                             { chosen ->
