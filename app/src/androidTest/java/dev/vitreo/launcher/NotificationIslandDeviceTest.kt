@@ -280,8 +280,14 @@ class NotificationIslandDeviceTest {
             }
         }
         try {
-            main { model.appearance(original.copy(themePreset = 0, reducedEffects = false)) }
+            main {
+                val updated = original.copy(themePreset = 0, reducedEffects = false)
+                model.appearance(updated)
+                NotificationIsland.configure(updated)
+                StateStore(context).save(model.ui.value.layout.copy(appearance = updated))
+            }
             compose.waitForIdle()
+            await { !StateStore(context).load().state.appearance.reducedEffects }
             main { assertTrue(NotificationIsland.preview(context)) }
             await { islandReady() && inspect { checkNotNull(islandView()).scaleX == 1f } }
             val compactRadius = inspect {
@@ -311,7 +317,13 @@ class NotificationIslandDeviceTest {
             assertTrue(samples.isNotEmpty())
             assertTrue("The corner must remain inside the current silhouette", samples.all { (radius, maximum) -> radius >= 0f && radius <= maximum + .5f })
         } finally {
-            main { recording = false; android.view.Choreographer.getInstance().removeFrameCallback(callback); model.appearance(original) }
+            main {
+                recording = false
+                android.view.Choreographer.getInstance().removeFrameCallback(callback)
+                model.appearance(original)
+                NotificationIsland.configure(original)
+                StateStore(context).save(model.ui.value.layout.copy(appearance = original))
+            }
             compose.waitForIdle()
         }
     }
