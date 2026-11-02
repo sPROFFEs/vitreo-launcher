@@ -320,7 +320,7 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
                         when (page) {
                             0 -> {
                                 Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
-                                    ConnectivityTile(Modifier.size(double, moduleHeight).iosControlReveal(0), device.airplane, device.wifi, device.bluetooth, onSystem,
+                                    ConnectivityTile(Modifier.size(double, moduleHeight).iosControlReveal(0), device.airplane, device.cellular, device.wifi, device.bluetooth, onSystem,
                                         onExpand = { pageTo(2) })
                                     MediaTile(Modifier.size(double, moduleHeight).iosControlReveal(1), bridge.media, device.musicActive, onUtility, { if (!(if (bridge.media.available) SystemBridge.command(it) else controller.mediaKey(it))) onError("Android could not send the media command.") },
                                         onExpand = { pageTo(1) })
@@ -400,9 +400,14 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
                                 }
                             }
                             1 -> {
+                                Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    ControlIconButton(onClick = { pageTo(0) }, modifier = Modifier.size(36.dp)) {
+                                        ControlSymbol(Icons.Outlined.ChevronLeft, "Back to controls", Modifier.size(24.dp), tint = Color.White)
+                                    }
+                                    Text("Media", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 8.dp))
+                                }
                                 MediaTile(Modifier.fillMaxWidth().heightIn(min = double * 2 + gap), bridge.media, device.musicActive, onUtility,
                                     { if (!(if (bridge.media.available) SystemBridge.command(it) else controller.mediaKey(it))) onError("Android could not send the media command.") }, expanded = true)
-                                Text("Media", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
                                 Text(if (appearance.mediaIntegration && bridge.access) "Playback follows the active Android media session. Unavailable actions are disabled."
                                     else "Connect your player for track details, artwork and precise playback controls. This uses Android notification access.", color = Color.White.copy(alpha = .65f), fontSize = 13.sp)
                                 if (!appearance.mediaIntegration || !bridge.access) TextButton(onClick = {
@@ -413,15 +418,21 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
                                 PanelControl("Open music app", Icons.Outlined.MusicNote, Modifier.fillMaxWidth().height(unit), wide = true) { onUtility("music") }
                             }
                             2 -> {
-                                Text("Connectivity", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
+                                Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    ControlIconButton(onClick = { pageTo(0) }, modifier = Modifier.size(36.dp)) {
+                                        ControlSymbol(Icons.Outlined.ChevronLeft, "Back to controls", Modifier.size(24.dp), tint = Color.White)
+                                    }
+                                    Text("Connectivity", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 8.dp))
+                                }
                                 listOf(Triple("Airplane", Icons.Outlined.AirplanemodeActive, Settings.ACTION_AIRPLANE_MODE_SETTINGS),
                                     Triple("Internet", Icons.Outlined.Wifi, Settings.Panel.ACTION_INTERNET_CONNECTIVITY),
+                                    Triple("Cellular", Icons.Outlined.CellTower, Settings.ACTION_DATA_ROAMING_SETTINGS),
                                     Triple("Bluetooth", Icons.Outlined.Bluetooth, Settings.ACTION_BLUETOOTH_SETTINGS),
                                     Triple("Hotspot", Icons.Outlined.WifiTethering, "android.settings.TETHER_SETTINGS"),
                                     Triple("NFC", Icons.Outlined.Nfc, Settings.ACTION_NFC_SETTINGS),
                                     Triple("Screen Cast", Icons.Outlined.Cast, Settings.ACTION_CAST_SETTINGS)).forEach { (title, icon, action) ->
                                     PanelControl(title, icon, Modifier.fillMaxWidth().height(unit), wide = true,
-                                        active = when (title) { "Airplane" -> device.airplane == true; "Internet" -> device.wifi == true; "Bluetooth" -> device.bluetooth == true; else -> false }) { onSystem(action) }
+                                        active = when (title) { "Airplane" -> device.airplane == true; "Internet" -> device.wifi == true; "Cellular" -> device.cellular == true; "Bluetooth" -> device.bluetooth == true; else -> false }) { onSystem(action) }
                                 }
                                 Text("Network controls open Android settings. Their state is read from the device.", color = Color.White.copy(alpha = .65f), fontSize = 12.sp)
                             }
@@ -437,7 +448,7 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
                     }
                 }
             }
-            Box(Modifier.fillMaxWidth().height(42.dp).testTag("controls_dismiss_handle"), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth().height(42.dp).testTag("controls_dismiss_handle").clickable(onClick = onClose), contentAlignment = Alignment.Center) {
                 Box(Modifier.width(70.dp).height(5.dp).clip(CircleShape).background(Color.White.copy(alpha = .75f)))
             }
         }
@@ -462,7 +473,7 @@ fun ControlCenter(appearance: Appearance, dark: Boolean, onAppearance: (Appearan
 }
 
 @Composable
-private fun ConnectivityTile(modifier: Modifier, airplane: Boolean?, wifi: Boolean?, bluetooth: Boolean?,
+private fun ConnectivityTile(modifier: Modifier, airplane: Boolean?, cellular: Boolean?, wifi: Boolean?, bluetooth: Boolean?,
     onSystem: (String) -> Unit, onExpand: () -> Unit) {
     val modern = !LocalCyber.current && !LocalGlass.current.appearance.iosClassic
     GlassPanel(modifier, radius = if (LocalGlass.current.appearance.iosClassic) 24f else 30f, tint = if (LocalGlass.current.appearance.iosClassic) .28f else .20f) {
@@ -472,29 +483,36 @@ private fun ConnectivityTile(modifier: Modifier, airplane: Boolean?, wifi: Boole
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     NetworkButton("Airplane", Icons.Outlined.AirplanemodeActive, Modifier.weight(1f).fillMaxHeight(), airplane,
                         Color(0xffff9f0a), diameter) { onSystem(Settings.ACTION_AIRPLANE_MODE_SETTINGS) }
-                    NetworkButton("Internet", Icons.Outlined.Wifi, Modifier.weight(1f).fillMaxHeight(), wifi,
-                        diameter = diameter) { onSystem(Settings.Panel.ACTION_INTERNET_CONNECTIVITY) }
+                    if (modern) {
+                        NetworkButton("Cellular", Icons.Outlined.CellTower, Modifier.weight(1f).fillMaxHeight(), cellular,
+                            Color(0xff34c759), diameter) { onSystem(Settings.Panel.ACTION_INTERNET_CONNECTIVITY) }
+                    } else {
+                        NetworkButton("Internet", Icons.Outlined.Wifi, Modifier.weight(1f).fillMaxHeight(), wifi,
+                            diameter = diameter) { onSystem(Settings.Panel.ACTION_INTERNET_CONNECTIVITY) }
+                    }
                 }
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    NetworkButton("Bluetooth", Icons.Outlined.Bluetooth, Modifier.weight(1f).fillMaxHeight(), bluetooth,
-                        diameter = diameter) { onSystem(Settings.ACTION_BLUETOOTH_SETTINGS) }
-                    Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
-                        if (!modern) ControlIconButton(onClick = onExpand) {
-                            ControlSymbol(Icons.Outlined.MoreHoriz, "Expand connectivity", tint = Color.White)
-                        } else Column(Modifier.size(diameter).clickable(role = Role.Button, onClick = onExpand)
-                            .semantics { contentDescription = "Expand connectivity" }, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            // One accessible control, rather than four tiny independent touch targets.
-                            listOf(listOf(Icons.Outlined.CellTower, Icons.Outlined.WifiTethering),
-                                listOf(Icons.Outlined.Nfc, Icons.Outlined.MoreHoriz)).forEach { row ->
-                                Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    row.forEach { symbol -> Box(Modifier.weight(1f).fillMaxHeight()
-                                        .background(Color.White.copy(alpha = .13f), CircleShape), contentAlignment = Alignment.Center) {
-                                        ControlSymbol(symbol, null, Modifier.size(13.dp), tint = Color.White)
-                                    } }
-                                }
+                    if (modern) {
+                        NetworkButton("Internet", Icons.Outlined.Wifi, Modifier.weight(1f).fillMaxHeight(), wifi,
+                            diameter = diameter) { onSystem(Settings.Panel.ACTION_INTERNET_CONNECTIVITY) }
+                        NetworkButton("Bluetooth", Icons.Outlined.Bluetooth, Modifier.weight(1f).fillMaxHeight(), bluetooth,
+                            diameter = diameter) { onSystem(Settings.ACTION_BLUETOOTH_SETTINGS) }
+                    } else {
+                        NetworkButton("Bluetooth", Icons.Outlined.Bluetooth, Modifier.weight(1f).fillMaxHeight(), bluetooth,
+                            diameter = diameter) { onSystem(Settings.ACTION_BLUETOOTH_SETTINGS) }
+                        Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
+                            ControlIconButton(onClick = onExpand) {
+                                ControlSymbol(Icons.Outlined.MoreHoriz, "Expand connectivity", tint = Color.White)
                             }
                         }
                     }
+                }
+            }
+            if (modern) {
+                Box(Modifier.align(Alignment.Center).size(22.dp).clip(CircleShape)
+                    .background(Color.Black.copy(alpha = .45f)).clickable(role = Role.Button, onClick = onExpand)
+                    .semantics { contentDescription = "Expand connectivity" }, contentAlignment = Alignment.Center) {
+                    ControlSymbol(Icons.Outlined.ExpandMore, "Expand connectivity", Modifier.size(15.dp), tint = Color.White.copy(alpha = .85f))
                 }
             }
         }
@@ -514,6 +532,9 @@ private fun MediaTile(modifier: Modifier, media: NowPlaying, legacyActive: Boole
                     else ControlSymbol(Icons.Outlined.MusicNote, "Open music app", Modifier.size(if (expanded) 44.dp else 22.dp), tint = Color.White.copy(alpha = .7f))
                 }
                 Spacer(Modifier.weight(1f))
+                if (!expanded && active) {
+                    PlayingWaveform(Modifier.padding(end = 8.dp), color = Color.White.copy(alpha = .85f))
+                }
                 ControlIconButton(onClick = if (expanded) { { openPlayer() } } else onExpand, modifier = Modifier.size(32.dp)) {
                     ControlSymbol(Icons.Outlined.Podcasts, if (expanded) "Open player" else "Expand media", Modifier.size(20.dp), tint = Color.White)
                 }

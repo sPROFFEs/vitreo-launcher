@@ -25,7 +25,8 @@ class ControlCenterController(context: Context) {
     data class State(val volume: Float = 0f, val volumeFixed: Boolean = false, val battery: Int = -1,
         val torchSupported: Boolean = false, val torchAvailable: Boolean = false, val torchOn: Boolean = false,
         val systemBrightness: Float = .5f, val musicActive: Boolean = false,
-        val airplane: Boolean? = null, val wifi: Boolean? = null, val bluetooth: Boolean? = null)
+        val airplane: Boolean? = null, val wifi: Boolean? = null, val bluetooth: Boolean? = null,
+        val cellular: Boolean? = null)
     var state by mutableStateOf(State())
         private set
     private var torchId: String? = null
@@ -33,7 +34,7 @@ class ControlCenterController(context: Context) {
     private var audioListening = false
     private var maximumVolume = 1
     private var observing = false
-    private val radioSettings = listOf("airplane_mode_on", "wifi_on", "bluetooth_on")
+    private val radioSettings = listOf("airplane_mode_on", "wifi_on", "bluetooth_on", "mobile_data")
     private val settingsObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) { refresh() }
     }
@@ -54,6 +55,12 @@ class ControlCenterController(context: Context) {
     fun refresh() {
         val max = runCatching { audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }.getOrDefault(1).coerceAtLeast(1)
         maximumVolume = max
+        val cm = runCatching { app.getSystemService(android.net.ConnectivityManager::class.java) }.getOrNull()
+        val activeNet = runCatching { cm?.activeNetwork }.getOrNull()
+        val caps = activeNet?.let { runCatching { cm?.getNetworkCapabilities(it) }.getOrNull() }
+        val cellularConnected = caps?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR) == true
+        val cellularSetting = radio("mobile_data")
+        val cellularActive = if (cellularConnected) true else (cellularSetting == true)
         state = state.copy(
             volume = runCatching { audio.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / max }.getOrDefault(0f),
             volumeFixed = runCatching { audio.isVolumeFixed }.getOrDefault(true),
@@ -61,6 +68,7 @@ class ControlCenterController(context: Context) {
                 .getOrDefault(-1).takeIf { it in 0..100 } ?: -1,
             musicActive = runCatching { audio.isMusicActive }.getOrDefault(false),
             airplane = radio("airplane_mode_on"), wifi = radio("wifi_on"), bluetooth = radio("bluetooth_on"),
+            cellular = cellularActive,
             systemBrightness = runCatching { Settings.System.getInt(app.contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128) / 255f }
                 .getOrDefault(.5f).coerceIn(.02f, 1f))
     }

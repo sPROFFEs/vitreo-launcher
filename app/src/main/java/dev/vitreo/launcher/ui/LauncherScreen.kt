@@ -913,7 +913,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                             NotificationCenter(::closeSurface, {
                                 runCatching { context.startActivity(SystemBridge.accessIntent(context)) }
                                     .onFailure { system(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS) }
-                            }, model::message, showStatusBar = appearance.homeStatusBar)
+                            }, model::message, showStatusBar = appearance.homeStatusBar, onCamera = { utility("camera") })
                         }
                         Sheet.Licenses -> LicensesSheet(::closeSurface)
                         is Sheet.IconPicker -> IconPickerSheet(model, ui, current.app, ::closeSurface)

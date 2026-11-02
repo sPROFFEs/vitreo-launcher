@@ -103,7 +103,7 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
                 // Scrolling app grids and text fields keep their gestures. The header is a dismissal handle.
                 if (style == SurfaceKind.Controls || style == SurfaceKind.Notifications) {
-                    if (down.position.y < size.height - 100 * density) return@awaitEachGesture
+                    if (down.position.y < size.height - 130 * density) return@awaitEachGesture
                 } else if (down.position.y > 170 * density && style != SurfaceKind.Folder) return@awaitEachGesture
                 val direction = if (style == SurfaceKind.Controls || style == SurfaceKind.Notifications) -1f else 1f
                 var dragging = false
@@ -124,12 +124,12 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
                             start = progress.value
                             val openingTravel = when (style) {
                                 SurfaceKind.Search -> -65 * density
-                                SurfaceKind.Controls, SurfaceKind.Notifications -> -size.height * if (cyber) .58f else .18f
+                                SurfaceKind.Controls, SurfaceKind.Notifications -> -size.height * if (cyber) .58f else .28f
                                 else -> 0f
                             }
                             val closingTravel = when (style) {
                                 SurfaceKind.Search -> size.height * .22f
-                                SurfaceKind.Controls, SurfaceKind.Notifications -> -size.height * if (cyber) .58f else .18f
+                                SurfaceKind.Controls, SurfaceKind.Notifications -> -size.height * if (cyber) .58f else .28f
                                 else -> 0f
                             }
                             val previousBlend = if (start <= handoffProgress) start / handoffProgress.coerceAtLeast(.001f)
@@ -181,7 +181,7 @@ fun <T : Any> SurfaceHost(target: T?, kind: (T) -> SurfaceKind, origin: Transfor
                 transformOrigin = if (style == SurfaceKind.Folder || style == SurfaceKind.Category) origin else TransformOrigin.Center
                 translationY = when (style) {
                     SurfaceKind.Search -> (1f - p) * if (dismissDown) size.height * .22f else -65 * density
-                    SurfaceKind.Controls, SurfaceKind.Notifications -> (1f - p) * size.height * if (cyber) -.58f else -.18f
+                    SurfaceKind.Controls, SurfaceKind.Notifications -> (1f - p) * size.height * if (cyber) -.58f else -.28f
                     SurfaceKind.Page -> (1f - p) * size.height * .16f
                     else -> 0f
                 }

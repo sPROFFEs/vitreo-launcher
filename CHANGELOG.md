@@ -1,5 +1,19 @@
 # Cambios
 
+## 0.10.13
+
+- Centro de Control (Control Center) renovado con fidelidad iOS 18 e integración Android:
+  - Módulo de conectividad 2x2 actualizado con los 4 botones esenciales estilo iOS: Modo Avión (naranja), Datos Móviles / Red Celular (verde con detección en tiempo real), Wi-Fi / Internet (azul con panel emergente nativo de Android) y Bluetooth (azul).
+  - Acceso directo a la página expandida de conectividad con botón dedicado y navegación rápida de vuelta.
+  - Reproductor multimedia Now Playing en Control Center con indicador animado de ecualizador en tiempo real durante la reproducción de audio, carátula en alta definición y controles de transporte pulidos.
+  - Manija inferior de descarte (`controls_dismiss_handle`) interactiva con soporte para toque y deslizamiento gestual hacia arriba.
+- Centro de Notificaciones (Notification Center) estilo iOS Cover Sheet:
+  - Estructura y atmósfera iOS Cover Sheet con fecha localizada dinámica y reloj de gran escala con sombras realistas.
+  - Tarjeta Now Playing integrada en el Notification Center si hay audio en reproducción (carátula, artista, título, barra de progreso seekable, ecualizador animado y controles previos/pausa/siguiente).
+  - Agrupación inteligente de notificaciones por aplicación con soporte para pilas colapsables ("X notificaciones de [App]") y expansión en un toque estilo iOS.
+  - Tarjetas de notificación con icono de app en squircle, título, texto, botones de acción directa en píldoras translúcidas y descarte gestual por deslizamiento hacia la izquierda con acción "Clear".
+  - Barra de acciones inferior estilo iOS Cover Sheet con botón circular de Linterna con estado activo en tiempo real, manija de cierre central y botón circular de Cámara para acceso instantáneo.
+
 ## 0.10.12
 
 - Pantalla de bloqueo / Fondo de pantalla independiente:
