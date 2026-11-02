@@ -181,6 +181,57 @@ internal fun PlayingWaveform(modifier: Modifier = Modifier, color: Color = Color
     }
 }
 
+@Composable
+private fun NotificationMediaCard(context: Context, media: NowPlaying, onUtility: () -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(14.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(46.dp).clip(RoundedCornerShape(9.dp)).background(Color.White.copy(alpha = .1f))
+                .clickable { if (!SystemBridge.openPlayer()) onUtility() },
+                contentAlignment = Alignment.Center) {
+                if (media.artwork != null) Image(media.artwork.asImageBitmap(), "Album artwork", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                else ControlSymbol(Icons.Outlined.MusicNote, "Music", Modifier.size(24.dp), tint = Color.White.copy(alpha = .8f))
+            }
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                Text(media.title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (media.artist.isNotBlank()) Text(media.artist, color = Color.White.copy(alpha = .7f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (media.playing) PlayingWaveform(Modifier.padding(end = 4.dp), color = Color.White.copy(alpha = .9f))
+            IconButton(onClick = { if (!SystemBridge.openPlayer()) onUtility() }, modifier = Modifier.size(32.dp)) {
+                ControlSymbol(Icons.Outlined.Podcasts, "AirPlay", Modifier.size(20.dp), tint = Color.White.copy(alpha = .75f))
+            }
+        }
+        if (media.duration > 0) {
+            val elapsed = if (media.playing && media.updatedAt > 0) (android.os.SystemClock.elapsedRealtime() - media.updatedAt).coerceAtLeast(0) * media.speed else 0f
+            val position = (media.position + elapsed.toLong()).coerceIn(0, media.duration)
+            Column(Modifier.padding(top = 6.dp)) {
+                IosSlider(position.toFloat() / media.duration, { SystemBridge.seek((it * media.duration).toLong()) },
+                    enabled = media.supports(PlaybackState.ACTION_SEEK_TO), onDark = true)
+                Row(Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 2.dp)) {
+                    Text("${position / 60000}:${(position / 1000 % 60).toString().padStart(2, '0')}", color = Color.White.copy(alpha = .65f), fontSize = 10.sp)
+                    Spacer(Modifier.weight(1f))
+                    Text("-${(media.duration - position) / 60000}:${((media.duration - position) / 1000 % 60).toString().padStart(2, '0')}", color = Color.White.copy(alpha = .65f), fontSize = 10.sp)
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 2.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = { SystemBridge.command(KeyEvent.KEYCODE_MEDIA_PREVIOUS) },
+                enabled = media.supports(PlaybackState.ACTION_SKIP_TO_PREVIOUS), modifier = Modifier.size(36.dp)) {
+                ControlSymbol(Icons.Outlined.SkipPrevious, "Previous track", Modifier.size(24.dp), tint = Color.White.copy(alpha = if (media.supports(PlaybackState.ACTION_SKIP_TO_PREVIOUS)) 1f else .3f))
+            }
+            IconButton(onClick = { SystemBridge.command(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) },
+                modifier = Modifier.size(44.dp)) {
+                Box(Modifier.size(38.dp).background(Color.White.copy(alpha = .18f), CircleShape), contentAlignment = Alignment.Center) {
+                    ControlSymbol(if (media.playing) Icons.Outlined.Pause else Icons.Outlined.PlayArrow, "Play/Pause", Modifier.size(24.dp), tint = Color.White)
+                }
+            }
+            IconButton(onClick = { SystemBridge.command(KeyEvent.KEYCODE_MEDIA_NEXT) },
+                enabled = media.supports(PlaybackState.ACTION_SKIP_TO_NEXT), modifier = Modifier.size(36.dp)) {
+                ControlSymbol(Icons.Outlined.SkipNext, "Next track", Modifier.size(24.dp), tint = Color.White.copy(alpha = if (media.supports(PlaybackState.ACTION_SKIP_TO_NEXT)) 1f else .3f))
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun NotificationCenter(onClose: () -> Unit, onAccess: () -> Unit, onError: (String) -> Unit,
@@ -189,7 +240,6 @@ internal fun NotificationCenter(onClose: () -> Unit, onAccess: () -> Unit, onErr
     val bridge by SystemBridge.state.collectAsStateWithLifecycle()
     val locked = context.getSystemService(KeyguardManager::class.java).isDeviceLocked
     var expanded by remember { mutableStateOf(emptySet<String>()) }
-    var expandedGroups by remember { mutableStateOf(emptySet<String>()) }
     val now = LocalHomeClock.current
     val appearance = LocalGlass.current.appearance
     val reduced = appearance.reducedEffects
@@ -236,61 +286,6 @@ internal fun NotificationCenter(onClose: () -> Unit, onAccess: () -> Unit, onErr
                 style = TextStyle(shadow = Shadow(Color.Black.copy(alpha = .45f), Offset(0f, 3f), 14f)),
                 modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 14.dp))
 
-            if (bridge.media.available) {
-                val media = bridge.media
-                GlassPanel(Modifier.fillMaxWidth().padding(bottom = 12.dp).testTag("notification_media_player"),
-                    radius = if (appearance.iosClassic) 20f else 24f,
-                    tint = if (appearance.iosClassic) .34f else .24f, material = GlassMaterial.Regular) {
-                    Column(Modifier.fillMaxWidth().padding(14.dp)) {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.size(46.dp).clip(RoundedCornerShape(9.dp)).background(Color.White.copy(alpha = .1f))
-                                .clickable { if (!SystemBridge.openPlayer()) runCatching { context.startActivity(Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_MUSIC)) } },
-                                contentAlignment = Alignment.Center) {
-                                if (media.artwork != null) Image(media.artwork.asImageBitmap(), "Album artwork", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                                else ControlSymbol(Icons.Outlined.MusicNote, "Music", Modifier.size(24.dp), tint = Color.White.copy(alpha = .8f))
-                            }
-                            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                                Text(media.title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                if (media.artist.isNotBlank()) Text(media.artist, color = Color.White.copy(alpha = .7f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                            if (media.playing) PlayingWaveform(Modifier.padding(end = 4.dp), color = Color.White.copy(alpha = .9f))
-                            IconButton(onClick = { if (!SystemBridge.openPlayer()) runCatching { context.startActivity(Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_MUSIC)) } }, modifier = Modifier.size(32.dp)) {
-                                ControlSymbol(Icons.Outlined.Podcasts, "AirPlay", Modifier.size(20.dp), tint = Color.White.copy(alpha = .75f))
-                            }
-                        }
-                        if (media.duration > 0) {
-                            val elapsed = if (media.playing && media.updatedAt > 0) (android.os.SystemClock.elapsedRealtime() - media.updatedAt).coerceAtLeast(0) * media.speed else 0f
-                            val position = (media.position + elapsed.toLong()).coerceIn(0, media.duration)
-                            Column(Modifier.padding(top = 6.dp)) {
-                                IosSlider(position.toFloat() / media.duration, { SystemBridge.seek((it * media.duration).toLong()) },
-                                    enabled = media.supports(PlaybackState.ACTION_SEEK_TO), onDark = true)
-                                Row(Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 2.dp)) {
-                                    Text("${position / 60000}:${(position / 1000 % 60).toString().padStart(2, '0')}", color = Color.White.copy(alpha = .65f), fontSize = 10.sp)
-                                    Spacer(Modifier.weight(1f))
-                                    Text("-${(media.duration - position) / 60000}:${((media.duration - position) / 1000 % 60).toString().padStart(2, '0')}", color = Color.White.copy(alpha = .65f), fontSize = 10.sp)
-                                }
-                            }
-                        }
-                        Row(Modifier.fillMaxWidth().padding(top = 2.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { SystemBridge.command(KeyEvent.KEYCODE_MEDIA_PREVIOUS) },
-                                enabled = media.supports(PlaybackState.ACTION_SKIP_TO_PREVIOUS), modifier = Modifier.size(36.dp)) {
-                                ControlSymbol(Icons.Outlined.SkipPrevious, "Previous track", Modifier.size(24.dp), tint = Color.White.copy(alpha = if (media.supports(PlaybackState.ACTION_SKIP_TO_PREVIOUS)) 1f else .3f))
-                            }
-                            IconButton(onClick = { SystemBridge.command(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) },
-                                modifier = Modifier.size(44.dp)) {
-                                Box(Modifier.size(38.dp).background(Color.White.copy(alpha = .18f), CircleShape), contentAlignment = Alignment.Center) {
-                                    ControlSymbol(if (media.playing) Icons.Outlined.Pause else Icons.Outlined.PlayArrow, "Play/Pause", Modifier.size(24.dp), tint = Color.White)
-                                }
-                            }
-                            IconButton(onClick = { SystemBridge.command(KeyEvent.KEYCODE_MEDIA_NEXT) },
-                                enabled = media.supports(PlaybackState.ACTION_SKIP_TO_NEXT), modifier = Modifier.size(36.dp)) {
-                                ControlSymbol(Icons.Outlined.SkipNext, "Next track", Modifier.size(24.dp), tint = Color.White.copy(alpha = if (media.supports(PlaybackState.ACTION_SKIP_TO_NEXT)) 1f else .3f))
-                            }
-                        }
-                    }
-                }
-            }
-
             if (!bridge.access) {
                 GlassPanel(Modifier.fillMaxWidth(), material = GlassMaterial.Regular) {
                     Column(Modifier.padding(20.dp)) {
@@ -309,65 +304,68 @@ internal fun NotificationCenter(onClose: () -> Unit, onAccess: () -> Unit, onErr
                 if (bridge.connected && bridge.notices.isEmpty() && !bridge.media.available) {
                     Text("No notifications", color = Color.White.copy(alpha = .7f), modifier = Modifier.align(Alignment.CenterHorizontally).padding(24.dp))
                 }
-                val grouped = remember(bridge.notices) { bridge.notices.groupBy { it.packageName } }
+                if (bridge.notices.isEmpty() && bridge.media.available) {
+                    val media = bridge.media
+                    GlassPanel(Modifier.fillMaxWidth().padding(vertical = 8.dp).testTag("notification_media_player"),
+                        radius = if (appearance.iosClassic) 20f else 24f,
+                        tint = if (appearance.iosClassic) .34f else .24f, material = GlassMaterial.Regular) {
+                        NotificationMediaCard(context, media, onUtility = { runCatching { context.startActivity(Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_MUSIC)) } })
+                    }
+                }
                 LazyColumn(Modifier.weight(1f).testTag("notification_list"), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    grouped.forEach { (pkg, groupNotices) ->
-                        val isExpandedGroup = pkg in expandedGroups || groupNotices.size == 1
-                        val displayedNotices = if (isExpandedGroup) groupNotices else listOf(groupNotices.first())
-                        items(displayedNotices, key = { it.key }) { notice ->
-                            val dismiss = rememberSwipeToDismissBoxState(confirmValueChange = {
-                                if (it == SwipeToDismissBoxValue.EndToStart && notice.clearable) SystemBridge.dismiss(notice.key)
-                                false // Android's removal callback is the source of truth.
-                            })
-                            SwipeToDismissBox(dismiss, enableDismissFromStartToEnd = false, enableDismissFromEndToStart = notice.clearable,
-                                backgroundContent = { Box(Modifier.fillMaxSize().clip(RoundedCornerShape(22.dp)).background(Color(0xffff3b30)).padding(end = 20.dp), contentAlignment = Alignment.CenterEnd) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        ControlSymbol(Icons.Outlined.Delete, "Clear", Modifier.size(16.dp), tint = Color.White)
-                                        Text("Clear", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                                    }
-                                } }) {
-                                GlassPanel(Modifier.fillMaxWidth().testTag("notice:${notice.key}")
-                                    .animateContentSize(if (reduced) tween(0) else LauncherMotion.panel()),
-                                    radius = if (appearance.iosClassic) 20f else 24f,
-                                    tint = if (appearance.iosClassic) .36f else .28f, material = GlassMaterial.Regular) {
-                                    Column(Modifier.fillMaxWidth().clickable {
-                                        val intent = notice.intent
-                                        if (intent != null) { if (dev.vitreo.launcher.data.launchNotification(context, intent)) onClose() else onError("This notification is no longer available.") }
-                                        else expanded = if (notice.key in expanded) expanded - notice.key else expanded + notice.key
-                                    }.padding(14.dp)) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Box(Modifier.size(30.dp).clip(if (LocalCyber.current) CyberShape else RoundedCornerShape(7.dp))
-                                                .background(LocalGlassContentColor.current.copy(alpha = .08f)), contentAlignment = Alignment.Center) {
-                                                if (notice.appIcon != null) Image(notice.appIcon.asImageBitmap(), "${notice.app} app icon", Modifier.fillMaxSize())
-                                                else ControlSymbol(Icons.Outlined.Notifications, "${notice.app} notification", Modifier.size(18.dp))
-                                            }
-                                            Text(notice.app, Modifier.weight(1f).padding(start = 10.dp), fontSize = 13.sp,
-                                                fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                            val timeSpan = remember(notice.time) {
-                                                if (notice.time > 0) android.text.format.DateUtils.getRelativeTimeSpanString(notice.time, System.currentTimeMillis(), 60_000L).toString()
-                                                else DateFormat.getTimeFormat(context).format(Date(notice.time))
-                                            }
-                                            Text(timeSpan, fontSize = 11.sp, color = LocalGlassContentColor.current.copy(alpha = .65f))
-                                            if (notice.clearable) IconButton(onClick = { SystemBridge.dismiss(notice.key) }, modifier = Modifier.size(28.dp)) {
-                                                ControlSymbol(Icons.Outlined.Close, "Clear ${notice.app} notification", Modifier.size(13.dp))
-                                            }
+                    items(bridge.notices, key = { it.key }) { notice ->
+                        val dismiss = rememberSwipeToDismissBoxState(confirmValueChange = {
+                            if (it == SwipeToDismissBoxValue.EndToStart && notice.clearable) SystemBridge.dismiss(notice.key)
+                            false // Android's removal callback is the source of truth.
+                        })
+                        SwipeToDismissBox(dismiss, enableDismissFromStartToEnd = false, enableDismissFromEndToStart = notice.clearable,
+                            backgroundContent = { Box(Modifier.fillMaxSize().clip(RoundedCornerShape(22.dp)).background(Color(0xffff3b30)).padding(end = 20.dp), contentAlignment = Alignment.CenterEnd) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    ControlSymbol(Icons.Outlined.Delete, "Clear", Modifier.size(16.dp), tint = Color.White)
+                                    Text("Clear", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                }
+                            } }) {
+                            GlassPanel(Modifier.fillMaxWidth().testTag("notice:${notice.key}")
+                                .animateContentSize(if (reduced) tween(0) else LauncherMotion.panel()),
+                                radius = if (appearance.iosClassic) 20f else 24f,
+                                tint = if (appearance.iosClassic) .36f else .28f, material = GlassMaterial.Regular) {
+                                Column(Modifier.fillMaxWidth().clickable {
+                                    val intent = notice.intent
+                                    if (intent != null) { if (dev.vitreo.launcher.data.launchNotification(context, intent)) onClose() else onError("This notification is no longer available.") }
+                                    else expanded = if (notice.key in expanded) expanded - notice.key else expanded + notice.key
+                                }.padding(14.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(Modifier.size(30.dp).clip(if (LocalCyber.current) CyberShape else RoundedCornerShape(7.dp))
+                                            .background(LocalGlassContentColor.current.copy(alpha = .08f)), contentAlignment = Alignment.Center) {
+                                            if (notice.appIcon != null) Image(notice.appIcon.asImageBitmap(), "${notice.app} app icon", Modifier.fillMaxSize())
+                                            else ControlSymbol(Icons.Outlined.Notifications, "${notice.app} notification", Modifier.size(18.dp))
                                         }
-                                        if (notice.title.isNotEmpty()) Text(notice.title, Modifier.padding(top = 6.dp), fontSize = 15.sp,
-                                            lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                        if (notice.text.isNotEmpty()) Text(notice.text, fontSize = 14.sp, lineHeight = 19.sp,
-                                            color = LocalGlassContentColor.current.copy(alpha = .85f), maxLines = if (notice.key in expanded) 12 else 2, overflow = TextOverflow.Ellipsis)
-                                        if (notice.actions.isNotEmpty() || notice.key in expanded) {
-                                            Row(Modifier.padding(top = 8.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                TextButton(onClick = { expanded = if (notice.key in expanded) expanded - notice.key else expanded + notice.key },
-                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp), modifier = Modifier.height(30.dp)) {
-                                                    Text(if (notice.key in expanded) "Less" else "More", fontSize = 12.sp, color = Color.White.copy(alpha = .8f))
-                                                }
-                                                notice.actions.forEach { action ->
-                                                    Box(Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = .14f))
-                                                        .clickable { if (!dev.vitreo.launcher.data.launchNotification(context, action.intent)) onError("This action is no longer available.") }
-                                                        .padding(horizontal = 10.dp, vertical = 5.dp)) {
-                                                        Text(action.title, fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Medium, maxLines = 1)
-                                                    }
+                                        Text(notice.app, Modifier.weight(1f).padding(start = 10.dp), fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        val timeSpan = remember(notice.time) {
+                                            if (notice.time > 0) android.text.format.DateUtils.getRelativeTimeSpanString(notice.time, System.currentTimeMillis(), 60_000L).toString()
+                                            else DateFormat.getTimeFormat(context).format(Date(notice.time))
+                                        }
+                                        Text(timeSpan, fontSize = 11.sp, color = LocalGlassContentColor.current.copy(alpha = .65f))
+                                        if (notice.clearable) IconButton(onClick = { SystemBridge.dismiss(notice.key) }, modifier = Modifier.size(28.dp)) {
+                                            ControlSymbol(Icons.Outlined.Close, "Clear ${notice.app} notification", Modifier.size(13.dp))
+                                        }
+                                    }
+                                    if (notice.title.isNotEmpty()) Text(notice.title, Modifier.padding(top = 6.dp), fontSize = 15.sp,
+                                        lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                    if (notice.text.isNotEmpty()) Text(notice.text, fontSize = 14.sp, lineHeight = 19.sp,
+                                        color = LocalGlassContentColor.current.copy(alpha = .85f), maxLines = if (notice.key in expanded) 12 else 2, overflow = TextOverflow.Ellipsis)
+                                    if (notice.actions.isNotEmpty() || notice.key in expanded) {
+                                        Row(Modifier.padding(top = 8.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            TextButton(onClick = { expanded = if (notice.key in expanded) expanded - notice.key else expanded + notice.key },
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp), modifier = Modifier.height(30.dp)) {
+                                                Text(if (notice.key in expanded) "Less" else "More", fontSize = 12.sp, color = Color.White.copy(alpha = .8f))
+                                            }
+                                            notice.actions.forEach { action ->
+                                                Box(Modifier.clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = .14f))
+                                                    .clickable { if (!dev.vitreo.launcher.data.launchNotification(context, action.intent)) onError("This action is no longer available.") }
+                                                    .padding(horizontal = 10.dp, vertical = 5.dp)) {
+                                                    Text(action.title, fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Medium, maxLines = 1)
                                                 }
                                             }
                                         }
@@ -375,19 +373,14 @@ internal fun NotificationCenter(onClose: () -> Unit, onAccess: () -> Unit, onErr
                                 }
                             }
                         }
-                        if (groupNotices.size > 1) {
-                            item {
-                                Box(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp), contentAlignment = Alignment.Center) {
-                                    Row(Modifier.clip(RoundedCornerShape(14.dp)).background(Color.White.copy(alpha = .12f))
-                                        .clickable { expandedGroups = if (pkg in expandedGroups) expandedGroups - pkg else expandedGroups + pkg }
-                                        .padding(horizontal = 14.dp, vertical = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        Text(if (pkg in expandedGroups) "Collapse ${groupNotices.first().app} stack" else "${groupNotices.size} notifications from ${groupNotices.first().app}",
-                                            fontSize = 12.sp, color = Color.White.copy(alpha = .85f), fontWeight = FontWeight.Medium)
-                                        ControlSymbol(if (pkg in expandedGroups) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
-                                            "Toggle group", Modifier.size(16.dp), tint = Color.White.copy(alpha = .85f))
-                                    }
-                                }
+                    }
+                    if (bridge.notices.isNotEmpty() && bridge.media.available) {
+                        item(key = "notification_media_item") {
+                            val media = bridge.media
+                            GlassPanel(Modifier.fillMaxWidth().padding(vertical = 4.dp).testTag("notification_media_player"),
+                                radius = if (appearance.iosClassic) 20f else 24f,
+                                tint = if (appearance.iosClassic) .34f else .24f, material = GlassMaterial.Regular) {
+                                NotificationMediaCard(context, media, onUtility = { runCatching { context.startActivity(Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_MUSIC)) } })
                             }
                         }
                     }
