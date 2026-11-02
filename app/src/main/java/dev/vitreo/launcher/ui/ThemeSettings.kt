@@ -42,8 +42,12 @@ fun ThemeSettings(ui: LauncherViewModel.UiState, onAppearance: (Appearance) -> U
         val preset = if (index == 2) 1 else 0
         val chosen = a.themePreset == preset && (preset == 1 || a.iosClassic == classic)
         val glass = LocalGlass.current
-        CompositionLocalProvider(LocalGlass provides glass.copy(appearance = glass.appearance.copy(themePreset = preset, iosClassic = classic))) {
-            VitreoTheme(a.interfaceStyle, preset) {
+        val factionPalette = CyberColors.forFaction(a.cyberFaction)
+        CompositionLocalProvider(
+            LocalGlass provides glass.copy(appearance = glass.appearance.copy(themePreset = preset, iosClassic = classic, cyberFaction = a.cyberFaction)),
+            LocalCyberPalette provides factionPalette
+        ) {
+            VitreoTheme(a.interfaceStyle, preset, appearance = a.copy(themePreset = preset, iosClassic = classic)) {
                 GlassPanel(Modifier.fillMaxWidth().padding(bottom = 14.dp).height(158.dp)
                     .testTag(if (classic) "theme_ios16" else "theme_$preset").selectable(chosen, role = Role.RadioButton,
                         onClick = { onAppearance(a.copy(themePreset = preset, iosClassic = if (preset == 1) a.iosClassic else classic)) }), material = GlassMaterial.Regular) {
@@ -54,8 +58,8 @@ fun ThemeSettings(ui: LauncherViewModel.UiState, onAppearance: (Appearance) -> U
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(13.dp)) {
                             listOf(R.drawable.cyber_phone, R.drawable.cyber_messages, R.drawable.cyber_camera).forEachIndexed { index, icon ->
-                                if (preset == 1) Box(Modifier.size(39.dp).background(CyberColors.Background, CyberShape).border(1.dp, CyberColors.Red, CyberShape)) {
-                                    Image(painterResource(icon), null, Modifier.fillMaxSize().padding(4.dp), colorFilter = ColorFilter.tint(CyberColors.Cyan))
+                                if (preset == 1) Box(Modifier.size(39.dp).background(factionPalette.background, CyberShape).border(1.dp, factionPalette.structural, CyberShape)) {
+                                    Image(painterResource(icon), null, Modifier.fillMaxSize().padding(4.dp), colorFilter = ColorFilter.tint(factionPalette.cyan))
                                 } else IosAppIcon(listOf("phone", "messages", "camera")[index], 0, Color.White, Modifier.size(39.dp))
                             }
                         }
@@ -85,7 +89,11 @@ fun ThemeSettings(ui: LauncherViewModel.UiState, onAppearance: (Appearance) -> U
                 if (index > 0) IosDivider()
                 Row(Modifier.fillMaxWidth().clickable { onAppearance(a.copy(cyberFaction = index)) }
                     .padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(16.dp).clip(CutCornerShape(4.dp)).background(faction.accent).border(1.dp, faction.structural, CutCornerShape(4.dp)))
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Box(Modifier.size(14.dp).clip(CutCornerShape(3.dp)).background(faction.accent).border(.8.dp, faction.structural, CutCornerShape(3.dp)))
+                        Box(Modifier.size(14.dp).clip(CutCornerShape(3.dp)).background(faction.info).border(.8.dp, faction.structural, CutCornerShape(3.dp)))
+                        Box(Modifier.size(14.dp).clip(CutCornerShape(3.dp)).background(faction.structural).border(.8.dp, faction.panel, CutCornerShape(3.dp)))
+                    }
                     Spacer(Modifier.width(12.dp))
                     Text(faction.name, Modifier.weight(1f), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, fontFamily = CyberFont)
                     RadioButton(a.cyberFaction == index, onClick = null)
@@ -109,7 +117,7 @@ fun ThemeSettings(ui: LauncherViewModel.UiState, onAppearance: (Appearance) -> U
                 dev.vitreo.launcher.core.CYBER_EFFECT_RETICLES to "Kiroshi corner HUD reticles",
                 dev.vitreo.launcher.core.CYBER_EFFECT_PRESS_GLITCH to "Icon tap Relic RGB glitch",
                 dev.vitreo.launcher.core.CYBER_EFFECT_CYBERDECK_WIDGETS to "Cyberdeck RAM & Shard widgets",
-                dev.vitreo.launcher.core.CYBER_EFFECT_QUICKHACK_DOCK to "Quickhack dock tray slots",
+                dev.vitreo.launcher.core.CYBER_EFFECT_QUICKHACK_DOCK to "Quickhack Cyberdeck dock",
                 dev.vitreo.launcher.core.CYBER_EFFECT_TIER_PIPS to "Cyberware rarity tier pips",
                 dev.vitreo.launcher.core.CYBER_EFFECT_NETWATCH_SEARCH to "Netwatch terminal search prompt",
                 dev.vitreo.launcher.core.CYBER_EFFECT_HOLOCALL_NOTICES to "Holocall transmission notifications",
@@ -134,10 +142,11 @@ fun ThemeSettings(ui: LauncherViewModel.UiState, onAppearance: (Appearance) -> U
         Text("Customize individual HUD, audio-visual, icon and interface cyber-effects.",
             Modifier.padding(horizontal = 17.dp, vertical = 8.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         IosSectionLabel("Status bar appearance")
+        val currentPalette = CyberColors.forFaction(a.cyberFaction)
         IosGroup {
             Column(Modifier.fillMaxWidth().padding(17.dp).testTag("cyber_status_controls")) {
                 Box(Modifier.fillMaxWidth().height(72.dp).clip(CyberShape)
-                    .background(Brush.linearGradient(listOf(Color(0xff56798d), CyberColors.Background)))
+                    .background(Brush.linearGradient(listOf(Color(0xff56798d), currentPalette.background)))
                     .testTag("cyber_status_preview"), contentAlignment = Alignment.Center) {
                     HomeStatusBar(LocalHomeClock.current, Modifier.height(statusBandHeight(a)), null, null)
                 }
@@ -170,7 +179,7 @@ fun ThemeSettings(ui: LauncherViewModel.UiState, onAppearance: (Appearance) -> U
                 ids.forEach { id ->
                     val title = WALLPAPER_NAMES[id]
                     Column(Modifier.weight(1f).testTag("cyber_wallpaper:${id - 4}").clickable { onAppearance(a.copy(palette = id, usePhoto = false)) }) {
-                        Box(Modifier.fillMaxWidth().aspectRatio(.62f).clip(CyberShape).background(CyberColors.Background)) {
+                        Box(Modifier.fillMaxWidth().aspectRatio(.62f).clip(CyberShape).background(currentPalette.background)) {
                             wallpapers[id]?.let { Image(it.asImageBitmap(), title, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop) }
                         }
                         Text(title, Modifier.padding(vertical = 8.dp), fontSize = 14.sp)
@@ -232,8 +241,9 @@ fun IconPickerSheet(model: LauncherViewModel, ui: LauncherViewModel.UiState, app
                         .padding(7.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         if (selectedPack == THEME_ICON_PACK) {
                             val cyber = LocalCyber.current
-                            Box(Modifier.size(48.dp).clip(if (cyber) CyberShape else IconShape).then(if (cyber) Modifier.background(CyberColors.Panel).border(1.dp, CyberColors.Red, CyberShape) else Modifier)) {
-                                if (cyber) cyberArtwork(name)?.let { Image(painterResource(it), null, Modifier.fillMaxSize().padding(4.dp), colorFilter = ColorFilter.tint(CyberColors.Cyan)) }
+                            val pickerPalette = LocalCyberPalette.current
+                            Box(Modifier.size(48.dp).clip(if (cyber) CyberShape else IconShape).then(if (cyber) Modifier.background(pickerPalette.panel).border(1.dp, pickerPalette.structural, CyberShape) else Modifier)) {
+                                if (cyber) cyberArtwork(name)?.let { Image(painterResource(it), null, Modifier.fillMaxSize().padding(4.dp), colorFilter = ColorFilter.tint(pickerPalette.cyan)) }
                                 else IosAppIcon(name, ui.layout.appearance.iconStyle, Color(ui.layout.appearance.tintColor), Modifier.fillMaxSize())
                             }
                         } else PackArtwork(selectedPack, name, model, ui.iconRevision, Modifier.size(48.dp))

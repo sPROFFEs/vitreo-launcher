@@ -48,15 +48,17 @@ internal object StatusSymbols {
 @Composable
 internal fun StatusWifi(modifier: Modifier = Modifier, description: String? = null, tint: Color = LocalGlassContentColor.current) {
     val cyber = LocalCyber.current
+    val palette = LocalCyberPalette.current
     Icon(if (cyber) StatusSymbols.cyberWifi else StatusSymbols.wifi, description, modifier,
-        if (cyber) CyberColors.Cyan else tint)
+        if (cyber) palette.cyan else tint)
 }
 
 @Composable
 internal fun StatusLock(modifier: Modifier = Modifier, description: String? = null, tint: Color = LocalGlassContentColor.current) {
     val cyber = LocalCyber.current
+    val palette = LocalCyberPalette.current
     Icon(if (cyber) StatusSymbols.cyberLock else StatusSymbols.lock, description, modifier,
-        if (cyber) CyberColors.Cyan else tint)
+        if (cyber) palette.cyan else tint)
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -70,10 +72,11 @@ internal fun statusBandHeight(appearance: dev.vitreo.launcher.core.Appearance? =
 internal fun StatusBattery(level: Int, charging: Boolean, modifier: Modifier = Modifier,
     percentage: Boolean = true, tint: Color = LocalGlassContentColor.current, powerSave: Boolean = false) {
     val cyber = LocalCyber.current
+    val palette = LocalCyberPalette.current
     val value = level.coerceIn(0, 100)
     if (cyber && percentage) {
         Row(modifier, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(value.toString(), color = CyberColors.Cyan, fontFamily = CyberFont, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text(value.toString(), color = palette.cyan, fontFamily = CyberFont, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             StatusBattery(value, charging, percentage = false, tint = tint, powerSave = powerSave)
         }
         return
@@ -88,10 +91,10 @@ internal fun StatusBattery(level: Int, charging: Boolean, modifier: Modifier = M
         val unit = size.height / 13f
         val bodyWidth = size.width - 3f * unit
         val radius = if (cyber) CornerRadius.Zero else CornerRadius(3.6f * unit)
-        val ink = if (cyber) CyberColors.Cyan else tint
-        val fill = when { powerSave && !charging -> if (cyber) CyberColors.Yellow else Color(0xffffd60a)
-            value <= 20 && !charging -> if (cyber) CyberColors.Red else Color(0xffff453a)
-            charging -> if (cyber) CyberColors.Yellow else Color(0xff30d158)
+        val ink = if (cyber) palette.cyan else tint
+        val fill = when { powerSave && !charging -> if (cyber) palette.yellow else Color(0xffffd60a)
+            value <= 20 && !charging -> if (cyber) palette.red else Color(0xffff453a)
+            charging -> if (cyber) palette.accent else Color(0xff30d158)
             else -> ink }
         drawRoundRect(ink.copy(alpha = .5f), topLeft = Offset(.65f * unit, .65f * unit),
             size = Size(bodyWidth - 1.3f * unit, size.height - 1.3f * unit), cornerRadius = radius, style = Stroke(1.3f * unit))

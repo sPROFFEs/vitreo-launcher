@@ -160,4 +160,25 @@ class StateCodecTest {
         assertEquals(128, oversized.clockApp.length)
         assertEquals(128, oversized.calendarApp.length)
     }
+
+    @Test fun cyberFactionPaletteMapping() {
+        val kiroshi = dev.vitreo.launcher.ui.CyberColors.forFaction(0)
+        assertEquals("Kiroshi Optics", kiroshi.name)
+        assertEquals(androidx.compose.ui.graphics.Color(0xfffcee0a), kiroshi.accent)
+
+        val arasaka = dev.vitreo.launcher.ui.CyberColors.forFaction(1)
+        assertEquals("Arasaka Corpo", arasaka.name)
+        assertEquals(androidx.compose.ui.graphics.Color(0xffff001e), arasaka.accent)
+
+        val netrunner = dev.vitreo.launcher.ui.CyberColors.forFaction(2)
+        assertEquals("Netrunner Deep-Net", netrunner.name)
+        assertEquals(androidx.compose.ui.graphics.Color(0xff00ff66), netrunner.accent)
+
+        val trauma = dev.vitreo.launcher.ui.CyberColors.forFaction(3)
+        assertEquals("Trauma Team", trauma.name)
+        assertEquals(androidx.compose.ui.graphics.Color(0xffff7700), trauma.accent)
+
+        assertEquals("Kiroshi Optics", dev.vitreo.launcher.ui.CyberColors.forFaction(-5).name)
+        assertEquals("Trauma Team", dev.vitreo.launcher.ui.CyberColors.forFaction(99).name)
+    }
 }

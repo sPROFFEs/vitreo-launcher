@@ -158,8 +158,9 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
     val alarm = remember(now / 60_000) { context.getSystemService(AlarmManager::class.java).nextAlarmClock?.triggerTime }
     var localMessage by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(message) { localMessage = message }
-    VitreoTheme(style = 2, preset = appearance.themePreset) {
-        CompositionLocalProvider(LocalGlass provides GlassEnvironment(frame, viewport, appearance, drag.asState()), LocalCyberPhase provides ambient, LocalGlassContentColor provides Color.White) {
+    val palette = CyberColors.forFaction(appearance.cyberFaction)
+    VitreoTheme(style = 2, preset = appearance.themePreset, appearance = appearance) {
+        CompositionLocalProvider(LocalGlass provides GlassEnvironment(frame, viewport, appearance, drag.asState()), LocalCyberPhase provides ambient, LocalCyberPalette provides palette, LocalGlassContentColor provides Color.White) {
             Box(Modifier.fillMaxSize().background(Color(0xff101b2b)).onSizeChanged {
                 viewport = Viewport(it.width.toFloat(), it.height.toFloat())
             }.testTag("lock_screen")) {
@@ -241,7 +242,7 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                                 }
                             }
                         }
-                        if (cyber) Text("IDENTITY VERIFICATION // ANDROID", color = CyberColors.Cyan.copy(alpha = .7f),
+                        if (cyber) Text("IDENTITY VERIFICATION // ANDROID", color = palette.cyan.copy(alpha = .7f),
                             fontFamily = CyberFont, fontSize = 12.sp, modifier = Modifier.padding(top = 22.dp))
                        }
                       }
@@ -254,7 +255,7 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                             val fingerprint = remember(context) { context.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_FINGERPRINT) }
                             TextButton(onClick = onSystemUnlock, enabled = !busy, modifier = Modifier.testTag("lock_system_unlock")) {
                                 Icon(if (fingerprint) Icons.Outlined.Fingerprint else Icons.Outlined.Lock, null,
-                                    Modifier.size(24.dp), tint = if (cyber) CyberColors.Cyan else Color.White)
+                                    Modifier.size(24.dp), tint = if (cyber) palette.cyan else Color.White)
                                 Text("System unlock", Modifier.padding(start = 8.dp), color = Color.White)
                             }
                         }

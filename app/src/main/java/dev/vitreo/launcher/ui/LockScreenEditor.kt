@@ -70,7 +70,8 @@ internal fun LockScreenEditor(appearance: Appearance, onCancel: () -> Unit, onSa
             }
             onDispose { }
         }
-        VitreoTheme(style = 2, preset = if (cyber) 1 else 0) {
+        VitreoTheme(style = 2, preset = if (cyber) 1 else 0, appearance = appearance) {
+            val palette = LocalCyberPalette.current
             Box(Modifier.fillMaxSize().testTag("lock_editor")) {
                 LockScreenSurface(appearance.copy(lockScreen = draft), preview = true, busy = false, message = null,
                     onUnlock = {}, onSystemLock = onCancel, onCamera = {}, onEmergency = {},
@@ -80,7 +81,7 @@ internal fun LockScreenEditor(appearance: Appearance, onCancel: () -> Unit, onSa
                             Row(Modifier.fillMaxWidth().height(maxOf(44.dp, statusBandHeight(LocalGlass.current.appearance))).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                                 TextButton(onClick = onCancel, modifier = Modifier.testTag("lock_editor_cancel")) { Text("Cancel", color = Color.White) }
                                 Spacer(Modifier.weight(1f))
-                                TextButton(onClick = { onSave(draft.sanitized()) }, modifier = Modifier.testTag("lock_editor_save")) { Text("Done", color = if (cyber) CyberColors.Cyan else Color.White, fontWeight = FontWeight.Bold) }
+                                TextButton(onClick = { onSave(draft.sanitized()) }, modifier = Modifier.testTag("lock_editor_save")) { Text("Done", color = if (cyber) palette.cyan else Color.White, fontWeight = FontWeight.Bold) }
                             }
                             Text("Lock Screen", color = Color.White.copy(alpha = .8f), fontSize = 13.sp,
                                 modifier = Modifier.align(Alignment.CenterHorizontally).height(32.dp).padding(top = 7.dp))
@@ -91,7 +92,7 @@ internal fun LockScreenEditor(appearance: Appearance, onCancel: () -> Unit, onSa
                     val duration = if (appearance.reducedEffects) 0 else 180
                     AnimatedVisibility(panel != 0, enter = fadeIn(tween(duration)) + slideInVertically(tween(duration)) { it / 5 },
                         exit = fadeOut(tween(duration)) + slideOutVertically(tween(duration)) { it / 5 }) {
-                        Surface(Modifier.animateContentSize(tween(duration)), shape = RoundedCornerShape(24.dp), color = if (cyber) CyberColors.Panel else Color(0xff1c1c1e), contentColor = Color.White) {
+                        Surface(Modifier.animateContentSize(tween(duration)), shape = RoundedCornerShape(24.dp), color = if (cyber) palette.panel else Color(0xff1c1c1e), contentColor = Color.White) {
                             Column(Modifier.fillMaxWidth().heightIn(max = 390.dp).verticalScroll(rememberScrollState()).padding(16.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(when (shownPanel) { 2 -> "Wallpaper"; 3 -> "Widgets"; else -> "Font & Color" }, Modifier.weight(1f), fontWeight = FontWeight.SemiBold)

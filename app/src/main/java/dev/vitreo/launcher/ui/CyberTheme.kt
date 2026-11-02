@@ -67,6 +67,7 @@ val LocalCyberPalette = staticCompositionLocalOf { CyberColors.Factions[0] }
 val CyberFont = FontFamily(Font(R.font.rajdhani_medium), Font(R.font.rajdhani_semibold, FontWeight.SemiBold))
 val CyberShape = CutCornerShape(topEnd = 12.dp, bottomStart = 12.dp)
 val LocalCyber = staticCompositionLocalOf { false }
+val LocalInDock = staticCompositionLocalOf { false }
 data class PackEnvironment(val reader: IconPacks? = null, val revision: Int = 0)
 val LocalIconPacks = staticCompositionLocalOf { PackEnvironment() }
 
@@ -74,6 +75,7 @@ val LocalIconPacks = staticCompositionLocalOf { PackEnvironment() }
 @Composable
 fun LauncherSymbol(imageVector: ImageVector, contentDescription: String?, modifier: Modifier = Modifier,
     tint: Color = LocalContentColor.current) {
+    val palette = LocalCyberPalette.current
     val resource = if (!LocalCyber.current) null else when (imageVector.name.substringAfterLast('.')) {
         "Search" -> R.drawable.cyber_ui_search; "Settings" -> R.drawable.cyber_ui_settings
         "ChevronLeft" -> R.drawable.cyber_ui_chevron_left; "ChevronRight" -> R.drawable.cyber_ui_chevron_right
@@ -85,7 +87,7 @@ fun LauncherSymbol(imageVector: ImageVector, contentDescription: String?, modifi
         else -> null
     }
     if (resource == null) Icon(imageVector, contentDescription, modifier, tint)
-    else Icon(painterResource(resource), contentDescription, modifier, if (tint == Color.White) CyberColors.Cyan else tint)
+    else Icon(painterResource(resource), contentDescription, modifier, if (tint == Color.White) palette.cyan else tint)
 }
 
 /** Original native HUD geometry. A single bounded reveal; resting surfaces have no animation loop. */

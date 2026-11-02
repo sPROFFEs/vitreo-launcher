@@ -86,15 +86,16 @@ object IconShape : Shape {
 @Composable
 fun IosSwitch(checked: Boolean, enabled: Boolean = true) {
     val cyber = LocalCyber.current
+    val palette = LocalCyberPalette.current
     val shape = if (cyber) CyberShape else CircleShape
     val reduced = LocalGlass.current.appearance.reducedEffects
     val x by animateDpAsState(if (checked) 22.dp else 2.dp,
         if (reduced) tween(0) else spring(dampingRatio = 1f, stiffness = 750f), label = "switch")
     Box(Modifier.size(51.dp, 31.dp).clip(shape).background(
-        if (checked) (if (cyber) CyberColors.Red else Color(0xff34c759)).copy(alpha = if (enabled) 1f else .45f)
+        if (checked) (if (cyber) palette.accent else Color(0xff34c759)).copy(alpha = if (enabled) 1f else .45f)
         else MaterialTheme.colorScheme.onSurface.copy(alpha = .15f))) {
         Box(Modifier.offset { IntOffset(x.roundToPx(), 2.dp.roundToPx()) }.size(27.dp).shadow(if (cyber) 0.dp else 2.dp, shape)
-            .background(if (cyber) CyberColors.Cyan else Color.White, shape))
+            .background(if (cyber) palette.cyan else Color.White, shape))
     }
 }
 
@@ -141,13 +142,15 @@ fun IosDivider() {
 
 @Composable
 fun IosSectionLabel(text: String) {
+    val palette = LocalCyberPalette.current
     Text(text.uppercase(), Modifier.padding(start = 17.dp, top = 24.dp, bottom = 8.dp),
-        color = if (LocalCyber.current) CyberColors.Red else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, letterSpacing = .4.sp)
+        color = if (LocalCyber.current) palette.structural else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, letterSpacing = .4.sp)
 }
 
 @Composable
 fun IosSegmented(options: List<String>, selected: Int, modifier: Modifier = Modifier, onSelect: (Int) -> Unit) {
     val cyber = LocalCyber.current
+    val palette = LocalCyberPalette.current
     val shape = if (cyber) CyberShape else RoundedCornerShape(11.dp)
     val direction = if (LocalLayoutDirection.current == LayoutDirection.Ltr) 1 else -1
     val progress = animateFloatAsState(selected.toFloat(),
@@ -158,7 +161,7 @@ fun IosSegmented(options: List<String>, selected: Int, modifier: Modifier = Modi
         Box(Modifier.matchParentSize().graphicsLayer {
             translationX = direction * segmentWidth.toPx() * progress.value.coerceIn(0f, (options.size - 1).toFloat())
         }.padding(end = segmentWidth * (options.size - 1))
-            .shadow(if (cyber) 0.dp else 1.dp, shape).background(if (cyber) CyberColors.Cyan.copy(alpha = .18f) else MaterialTheme.colorScheme.surface, shape))
+            .shadow(if (cyber) 0.dp else 1.dp, shape).background(if (cyber) palette.cyan.copy(alpha = .18f) else MaterialTheme.colorScheme.surface, shape))
         Row(Modifier.fillMaxWidth()) {
         options.forEachIndexed { index, title ->
             Box(Modifier.weight(1f).clip(RoundedCornerShape(8.dp))

@@ -128,7 +128,8 @@ internal fun SystemBatteryIndicator(tint: Color = LocalGlassContentColor.current
 internal fun LockScreenStatusBar(preview: Boolean, onClose: () -> Unit, modifier: Modifier = Modifier) {
     val state = rememberStatusSnapshot()
     val band = statusBandHeight(LocalGlass.current.appearance)
-    val ink = if (LocalCyber.current) CyberColors.Text else Color.White
+    val palette = LocalCyberPalette.current
+    val ink = if (LocalCyber.current) palette.text else Color.White
     Column(modifier.fillMaxWidth().testTag("lock_header")) {
         Row(Modifier.fillMaxWidth().height(band).cyberStatusChrome(state.saving).padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
             if (preview) TextButton(onClick = onClose, modifier = Modifier.testTag("lock_close").semantics { contentDescription = "Close preview" }, contentPadding = PaddingValues(0.dp)) {
@@ -144,7 +145,7 @@ internal fun LockScreenStatusBar(preview: Boolean, onClose: () -> Unit, modifier
             }
         }
         Box(Modifier.fillMaxWidth().height(32.dp), contentAlignment = Alignment.Center) {
-            if (LocalCyber.current) Box(Modifier.size(32.dp, 26.dp).background(CyberColors.Background.copy(alpha = .6f),
+            if (LocalCyber.current) Box(Modifier.size(32.dp, 26.dp).background(palette.background.copy(alpha = .6f),
                 androidx.compose.foundation.shape.RoundedCornerShape(5.dp)))
             if (preview) StatusLock(Modifier.size(16.dp, 21.dp).testTag("lock_glyph"), tint = ink)
             else IconButton(onClick = onClose, modifier = Modifier.size(44.dp, 32.dp).testTag("lock_close")) {

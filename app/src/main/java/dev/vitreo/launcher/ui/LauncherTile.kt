@@ -46,9 +46,14 @@ fun EntryIcon(entry: HomeEntry, apps: Map<String, AppRecord>, size: Dp, modifier
     val cyber = LocalCyber.current
     val palette = LocalCyberPalette.current
     val shape = if (cyber) CyberShape else IconShape
-    Box(modifier.size(size).testTag("icon_art:${entry.id}").shadow(size * .05f, shape, ambientColor = Color.Black.copy(alpha = .2f),
-        spotColor = Color.Black.copy(alpha = .22f)).clip(shape)
-        .then(if (cyber) Modifier.background(palette.panel).border(1.dp, palette.structural.copy(alpha = .7f), shape) else Modifier)) {
+    val inDock = LocalInDock.current
+    val hasBackplate = !inDock || !cyber
+    Box(modifier.size(size).testTag("icon_art:${entry.id}").then(
+        if (hasBackplate) Modifier.shadow(size * .05f, shape, ambientColor = Color.Black.copy(alpha = .2f),
+            spotColor = Color.Black.copy(alpha = .22f)).clip(shape)
+            .then(if (cyber) Modifier.background(palette.panel).border(1.dp, palette.structural.copy(alpha = .7f), shape) else Modifier)
+        else Modifier.clip(shape)
+    )) {
         if (entry is HomeEntry.Folder) {
             GlassPanel(Modifier.fillMaxSize(), radius = size.value * .235f, tint = if (appearance.iosClassic) .38f else .18f) {}
             Column(Modifier.fillMaxSize().padding(size * .10f), verticalArrangement = Arrangement.SpaceEvenly) {
@@ -121,7 +126,7 @@ fun EntryIcon(entry: HomeEntry, apps: Map<String, AppRecord>, size: Dp, modifier
                 1 -> Color(0xff00ff66)
                 2 -> palette.cyan
                 3 -> Color(0xffbc55ff)
-                else -> CyberColors.Yellow
+                else -> palette.accent
             }
             Canvas(Modifier.align(Alignment.TopStart).size(size * .28f)) {
                 val w = this.size.width

@@ -58,7 +58,7 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT))
         setContent {
             val ui by model.ui.collectAsStateWithLifecycle()
-            VitreoTheme(ui.layout.appearance.interfaceStyle, ui.layout.appearance.themePreset) {
+            VitreoTheme(ui.layout.appearance.interfaceStyle, ui.layout.appearance.themePreset, ui.layout.appearance) {
                 LauncherScreen(model, homeSerial, appReturnSerial, defaultHome, ::chooseHome, ::launchApp, ::launchShortcut, ::appInfo, ::configureWidget, homeRevealSerial)
             }
         }

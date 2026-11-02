@@ -37,15 +37,16 @@ fun LockNotificationCards(notices: List<LockNotice>, modifier: Modifier = Modifi
                     }
                     Column(Modifier.weight(1f).padding(start=12.dp)) {
                         val holocall = LocalCyber.current && dev.vitreo.launcher.core.CYBER_EFFECT_HOLOCALL_NOTICES in LocalGlass.current.appearance.cyberNightEffects
+                        val palette = LocalCyberPalette.current
                         Row(verticalAlignment=Alignment.CenterVertically) {
                             Text(if (holocall) "HOLOCALL // ${notice.app.uppercase()}" else notice.app,
-                                Modifier.weight(1f),color=if (holocall) CyberColors.Yellow else Color.White,fontSize=14.sp,
+                                Modifier.weight(1f),color=if (holocall) palette.accent else Color.White,fontSize=14.sp,
                                 fontFamily=if (LocalCyber.current) CyberFont else null,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
                             if (notice.time > 0) Text(android.text.format.DateUtils.getRelativeTimeSpanString(notice.time,System.currentTimeMillis(),60_000).toString(),
                                 Modifier.padding(start=8.dp),color=Color.White.copy(alpha=.65f),fontSize=11.sp,maxLines=1)
                         }
                         Text(if(notice.count==1) "Notification · Unlock to view" else "${notice.count} notifications · Unlock to view",
-                            color=if (holocall) CyberColors.Cyan else Color.White.copy(alpha=.72f),fontFamily=if (LocalCyber.current) CyberFont else null,fontSize=12.sp)
+                            color=if (holocall) palette.cyan else Color.White.copy(alpha=.72f),fontFamily=if (LocalCyber.current) CyberFont else null,fontSize=12.sp)
                     }
                 }
             }

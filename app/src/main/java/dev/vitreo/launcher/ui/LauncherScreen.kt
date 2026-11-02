@@ -31,8 +31,10 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
@@ -635,7 +637,8 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     }
     val menuBlur = animateFloatAsState(if (actionTarget != null) 1f else 0f,
         if (appearance.reducedEffects) tween(0) else LauncherMotion.close(), label = "menu backdrop")
-    val wallpaperText = if (appearance.themePreset == 1) CyberColors.Text else if (lightWallpaper) Color(0xff151518) else Color.White
+    val palette = CyberColors.forFaction(appearance.cyberFaction)
+    val wallpaperText = if (appearance.themePreset == 1) palette.text else if (lightWallpaper) Color(0xff151518) else Color.White
     val cyberPhase = cyberAmbientPhase(appearance, sheet == null && !launching && !editing)
     val glassMotion = remember(pager) { derivedStateOf {
         listOf(pager.currentPage + pager.currentPageOffsetFraction, dockVisibility.value, departure.value, arrival.value)
@@ -645,7 +648,8 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val controlMaterial = appearance.copy(frost = maxOf(.88f, appearance.frost),
         wallpaperDim = if (appearance.themePreset == 1) appearance.wallpaperDim
             else 1f - (1f - appearance.wallpaperDim) * .65f)
-    CompositionLocalProvider(LocalCyberPhase provides cyberPhase, LocalGlass provides GlassEnvironment(frame, viewport, appearance, glassMotion), LocalHomeClock provides now,
+    CompositionLocalProvider(LocalCyberPhase provides cyberPhase, LocalGlass provides GlassEnvironment(frame, viewport, appearance, glassMotion),
+        LocalCyberPalette provides palette, LocalHomeClock provides now,
         LocalGlassContentColor provides wallpaperText, LocalIconPacks provides PackEnvironment(model.iconPacks, ui.iconRevision),
         LocalHomeArrival provides HomeArrivalEnvironment(arrival.asState(), viewport.width, viewport.height,
             onHomePage && sheet == null && !editing && !appearance.reducedEffects)) {
@@ -739,40 +743,45 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                     }) {
                     HomePageControl({ pager.currentPage + pager.currentPageOffsetFraction }, homePages,
                         editing || pager.isScrollInProgress, ::openSearch)
-                    GlassPanel(Modifier.padding(horizontal = (if (appearance.themePreset == 1) 11f else IosDesign.DockInset).dp).fillMaxWidth().testTag("dock")
-                        .onGloballyPositioned { dockBounds = it.boundsInRoot() },
-                        radius = if (appearance.themePreset == 1) 35f else if (appearance.iosClassic) 32f else minOf(44f, dockHeight * .45f),
-                        tint = if (appearance.iosClassic) .36f else .18f) {
-                        if (appearance.themePreset == 1 && dev.vitreo.launcher.core.CYBER_EFFECT_QUICKHACK_DOCK in appearance.cyberNightEffects) {
-                            val palette = CyberColors.forFaction(appearance.cyberFaction)
-                            Canvas(Modifier.matchParentSize()) {
-                                val slotW = size.width / DOCK_SLOTS
-                                for (slot in 0 until DOCK_SLOTS) {
-                                    val left = slot * slotW
-                                    val bottom = size.height - 4.dp.toPx()
-                                    val top = 4.dp.toPx()
-                                    drawLine(palette.info.copy(alpha = .45f), Offset(left + 6.dp.toPx(), bottom), Offset(left + slotW - 6.dp.toPx(), bottom), 1.5.dp.toPx())
-                                    drawLine(palette.accent.copy(alpha = .8f), Offset(left + slotW / 2 - 8.dp.toPx(), bottom), Offset(left + slotW / 2 + 8.dp.toPx(), bottom), 2.dp.toPx())
-                                    drawLine(palette.structural.copy(alpha = .5f), Offset(left + 6.dp.toPx(), bottom - 6.dp.toPx()), Offset(left + 6.dp.toPx(), bottom), 1.5.dp.toPx())
-                                    drawLine(palette.structural.copy(alpha = .5f), Offset(left + slotW - 6.dp.toPx(), bottom - 6.dp.toPx()), Offset(left + slotW - 6.dp.toPx(), bottom), 1.5.dp.toPx())
-                                    drawLine(palette.structural.copy(alpha = .3f), Offset(left + 6.dp.toPx(), top), Offset(left + 6.dp.toPx(), top + 4.dp.toPx()), 1.dp.toPx())
-                                    drawLine(palette.structural.copy(alpha = .3f), Offset(left + slotW - 6.dp.toPx(), top), Offset(left + slotW - 6.dp.toPx(), top + 4.dp.toPx()), 1.dp.toPx())
-                                }
-                            }
-                        }
-                        Row(Modifier.fillMaxWidth().height(dockHeight.dp).padding(horizontal = (if (appearance.themePreset == 1) 10f else IosDesign.DockInnerInset).dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            repeat(DOCK_SLOTS) { slot ->
-                                val id = ui.layout.dock.getOrNull(slot)
-                                if (id == null) Box(Modifier.weight(1f).fillMaxHeight().clickable { openSearch() }, contentAlignment = Alignment.Center) {
-                                    if (editing) LauncherSymbol(Icons.Outlined.Add, "Add to Dock", tint = Color.White.copy(alpha = .6f))
-                                } else key(id) {
-                                    LauncherTile(HomeEntry.App(id), apps, geometry.iconSize.dp, false,
-                                        Modifier.weight(1f).fillMaxHeight().then(homeArrival(
-                                            Offset(dockBounds.left + dockBounds.width * (slot + .5f) / DOCK_SLOTS, dockBounds.center.y),
-                                            with(density) { geometry.iconSize.dp.toPx() })), editing, drag?.entry?.id == id,
-                                        onClick = { openEntry(HomeEntry.App(id), it) }, onActions = { actions(id, it) },
-                                        onBounds = { cellBounds[id] = it }, onRemove = { model.addHome(id) })
-                                    DisposableEffect(id) { onDispose { cellBounds.remove(id) } }
+                    if (appearance.themePreset == 1 && dev.vitreo.launcher.core.CYBER_EFFECT_QUICKHACK_DOCK in appearance.cyberNightEffects) {
+                        CyberQuickhackDock(
+                            palette = palette,
+                            dockBounds = dockBounds,
+                            dockHeight = dockHeight,
+                            ui = ui,
+                            apps = apps,
+                            iconSize = geometry.iconSize,
+                            density = density,
+                            editing = editing,
+                            dragEntryId = drag?.entry?.id,
+                            cellBounds = cellBounds,
+                            model = model,
+                            onDockBounds = { dockBounds = it },
+                            openSearch = ::openSearch,
+                            openEntry = openEntry,
+                            actions = ::actions
+                        )
+                    } else {
+                        GlassPanel(Modifier.padding(horizontal = (if (appearance.themePreset == 1) 11f else IosDesign.DockInset).dp).fillMaxWidth().testTag("dock")
+                            .onGloballyPositioned { dockBounds = it.boundsInRoot() },
+                            radius = if (appearance.themePreset == 1) 35f else if (appearance.iosClassic) 32f else minOf(44f, dockHeight * .45f),
+                            tint = if (appearance.iosClassic) .36f else .18f) {
+                            CompositionLocalProvider(LocalInDock provides true) {
+                                Row(Modifier.fillMaxWidth().height(dockHeight.dp).padding(horizontal = (if (appearance.themePreset == 1) 10f else IosDesign.DockInnerInset).dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    repeat(DOCK_SLOTS) { slot ->
+                                        val id = ui.layout.dock.getOrNull(slot)
+                                        if (id == null) Box(Modifier.weight(1f).fillMaxHeight().clickable { openSearch() }, contentAlignment = Alignment.Center) {
+                                            if (editing) LauncherSymbol(Icons.Outlined.Add, "Add to Dock", tint = Color.White.copy(alpha = .6f))
+                                        } else key(id) {
+                                            LauncherTile(HomeEntry.App(id), apps, geometry.iconSize.dp, false,
+                                                Modifier.weight(1f).fillMaxHeight().then(homeArrival(
+                                                    Offset(dockBounds.left + dockBounds.width * (slot + .5f) / DOCK_SLOTS, dockBounds.center.y),
+                                                    with(density) { geometry.iconSize.dp.toPx() })), editing, drag?.entry?.id == id,
+                                                onClick = { openEntry(HomeEntry.App(id), it) }, onActions = { actions(id, it) },
+                                                onBounds = { cellBounds[id] = it }, onRemove = { model.addHome(id) })
+                                            DisposableEffect(id) { onDispose { cellBounds.remove(id) } }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -959,6 +968,110 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                 }
             }
             SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 110.dp))
+        }
+    }
+}
+
+@Composable
+private fun CyberQuickhackDock(
+    palette: CyberPalette,
+    dockBounds: Rect,
+    dockHeight: Float,
+    ui: LauncherViewModel.UiState,
+    apps: Map<String, AppRecord>,
+    iconSize: Float,
+    density: Density,
+    editing: Boolean,
+    dragEntryId: String?,
+    cellBounds: MutableMap<String, Rect>,
+    model: LauncherViewModel,
+    onDockBounds: (Rect) -> Unit,
+    openSearch: () -> Unit,
+    openEntry: (HomeEntry, Rect?) -> Unit,
+    actions: (String, Rect?) -> Unit
+) {
+    Column(
+        Modifier
+            .padding(horizontal = 11.dp)
+            .fillMaxWidth()
+            .testTag("dock")
+            .onGloballyPositioned { onDockBounds(it.boundsInRoot()) }
+            .clip(CyberShape)
+            .background(palette.background.copy(alpha = .90f))
+            .border(1.dp, palette.structural.copy(alpha = .65f), CyberShape)
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 3.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("// QUICKHACK BUFFER", color = palette.info.copy(alpha = .8f), fontFamily = CyberFont, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            Text("[SLOTS 01-04 // 64-BIT]", color = palette.accent.copy(alpha = .85f), fontFamily = CyberFont, fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
+        }
+        Canvas(Modifier.fillMaxWidth().height(1.dp)) {
+            drawLine(palette.structural.copy(alpha = .45f), Offset.Zero, Offset(size.width, 0f), 1.dp.toPx())
+        }
+        CompositionLocalProvider(LocalInDock provides true) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .height(dockHeight.dp)
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                repeat(DOCK_SLOTS) { slot ->
+                    val id = ui.layout.dock.getOrNull(slot)
+                    val slotShape = CutCornerShape(topEnd = 8.dp, bottomStart = 8.dp)
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clip(slotShape)
+                            .background(palette.panel)
+                            .border(1.dp, if (id != null) palette.structural.copy(alpha = .8f) else palette.structural.copy(alpha = .25f), slotShape)
+                    ) {
+                        Text(
+                            "0${slot + 1}",
+                            color = if (id != null) palette.accent else palette.info.copy(alpha = .4f),
+                            fontFamily = CyberFont,
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.align(Alignment.TopStart).padding(start = 4.dp, top = 2.dp)
+                        )
+                        if (id == null) {
+                            Box(
+                                Modifier.fillMaxSize().clickable { openSearch() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (editing) LauncherSymbol(Icons.Outlined.Add, "Add to Dock", tint = palette.info.copy(alpha = .6f))
+                            }
+                        } else {
+                            key(id) {
+                                LauncherTile(
+                                    HomeEntry.App(id),
+                                    apps,
+                                    iconSize.dp,
+                                    false,
+                                    Modifier.fillMaxSize().then(homeArrival(
+                                        Offset(dockBounds.left + dockBounds.width * (slot + .5f) / DOCK_SLOTS, dockBounds.center.y),
+                                        with(density) { iconSize.dp.toPx() }
+                                    )),
+                                    editing,
+                                    dragEntryId == id,
+                                    onClick = { openEntry(HomeEntry.App(id), it) },
+                                    onActions = { actions(id, it) },
+                                    onBounds = { cellBounds[id] = it },
+                                    onRemove = { model.addHome(id) }
+                                )
+                                DisposableEffect(id) { onDispose { cellBounds.remove(id) } }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -1,5 +1,16 @@
 # Cambios
 
+## 0.10.11
+
+- Barra inferior / Quickhack Dock:
+  - Se sustituye limpiamente la barra de navegación inferior en lugar de superponer elementos. Al activar el dock cyberdeck, la navbar se reemplaza por completo por el chasis Quickhack Cyberdeck modular con buffer de memoria, telemetría y bahías individuales para cada slot con indicación `01`-`04`.
+  - Se elimina la doble tarjeta superpuesta y se quitan los fondos y bordes redundantes bajo los iconos dentro del dock.
+  - Al desactivar el efecto, el dock se muestra limpio sin superposiciones ni líneas residuales.
+- Colores de facciones de Night City unificados y cohesivos:
+  - Corrección completa del perfil de color de facción: ahora la facción elegida (Kiroshi Optics, Arasaka Corpo, Netrunner Deep-Net, Trauma Team) transforma de forma integral y armónica todo el launcher.
+  - La paleta de facción se propaga dinámicamente a la barra de estado y raíl HUD, switches, sliders del Centro de Control, botones y badges de batería/wifi/bloqueo, widgets de reloj y calendario, tarjetas de notificación, iconos y selectores de temas.
+  - Añadida vista previa con muestras de color (accent, structural, info) en el selector de facciones de Ajustes.
+
 ## 0.10.10
 
 - Comprehensive fix and modular activation for all 15 Cyberpunk 2077 Night City effects:

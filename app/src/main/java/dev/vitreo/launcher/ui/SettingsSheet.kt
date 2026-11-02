@@ -87,10 +87,11 @@ fun SettingsSheet(ui: LauncherViewModel.UiState, defaultHome: Boolean, onClose: 
                     modifier = Modifier.padding(top = 8.dp, bottom = 25.dp).testTag("settings_title"))
                 when (current) {
                     SettingsPage.Root -> {
+                        val palette = LocalCyberPalette.current
                         IosGroup {
                             Row(Modifier.padding(17.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Box(Modifier.size(58.dp).clip(if (LocalCyber.current) CyberShape else IconShape)
-                                    .background(Brush.linearGradient(if (LocalCyber.current) listOf(CyberColors.Red, CyberColors.Panel)
+                                    .background(Brush.linearGradient(if (LocalCyber.current) listOf(palette.structural, palette.panel)
                                         else listOf(Color(0xff6cb9ff), Color(0xff2862df)))), contentAlignment = Alignment.Center) {
                                     LauncherSymbol(Icons.Outlined.Layers, null, Modifier.size(34.dp), tint = Color.White)
                                 }
@@ -308,7 +309,7 @@ private fun GlassPreview() {
         viewport = Viewport(it.size.width.toFloat(), it.size.height.toFloat(), position.x, position.y)
     }, contentAlignment = Alignment.Center) {
         glass.frame?.let { Image(it.sharp.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
-        CompositionLocalProvider(LocalGlass provides glass.copy(viewport = viewport)) {
+        CompositionLocalProvider(LocalGlass provides glass.copy(viewport = viewport), LocalCyberPalette provides CyberColors.forFaction(glass.appearance.cyberFaction)) {
             GlassPanel(Modifier.width(210.dp).height(104.dp), radius = 30f, interactive = true) {
                 Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
                     LauncherSymbol(Icons.Outlined.BlurOn, null, Modifier.size(28.dp), tint = Color.White)

@@ -81,9 +81,12 @@ private fun ControlIconButton(onClick: () -> Unit, modifier: Modifier = Modifier
         Box(modifier.minimumInteractiveComponentSize().size(48.dp).graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(CircleShape).clickable(interaction, null, enabled = enabled, role = Role.Button, onClick = onClick),
             contentAlignment = Alignment.Center) { content() }
-    } else Box(modifier.minimumInteractiveComponentSize().size(48.dp).clip(CyberControlShape)
-        .background(CyberColors.Cyan.copy(alpha = if (enabled) .065f else .025f))
-        .clickable(enabled = enabled, role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) { content() }
+    } else {
+        val palette = LocalCyberPalette.current
+        Box(modifier.minimumInteractiveComponentSize().size(48.dp).clip(CyberControlShape)
+            .background(palette.cyan.copy(alpha = if (enabled) .065f else .025f))
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) { content() }
+    }
 }
 
 private data class ControlShortcut(val title: String, val icon: ImageVector)
@@ -150,7 +153,7 @@ private fun ControlSlider(title: String, icon: ImageVector, value: Float, enable
     // Follow the finger directly; animate only read-back changes from Android or buttons.
     val display by animateFloatAsState(tracking ?: rangeValue,
         tween(if (reduced || tracking != null) 0 else 120), label = "Slider read-back")
-    val ink by animateColorAsState(if (cyber) { if (display <= .18f) Color.White else if (title == "Home brightness") Color(0xffffc700) else Color(0xff00bfe8) }
+    val ink by animateColorAsState(if (cyber) { if (display <= .18f) Color.White else if (title == "Home brightness") palette.yellow else palette.cyan }
         else if (display <= .2f) Color.White else Color(0xff333339),
         tween(if (reduced) 0 else 120), label = "Slider symbol contrast")
     Box(Modifier.fillMaxWidth().height(height).testTag("control_slider:$title").semantics {
@@ -560,8 +563,9 @@ private fun NetworkButton(title: String, icon: ImageVector, modifier: Modifier, 
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed && !cyber && !reduced) .94f else 1f,
         if (reduced || cyber) tween(0) else spring(dampingRatio = .82f, stiffness = 650f), label = "Network control press")
+    val palette = LocalCyberPalette.current
     val background by animateColorAsState(if (cyber) {
-        if (active == true) CyberColors.Cyan.copy(alpha = .22f) else CyberColors.Panel
+        if (active == true) palette.cyan.copy(alpha = .22f) else palette.panel
     } else if (active == true) activeColor else Color.White.copy(alpha = .12f),
         tween(if (reduced || cyber) 0 else 180), label = "Network state")
     Column(modifier.clickable(interaction, null, role = Role.Button, onClick = onClick).height(51.dp).semantics {
@@ -571,7 +575,7 @@ private fun NetworkButton(title: String, icon: ImageVector, modifier: Modifier, 
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         val shape = if (cyber) CyberControlShape else CircleShape
         Box(Modifier.size(if (cyber) minOf(38.dp, diameter) else diameter).graphicsLayer { scaleX = scale; scaleY = scale }.clip(shape).background(background)
-            .then(if (cyber) Modifier.border(.7.dp, if (active == true) CyberColors.Cyan else CyberColors.Red.copy(alpha = .55f), shape) else Modifier),
+            .then(if (cyber) Modifier.border(.7.dp, if (active == true) palette.cyan else palette.red.copy(alpha = .55f), shape) else Modifier),
             contentAlignment = Alignment.Center) {
             ControlSymbol(icon, null, Modifier.size(22.dp), tint = Color.White)
         }

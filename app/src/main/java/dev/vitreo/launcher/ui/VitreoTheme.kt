@@ -11,15 +11,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun VitreoTheme(style: Int = 0, preset: Int = 0, content: @Composable () -> Unit) {
+fun VitreoTheme(style: Int = 0, preset: Int = 0, appearance: dev.vitreo.launcher.core.Appearance = LocalGlass.current.appearance, content: @Composable () -> Unit) {
     val cyber = preset == 1
     val dark = style == 2 || style == 0 && isSystemInDarkTheme()
-    val appearance = LocalGlass.current.appearance
     val palette = CyberColors.forFaction(appearance.cyberFaction)
     val colors = if (cyber) darkColorScheme(primary = palette.accent, onPrimary = palette.background,
         secondary = palette.structural, background = palette.background, surface = palette.panel,
-        surfaceVariant = Color(0xff202c37), onSurface = palette.text, onSurfaceVariant = Color(0xffa8bac4),
-        outline = palette.structural.copy(alpha = .7f), error = palette.structural)
+        surfaceVariant = palette.panel, onSurface = palette.text, onSurfaceVariant = palette.info.copy(alpha = .75f),
+        outline = palette.structural.copy(alpha = .7f), error = palette.red)
     else if (dark) darkColorScheme(primary = Color(0xff0a84ff), secondary = Color(0xff30d158),
         background = Color.Black, surface = Color(0xff1c1c1e), surfaceVariant = Color(0xff2c2c2e),
         onSurface = Color(0xfff5f5f7), onSurfaceVariant = Color(0xff98989d), outline = Color(0xff38383a))
