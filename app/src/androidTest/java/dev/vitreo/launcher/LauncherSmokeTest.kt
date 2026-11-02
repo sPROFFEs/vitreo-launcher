@@ -864,7 +864,8 @@ class LauncherSmokeTest {
             compose.onNodeWithText("Change Icon").performClick()
             compose.onNodeWithTag("icon_search").performTextInput("fixture red")
             compose.waitUntil(10_000) { compose.onAllNodesWithTag("pick_icon:fixture_red").fetchSemanticsNodes().isNotEmpty() }
-            compose.onNodeWithTag("pick_icon:fixture_red").performClick()
+            compose.waitForIdle()
+            compose.onNodeWithTag("pick_icon:fixture_red").performScrollTo().performClick()
             compose.waitUntil(10_000) { model.ui.value.layout.appearance.iconOverrides[id]?.drawable == "fixture_red" }
             compose.activityRule.scenario.recreate()
             awaitReady()
