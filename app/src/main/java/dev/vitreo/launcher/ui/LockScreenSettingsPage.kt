@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import dev.vitreo.launcher.core.Appearance
 import dev.vitreo.launcher.core.LockScreenSettings
@@ -110,16 +111,41 @@ fun LockScreenSettingsPage(a: Appearance, onAppearance: (Appearance) -> Unit, on
         else "The clock follows Android's 12/24-hour setting and fits the available width. Customize Lock Screen lets you tap the clock, choose its font and color, or drag its lower-right handle to make it taller. Tall iOS clocks move accessories toward the bottom.")
     IosSectionLabel("Wallpaper")
     IosGroup {
+        val separate = options.wallpaper != -1
+        IosToggleRow("Separate wallpaper from Home", separate, modifier = Modifier.testTag("lock_separate_wallpaper")) { enabled ->
+            change(options.copy(wallpaper = if (enabled) (if (options.wallpaper != -1) options.wallpaper else (if (a.palette in 0..WALLPAPER_NAMES.lastIndex) a.palette else 0)) else -1))
+        }
+        IosDivider()
         IosRow("Use Home wallpaper", if (options.wallpaper == -1) "Selected" else "Choose") { change(options.copy(wallpaper = -1)) }
         IosDivider()
+        val previews by produceState<List<android.graphics.Bitmap>>(emptyList()) {
+            value = withContext(Dispatchers.Default) { val store = WallpaperStore(context); WALLPAPER_NAMES.indices.map { store.thumbnail(it) } }
+        }
         Row(Modifier.fillMaxWidth().testTag("lock_wallpaper_choices").horizontalScroll(rememberScrollState()).padding(14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             WALLPAPER_NAMES.forEachIndexed { i, title ->
-                OutlinedButton(onClick = { change(options.copy(wallpaper = i)) }, modifier = Modifier.semantics { selected = options.wallpaper == i }) { Text(title) }
+                OutlinedButton(
+                    onClick = { change(options.copy(wallpaper = i)) },
+                    modifier = Modifier.semantics { selected = options.wallpaper == i },
+                    shape = RoundedCornerShape(16.dp),
+                    contentPadding = PaddingValues(6.dp),
+                    border = BorderStroke(if (options.wallpaper == i) 2.dp else 1.dp, if (options.wallpaper == i) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = .4f))
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(76.dp)) {
+                        Box(Modifier.size(76.dp, 100.dp).clip(RoundedCornerShape(12.dp)).background(Color.Black.copy(alpha = .2f))) {
+                            previews.getOrNull(i)?.let { Image(it.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
+                            if (options.wallpaper == i) {
+                                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.25f)))
+                                LauncherSymbol(Icons.Outlined.CheckCircle, "Selected", Modifier.align(Alignment.TopEnd).padding(6.dp), tint = Color.White)
+                            }
+                        }
+                        Text(title, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
+                    }
+                }
             }
         }
         LockSlider("Dim", options.dim, "${(options.dim * 100).roundToInt()}%", 0f..0.65f) { change(options.copy(dim = it)) }
     }
-    LockFootnote("Follow Home includes your photo and its crop. This changes Vitreo's surface only; your system lock wallpaper stays under Android's control.")
+    LockFootnote("Separate wallpaper keeps a distinct lock background from the collection. Turn off to follow your Home wallpaper, photo and crop.")
     IosSectionLabel("Status bar")
     LockFootnote("Uses Android’s status bar by default. Settings → Status Bar & Notifications → Custom status bar controls both Home and Lock Screen together.")
     IosSectionLabel("Notifications")

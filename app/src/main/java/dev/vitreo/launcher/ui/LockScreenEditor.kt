@@ -118,7 +118,10 @@ internal fun LockScreenEditor(appearance: Appearance, onCancel: () -> Unit, onSa
                                         IosToggleRow("Show date", draft.showDate) { draft = draft.copy(showDate = it) }
                                     }
                                     2 -> {
-                                        TextButton(onClick = { draft = draft.copy(wallpaper = -1) }) { Text(if (draft.wallpaper == -1) "✓ Use Home wallpaper" else "Use Home wallpaper") }
+                                        IosToggleRow("Separate wallpaper from Home", draft.wallpaper != -1, modifier = Modifier.testTag("lock_editor_separate_wallpaper")) { enabled ->
+                                            draft = draft.copy(wallpaper = if (enabled) (if (draft.wallpaper != -1) draft.wallpaper else (if (appearance.palette in 0..WALLPAPER_NAMES.lastIndex) appearance.palette else 0)) else -1)
+                                        }
+                                        TextButton(onClick = { draft = draft.copy(wallpaper = -1) }) { Text(if (draft.wallpaper == -1) "✓ Using Home wallpaper" else "Use Home wallpaper") }
                                         LockWallpaperStrip(draft.wallpaper) { draft = draft.copy(wallpaper = it) }
                                         Text("Dim", Modifier.padding(top = 12.dp), fontSize = 13.sp)
                                         IosSlider(draft.dim, { draft = draft.copy(dim = it) }, valueRange = 0f..0.65f)

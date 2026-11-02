@@ -1,5 +1,13 @@
 # Cambios
 
+## 0.10.12
+
+- Pantalla de bloqueo / Fondo de pantalla independiente:
+  - Añadida opción y toggle explícito "Separate wallpaper from Home" tanto en los Ajustes de la Pantalla de Bloqueo como en el editor interactivo de personalización.
+  - Permite configurar un fondo de pantalla propio e independiente de la colección para el lock screen sin afectar al Home Screen, manteniendo el dimming y ajustes personalizados.
+  - Cuando la opción está desactivada, el lock screen sigue automáticamente el fondo, foto, recorte y paleta del Home.
+  - Renovado el selector de fondos en los Ajustes de Pantalla de Bloqueo con tarjetas de vista previa miniaturas completas, bordes redondeados e indicador visual de selección activa.
+
 ## 0.10.11
 
 - Barra inferior / Quickhack Dock:

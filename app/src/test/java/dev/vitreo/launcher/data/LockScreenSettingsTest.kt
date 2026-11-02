@@ -64,6 +64,24 @@ class LockScreenSettingsTest {
             assertEquals(id, restored.appearance.lockScreen.appearance(home).palette)
         }
     }
+    @Test fun separateWallpaperToggleSwitchesBetweenIndependentAndHomeFollow() {
+        val home = Appearance(palette = 3, usePhoto = true)
+        val initial = LockScreenSettings()
+        assertEquals(-1, initial.wallpaper)
+        val followApp = initial.appearance(home)
+        assertTrue(followApp.usePhoto)
+        assertEquals(3, followApp.palette)
+
+        val separated = initial.copy(wallpaper = 5)
+        assertEquals(5, separated.wallpaper)
+        val sepApp = separated.appearance(home)
+        assertFalse(sepApp.usePhoto)
+        assertEquals(5, sepApp.palette)
+
+        val reverted = separated.copy(wallpaper = -1)
+        assertEquals(-1, reverted.wallpaper)
+        assertTrue(reverted.appearance(home).usePhoto)
+    }
     @Test fun swipeRequiresDistanceOrDeliberateUpwardVelocity() {
         assertFalse(LockScreenGesture.commits(47f, 2000f))
         assertFalse(LockScreenGesture.commits(80f, -1000f))
