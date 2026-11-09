@@ -30,14 +30,14 @@ internal fun HomeWorkspace(page: HomeGridPage, rows: Int, rowHeight: Float, icon
     now: Long, onClock: () -> Unit, onCalendar: () -> Unit, onOpen: (HomeEntry, Rect?) -> Unit,
     onActions: (HomeEntry, Rect?) -> Unit, onRemove: (HomeEntry) -> Unit, onEditWidget: (Int) -> Unit,
     onBounds: (String, Rect?) -> Unit, groupingHover: String? = null, groupingTarget: String? = null,
-    onEditBuiltin: ((String) -> Unit)? = null) {
+    onEditBuiltin: ((String) -> Unit)? = null, onContentBounds: (Rect) -> Unit = {}) {
     val density = LocalDensity.current
     val reduced = LocalGlass.current.appearance.reducedEffects
     val cyber = LocalCyber.current
     val arrival = LocalHomeArrival.current
     var origin by remember { mutableStateOf(Offset.Zero) }
-    BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = (if (cyber) 18f else IosDesign.HomeInset).dp).verticalScroll(rememberScrollState())
-        .onGloballyPositioned { origin = it.positionInRoot() }) {
+    val scroll = rememberScrollState()
+    BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = (if (cyber) 18f else IosDesign.HomeInset).dp)) {
         val cellWidth = maxWidth / GRID_COLUMNS
         val widgetGutter = ((cellWidth - iconSize.dp) / 2).coerceIn(6.dp, 20.dp)
         @Composable fun position(column: Int, row: Int): Modifier {
@@ -45,7 +45,11 @@ internal fun HomeWorkspace(page: HomeGridPage, rows: Int, rowHeight: Float, icon
             val offset = animateIntOffsetAsState(target, if (reduced) tween(0) else LauncherMotion.panel(cyber), label = "home cell")
             return Modifier.offset { offset.value }
         }
-        Box(Modifier.fillMaxWidth().height((rows * rowHeight).dp)) {
+        Box(Modifier.fillMaxWidth().verticalScroll(scroll, enabled = (rows * rowHeight).dp > maxHeight + 1.dp)
+            .height((rows * rowHeight).dp).onGloballyPositioned {
+                origin = it.positionInRoot()
+                onContentBounds(Rect(origin, androidx.compose.ui.geometry.Size(it.size.width.toFloat(), it.size.height.toFloat())))
+            }) {
             if (page.clockPlacement != null || page.calendarPlacement != null) {
                 Box(Modifier.fillMaxSize().testTag("home_builtin_widgets")) {
                     page.clockPlacement?.let { placement ->

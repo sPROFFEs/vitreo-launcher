@@ -1,5 +1,21 @@
 # Licencias y atribuciones
 
+## Profundidad experimental y nuevos fondos
+
+- DeepLab V3, TensorFlow / MediaPipe Authors, Apache 2.0. Modelo incluido sin
+  modificaciones, normalización RGB y clase persona según sus metadatos.
+  Fuente, hash SHA-256 y procesamiento local en [LOCK_SCREEN_DEPTH.md](docs/LOCK_SCREEN_DEPTH.md).
+- LiteRT 1.4.1, The TensorFlow Authors, Apache 2.0. Runtime autónomo para CPU,
+  sin dependencia de Google Play Services. Licencia íntegra incluida en
+  `app/src/main/assets/licenses/Apache-2.0.txt`.
+- Los fondos de David, Lucy, Rebecca y Kiwi son ilustraciones nuevas generadas
+  para Vitreo, codificadas a WebP. No son imágenes promocionales ni recursos
+  extraídos del juego o la serie. Archivos bajo MIT; personajes y nombres de
+  Cyberpunk / Edgerunners pertenecen a sus titulares. Prompts, rutas y procedencia
+  en [EDGERUNNERS_WALLPAPERS.md](docs/artwork/EDGERUNNERS_WALLPAPERS.md).
+- La foto de prueba de MediaPipe `segmentation_input_rotation0.jpg` se incluye
+  únicamente en el APK de instrumentación; no forma parte de la aplicación publicada.
+
 ## Cyberpunk: iconos y tipografía
 
 - 23 WebP de Arcticons, CC BY-SA 4.0, Arcticons contributors. Fuentes y hashes en

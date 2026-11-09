@@ -139,6 +139,10 @@ class WallpaperStore(private val context: Context) {
             6 -> R.drawable.wallpaper_neural_pearl
             7 -> R.drawable.wallpaper_neural_carbon
             8 -> R.drawable.wallpaper_neural_crimson
+            9 -> R.drawable.wallpaper_edgerunners_david
+            10 -> R.drawable.wallpaper_edgerunners_lucy
+            11 -> R.drawable.wallpaper_edgerunners_rebecca
+            12 -> R.drawable.wallpaper_edgerunners_kiwi
             else -> null
         }
         /** The editor and committed wallpaper use the same placement and soft extended backdrop. */

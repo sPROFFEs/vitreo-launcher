@@ -83,6 +83,15 @@ object LayoutOps {
         return move(s, id, targetIndex - sourceIndex)
     }
 
+    /** Commit one preview, using current entries so concurrent installs/removals/renames survive. */
+    fun applyHomeOrder(state: LauncherState, order: List<String>, fromDock: String? = null): LauncherState {
+        val s = if (fromDock != null && fromDock in state.dock) addToHome(state, fromDock) else state
+        val entries = s.home.associateBy { it.id }
+        val ids = order.distinct().filter { it in entries }
+        val selected = ids.toSet()
+        return s.copy(home = ids.mapNotNull(entries::get) + s.home.filter { it.id !in selected })
+    }
+
     /** Reorder dock entries, or exchange a home icon with an occupied dock slot. */
     fun placeInDock(state: LauncherState, app: String, slot: Int): LauncherState {
         if (!isAppId(app) || !canPlace(state, app) || slot !in 0 until DOCK_SLOTS) return state

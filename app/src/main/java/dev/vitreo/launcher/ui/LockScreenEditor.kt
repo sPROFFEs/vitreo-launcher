@@ -123,6 +123,10 @@ internal fun LockScreenEditor(appearance: Appearance, onCancel: () -> Unit, onSa
                                         }
                                         TextButton(onClick = { draft = draft.copy(wallpaper = -1) }) { Text(if (draft.wallpaper == -1) "✓ Using Home wallpaper" else "Use Home wallpaper") }
                                         LockWallpaperStrip(draft.wallpaper) { draft = draft.copy(wallpaper = it) }
+                                        IosToggleRow("Depth effect · Experimental", draft.depthEffect,
+                                            modifier = Modifier.testTag("lock_editor_depth")) { draft = draft.copy(depthEffect = it) }
+                                        Text("A detected person can overlap part of the clock. Uncertain cutouts keep the normal wallpaper. Processed on this device.",
+                                            fontSize = 12.sp, color = Color.White.copy(alpha = .65f))
                                         Text("Dim", Modifier.padding(top = 12.dp), fontSize = 13.sp)
                                         IosSlider(draft.dim, { draft = draft.copy(dim = it) }, valueRange = 0f..0.65f)
                                     }

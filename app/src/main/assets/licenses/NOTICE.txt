@@ -761,3 +761,20 @@ Source filenames and hashes: docs/artwork/CYBERPUNK_WALLPAPERS.md and docs/artwo
 AI-generated with imagegen for this project, distributed under Vitreo's MIT license.
 Prompts and provenance: docs/artwork/CYBERPUNK_WALLPAPERS.md in the source repository.
 No MotionBGS videos, official Cyberpunk game art or IconScout animations are bundled.
+
+Experimental wallpaper depth (Vitreo 0.10.14):
+DeepLab V3 person segmentation model — TensorFlow / MediaPipe Authors, Apache 2.0.
+Standalone LiteRT runtime — The TensorFlow Authors, Apache 2.0.
+See Apache-2.0.txt. Model metadata and class labels are included in the TFLite file.
+https://developers.google.com/edge/mediapipe/solutions/vision/image_segmenter
+https://www.kaggle.com/models/tensorflow/deeplabv3
+https://storage.googleapis.com/mediapipe-models/image_segmenter/deeplab_v3/float32/latest/deeplab_v3.tflite
+Model SHA-256: ff36e24d40547fe9e645e2f4e8745d1876d6e38b332d39a82f0bf0f5d1d561b3
+No network model download, Google account or Google Play Services is used.
+
+Edgerunners-inspired wallpapers (Vitreo 0.10.14): David, Lucy, Rebecca and Kiwi.
+Original fan-inspired illustrations generated with the built-in image_gen tool
+for this project. Artwork files distributed under Vitreo's MIT license.
+Characters / Cyberpunk / Edgerunners belong to their respective owners; Vitreo
+is unaffiliated. No official series screenshots or game assets are included.
+Final prompts, asset paths and provenance: docs/artwork/EDGERUNNERS_WALLPAPERS.md.

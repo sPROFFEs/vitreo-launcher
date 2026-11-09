@@ -1,5 +1,22 @@
 # Cambios
 
+## 0.10.14
+
+- Home: arrastre con hueco y recolocación en directo, conservación del punto de
+  agarre y aterrizaje suave. En edición los iconos se arrastran sin otra pulsación
+  larga. Cancelar conserva el orden guardado; soltar lo guarda una sola vez.
+- Gestos: mejor detección de deslizamientos diagonales, páginas vecinas preparadas
+  y corrección de la animación de cambio de página desde el borde que podía
+  cancelarse a mitad. Las carpetas mantienen la espera deliberada sobre otro icono.
+- Lock Screen: efecto de profundidad experimental, opcional y desactivado por
+  defecto. Segmentación local de personas con modelo incluido, sin Play Services;
+  conserva el fondo habitual cuando el recorte no sea fiable o tape demasiado la
+  hora. Notificaciones y controles de desbloqueo quedan despejados.
+- Cyberpunk: variantes de David, Lucy, Rebecca y Kiwi con paletas completas y
+  cuatro fondos originales incluidos. Se pueden aplicar solo los colores o el
+  estilo con fondos para Home y Lock Screen. Se conservan las facciones existentes
+  y las preferencias de efectos, movimiento y seguridad.
+
 ## 0.10.13
 
 - Centro de Control (Control Center) renovado con fidelidad iOS 18 e integración Android:

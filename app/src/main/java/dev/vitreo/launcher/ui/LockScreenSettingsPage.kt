@@ -87,6 +87,10 @@ fun LockScreenSettingsPage(a: Appearance, onAppearance: (Appearance) -> Unit, on
     LockFootnote("Cyberpunk Classic stays still. Immersive adds native rain, scanning light and HUD motion. Battery Saver and Reduce Motion pause these effects; the screen is never kept awake.")
     IosSectionLabel("Clock")
     IosGroup {
+        IosToggleRow("Depth effect · Experimental", options.depthEffect, modifier = Modifier.testTag("lock_depth_option")) {
+            change(options.copy(depthEffect = it))
+        }
+        IosDivider()
         Box(Modifier.padding(12.dp)) { LockClockStylePicker(options, options.appearance(a).themePreset == 1, ::change) }
         LockSlider("Size", options.clockSize, "${options.clockSize.roundToInt()} pt", 72f..132f) { change(options.copy(clockSize = it)) }
         Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -146,6 +150,7 @@ fun LockScreenSettingsPage(a: Appearance, onAppearance: (Appearance) -> Unit, on
         LockSlider("Dim", options.dim, "${(options.dim * 100).roundToInt()}%", 0f..0.65f) { change(options.copy(dim = it)) }
     }
     LockFootnote("Separate wallpaper keeps a distinct lock background from the collection. Turn off to follow your Home wallpaper, photo and crop.")
+    LockFootnote("Depth effect places a detected person in front of part of the clock. Processing stays on this device and works without Google Play services. Use a portrait with the subject near the clock; landscapes and uncertain or overly large cutouts keep the normal wallpaper. Notifications and unlock controls remain clear.")
     IosSectionLabel("Status bar")
     LockFootnote("Uses Android’s status bar by default. Settings → Status Bar & Notifications → Custom status bar controls both Home and Lock Screen together.")
     IosSectionLabel("Notifications")

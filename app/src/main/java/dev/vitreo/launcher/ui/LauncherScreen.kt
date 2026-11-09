@@ -15,8 +15,9 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.*
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -101,7 +102,15 @@ private sealed interface Sheet {
     data class BuiltinWidget(val kind: String) : Sheet
     data class AppPickerForWidget(val kind: String) : Sheet
 }
-private data class DragSession(val entry: HomeEntry, val position: Offset)
+private class DragSession(val entry: HomeEntry, point: Offset, val grabOffset: Offset, val originalCenter: Offset) {
+    var position by mutableStateOf(point)
+    val center get() = position - grabOffset
+}
+private class IconLanding(val entry: HomeEntry, from: Offset, val target: Offset) {
+    val point = Animatable(from, Offset.VectorConverter)
+}
+private data class AppDragTarget(val slot: HomeDropSlot, val page: Int, val group: String?)
+private data class HomeCellKey(val page: Int, val id: String)
 private data class WidgetDragSession(val placement: HomeWidgetPlacement, val position: Offset)
 
 @Composable
@@ -144,12 +153,19 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     var workspaceBounds by remember { mutableStateOf(Rect.Zero) }
     var dockBounds by remember { mutableStateOf(Rect.Zero) }
     var drag by remember { mutableStateOf<DragSession?>(null) }
+    var previewHome by remember { mutableStateOf<List<HomeEntry>?>(null) }
+    var landing by remember { mutableStateOf<IconLanding?>(null) }
     var widgetDrag by remember { mutableStateOf<WidgetDragSession?>(null) }
     var widgetGalleryHomePage by remember { mutableStateOf<Int?>(0) }
     var revealWidget by remember { mutableIntStateOf(-1) }
     var folderTarget by remember { mutableStateOf<String?>(null) }
     var folderAnchor by remember { mutableStateOf(TransformOrigin.Center) }
-    val cellBounds = remember { mutableStateMapOf<String, Rect>() }
+    val cellBounds = remember { mutableStateMapOf<HomeCellKey, Rect>() }
+    val homeContents = remember { mutableStateMapOf<Int, Rect>() }
+    fun recordBounds(id: String, rect: Rect?, page: Int) {
+        val key = HomeCellKey(page, id)
+        if (rect != null) cellBounds[key] = rect else cellBounds.remove(key)
+    }
     val context = LocalContext.current
     val localView = LocalView.current
     val density = LocalDensity.current
@@ -162,7 +178,10 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) scope.launch { arrival.snapTo(0f) }
+            if (event == Lifecycle.Event.ON_STOP) {
+                drag = null; widgetDrag = null; previewHome = null; landing = null; folderTarget = null
+                scope.launch { arrival.snapTo(0f) }
+            }
         }
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }
@@ -193,12 +212,19 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val rowHeight = if (workspaceWasEditing) (geometry.cells.rowHeight - 33f / geometry.rows)
         .coerceAtLeast(geometry.iconSize + 20f * density.fontScale + 8f) else geometry.cells.rowHeight
     val withWidgets = appearance.showWidgets && geometry.rows >= 4
-    val homeGrid = remember(ui.layout.home, widgets.homePlacements.toList(), geometry.rows, withWidgets, appearance.showClockWidget, appearance.showCalendarWidget) {
-        planHomeGrid(ui.layout.home, widgets.homePlacements.toList(), geometry.rows, withWidgets,
+    val visibleHome = previewHome ?: ui.layout.home
+    val homeGrid = remember(visibleHome, widgets.homePlacements.toList(), geometry.rows, withWidgets, appearance.showClockWidget, appearance.showCalendarWidget) {
+        planHomeGrid(visibleHome, widgets.homePlacements.toList(), geometry.rows, withWidgets,
             builtinClock = appearance.showClockWidget, builtinCalendar = appearance.showCalendarWidget)
     }
     val homePages = homeGrid.size + if (widgetDrag != null) 1 else 0
     val pager = rememberPagerState(initialPage = 1, pageCount = { homePages + 2 })
+    LaunchedEffect(landing) {
+        val item = landing ?: return@LaunchedEffect
+        item.point.animateTo(item.target, if (appearance.reducedEffects) tween(0) else spring(dampingRatio = .88f, stiffness = 950f))
+        withFrameNanos { } // Let the committed layout reach composition before revealing its icon.
+        if (landing === item) { landing = null; previewHome = null }
+    }
     LaunchedEffect(widgets.lastAddedId) { if (widgets.lastAddedId >= 0) revealWidget = widgets.lastAddedId }
     LaunchedEffect(revealWidget, homeGrid) {
         if (revealWidget >= 0) {
@@ -452,19 +478,19 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
             localView.windowInsetsController?.hide(android.view.WindowInsets.Type.ime())
         }
     }
-    LaunchedEffect(homeSerial) { sheet = null; pageHistory.clear(); savedPages.removeState("settings"); actionTarget = null; choiceSheet = null; actionReturn = null; model.discardPhoto(); editing = false; todayEditing = false; drag = null; widgetDrag = null; focusManager.clearFocus(); keyboard?.hide(); pager.scrollToPage(1) }
+    LaunchedEffect(homeSerial) { sheet = null; pageHistory.clear(); savedPages.removeState("settings"); actionTarget = null; choiceSheet = null; actionReturn = null; model.discardPhoto(); editing = false; todayEditing = false; drag = null; landing = null; previewHome = null; widgetDrag = null; focusManager.clearFocus(); keyboard?.hide(); pager.scrollToPage(1) }
     var previousHomePages by remember { mutableIntStateOf(homePages) }
     LaunchedEffect(pager.currentPage, homePages, editing) {
         val shrank = homePages < previousHomePages
         previousHomePages = homePages
         if (pager.currentPage != 0) todayEditing = false
         if (editing && shrank && pager.currentPage > homePages) pager.scrollToPage(homePages)
-        else if (pager.currentPage !in 1..homePages) { editing = false; drag = null; widgetDrag = null; folderTarget = null }
+        else if (pager.currentPage !in 1..homePages) { editing = false; drag = null; landing = null; previewHome = null; widgetDrag = null; folderTarget = null }
     }
     BackHandler {
         when {
             modalPresent -> closeSurface()
-            editing -> { editing = false; drag = null; widgetDrag = null }
+            editing -> { editing = false; drag = null; landing = null; previewHome = null; widgetDrag = null }
             todayEditing -> todayEditing = false
             pager.currentPage != 1 -> scope.launch { pager.animateScrollToPage(1) }
         }
@@ -479,30 +505,82 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
             }
         }
     }
-    val hovered = drag?.let { session ->
-        if (session.entry !is HomeEntry.App) null else ui.layout.home.firstOrNull { entry ->
-            entry.id != session.entry.id && (entry !is HomeEntry.Folder || entry.apps.size < MAX_FOLDER_APPS) && cellBounds[entry.id]?.let { rect ->
-                val iconCenter = Offset(rect.center.x, rect.top + (7f + geometry.iconSize / 2) * density.density)
-                (iconCenter - session.position).getDistance() < folderHoverRadius(geometry.iconSize) * density.density
-            } == true
-        }?.id
+    fun locateDrag(session: DragSession, releasing: Boolean = false): AppDragTarget? {
+        if (!releasing && pager.isScrollInProgress || dockBounds.contains(session.center)) return null
+        val page = (if (releasing && pager.isScrollInProgress) pager.targetPage else pager.currentPage) - 1
+        val content = homeContents[page + 1] ?: return null
+        val inset = (if (appearance.themePreset == 1) 18f else IosDesign.HomeInset) * density.density
+        val x = session.center.x - workspaceBounds.left - inset
+        val y = session.center.y - content.top
+        val count = visibleHome.size + if (visibleHome.none { it.id == session.entry.id }) 1 else 0
+        val slot = homeDropSlot(homeGrid, page, geometry.rows, content.width, rowHeight * density.density, x, y, count - 1) ?: return null
+        val other = homeGrid[page].apps.firstOrNull { it.column == slot.column && it.row == slot.row }?.entry
+        val center = Offset((slot.column + .5f) * content.width / GRID_COLUMNS,
+            slot.row * rowHeight * density.density + (7f + geometry.iconSize / 2) * density.density)
+        val group = other?.takeIf { session.entry is HomeEntry.App && it.id != session.entry.id &&
+            (it !is HomeEntry.Folder || it.apps.size < MAX_FOLDER_APPS) &&
+            (Offset(x, y) - center).getDistance() < folderHoverRadius(geometry.iconSize) * density.density }?.id
+        return AppDragTarget(slot, page, group)
     }
+    val dragTarget by remember(drag, homeGrid, geometry, workspaceBounds, dockBounds, rowHeight, density.density) {
+        derivedStateOf { drag?.let { locateDrag(it) } }
+    }
+    val hovered = dragTarget?.group
     LaunchedEffect(hovered, drag?.entry?.id) {
         folderTarget = null
-        if (hovered != null) { delay(500); folderTarget = hovered; haptic.performHapticFeedback(HapticFeedbackType.LongPress) }
-    }
-    val dragPosition = drag?.position ?: widgetDrag?.position
-    val edge = dragPosition?.let {
-        when { it.x < workspaceBounds.left + 26 * density.density -> -1
-            it.x > workspaceBounds.right - 26 * density.density -> 1
-            else -> 0 }
-    } ?: 0
-    LaunchedEffect(edge, pager.currentPage, drag?.entry?.id, widgetDrag?.placement?.id) {
-        if ((drag != null || widgetDrag != null) && edge != 0) {
-            delay(650)
-            val target = (pager.currentPage + edge).coerceIn(1, homePages)
-            if (target != pager.currentPage) { folderTarget = null; pager.animateScrollToPage(target) }
+        val session = drag
+        if (hovered != null && session != null) {
+            delay(500)
+            if (drag === session && locateDrag(session)?.group == hovered) {
+                folderTarget = hovered; haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
         }
+    }
+    val reorderIndex = dragTarget?.takeIf { it.group == null }?.slot?.index
+    LaunchedEffect(reorderIndex, drag) {
+        val session = drag ?: return@LaunchedEffect
+        val index = reorderIndex ?: return@LaunchedEffect
+        delay(90)
+        if (drag !== session || locateDrag(session)?.let { it.slot.index != index || it.group != null } != false) return@LaunchedEffect
+        previewHome = previewHomeMove(previewHome ?: ui.layout.home, session.entry, index)
+    }
+    val edge by remember(drag, widgetDrag, workspaceBounds, density.density) { derivedStateOf {
+        val point = drag?.position ?: widgetDrag?.position
+        when {
+            point == null || point.y !in workspaceBounds.top..workspaceBounds.bottom -> 0
+            point.x < workspaceBounds.left + 32 * density.density -> -1
+            point.x > workspaceBounds.right - 32 * density.density -> 1
+            else -> 0
+        }
+    } }
+    LaunchedEffect(edge, drag?.entry?.id, widgetDrag?.placement?.id) {
+        if (edge == 0) return@LaunchedEffect
+        while (true) {
+            delay(450)
+            if (drag == null && widgetDrag == null || edge == 0) break
+            val target = (pager.currentPage + edge).coerceIn(1, (pager.pageCount - 2).coerceAtLeast(1))
+            if (target == pager.currentPage) break
+            folderTarget = null
+            // The page index changes halfway through a scroll. Its animation belongs
+            // to the screen, so changing edge/ending the drag cannot strand it there.
+            scope.launch { pager.animateScrollToPage(target, animationSpec = tween(260, easing = FastOutSlowInEasing)) }.join()
+        }
+    }
+    fun homeCenter(entry: HomeEntry, entries: List<HomeEntry>): Offset? {
+        val grid = planHomeGrid(entries, widgets.homePlacements.toList(), geometry.rows, withWidgets,
+            appearance.showClockWidget, appearance.showCalendarWidget)
+        grid.forEachIndexed { index, page -> page.apps.firstOrNull { it.entry.id == entry.id }?.let { cell ->
+            val inset = (if (appearance.themePreset == 1) 18f else IosDesign.HomeInset) * density.density
+            val content = homeContents[index + 1]
+            val width = content?.width ?: (workspaceBounds.width - 2 * inset)
+            return Offset(workspaceBounds.left + inset + (cell.column + .5f) * width / GRID_COLUMNS,
+                (content?.top ?: workspaceBounds.top) + cell.row * rowHeight * density.density + (7f + geometry.iconSize / 2) * density.density)
+        } }
+        return null
+    }
+    fun cancelDrag() {
+        drag?.let { session -> landing = IconLanding(session.entry, session.center, homeCenter(session.entry, ui.layout.home) ?: session.originalCenter) }
+        drag = null; widgetDrag = null; folderTarget = null; previewHome = null
     }
     val drop by rememberUpdatedState<() -> Unit>({
         widgetDrag?.let { session ->
@@ -518,27 +596,42 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         }
         drag?.let { session ->
             val entry = session.entry
-            val target = ui.layout.home.firstOrNull { it.id == folderTarget }
+            val hit = locateDrag(session, releasing = true)
+            val target = visibleHome.firstOrNull { !pager.isScrollInProgress && it.id == folderTarget && it.id == hit?.group }
+            var destination: Offset? = null
+            var grouped = false
             when {
                 dockBounds.contains(session.position) && entry is HomeEntry.App -> {
                     val slot = ((session.position.x - dockBounds.left) / (dockBounds.width / DOCK_SLOTS)).toInt().coerceIn(0, DOCK_SLOTS - 1)
                     model.dockDrop(entry.id, slot)
+                    val rect = ui.layout.dock.getOrNull(slot)?.let { cellBounds[HomeCellKey(0, it)] }
+                    destination = rect?.let { Offset(it.center.x, it.top + (7f + geometry.iconSize / 2) * density.density) }
+                        ?: Offset(dockBounds.left + dockBounds.width * (slot + .5f) / DOCK_SLOTS,
+                            dockBounds.top + (15f + geometry.iconSize / 2) * density.density)
+                    previewHome = null
                 }
-                entry is HomeEntry.App && target is HomeEntry.Folder -> model.addToFolder(entry.id, target.id)
-                entry is HomeEntry.App && target is HomeEntry.App -> model.folder(entry.id, target.id)
+                entry is HomeEntry.App && target is HomeEntry.Folder -> { model.addToFolder(entry.id, target.id, visibleHome.map { it.id }); grouped = true; previewHome = null }
+                entry is HomeEntry.App && target is HomeEntry.App -> { model.folder(entry.id, target.id, visibleHome.map { it.id }); grouped = true; previewHome = null }
                 workspaceBounds.contains(session.position) -> {
-                    val id = ui.layout.home.firstOrNull { it.id != entry.id && cellBounds[it.id]?.contains(session.position) == true }?.id
-                    if (id != null) model.moveToSlot(entry.id, id)
-                    else if (entry is HomeEntry.App) model.addHome(entry.id)
-                    else model.move(entry.id, Int.MAX_VALUE)
+                    if (hit != null) {
+                        val next = previewHomeMove(visibleHome, entry, hit.slot.index)
+                        previewHome = next
+                        model.applyHomeOrder(next.map { it.id }, entry.id.takeIf { it in ui.layout.dock })
+                        destination = homeCenter(entry, next)
+                    }
                 }
             }
+            if (!grouped) landing = IconLanding(entry, session.center, destination ?: homeCenter(entry, ui.layout.home) ?: session.originalCenter)
+            if (destination == null) previewHome = null
         }
         drag = null; widgetDrag = null; folderTarget = null
     })
     val startDrag by rememberUpdatedState<(Offset) -> Unit>({ point ->
         val global = point + rootPosition
-        val id = cellBounds.entries.firstOrNull { it.value.contains(global) }?.key
+        val picked = cellBounds.entries.firstOrNull { (key, bounds) ->
+            (key.page == pager.currentPage || key.page == 0) && bounds.contains(global)
+        }
+        val id = picked?.key?.id
         if (id?.startsWith("widget:") == true) {
             val widgetId = id.removePrefix("widget:").toIntOrNull()
             val allWidgets = homeGrid.flatMap { page ->
@@ -550,25 +643,27 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
             }
         }
         val entry = ui.layout.home.firstOrNull { it.id == id } ?: id?.takeIf { it in ui.layout.dock }?.let(HomeEntry::App)
-        if (entry != null) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); drag = DragSession(entry, global) }
+        if (entry != null) {
+            val rect = picked?.value
+            val center = rect?.let { Offset(it.center.x, it.top + (7f + geometry.iconSize / 2) * density.density) } ?: global
+            landing = null; previewHome = ui.layout.home
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            drag = DragSession(entry, global, global - center, center)
+            editing = true
+        }
     })
     val currentPage by rememberUpdatedState(pager.currentPage)
     val currentHomePages by rememberUpdatedState(homePages)
     val currentSheet by rememberUpdatedState(sheet)
     val controlsEnabled by rememberUpdatedState(appearance.controlCenter)
     val currentTodayEditing by rememberUpdatedState(todayEditing)
+    val currentEditing by rememberUpdatedState(editing)
     val currentModal by rememberUpdatedState(modalPresent || launching)
     val currentAppearance by rememberUpdatedState(appearance)
     val safePanelTop by rememberUpdatedState(if (integratedBar) 8f else WindowInsets.statusBars.getTop(density) / density.density)
-    val gestureModifier = if (editing && (modalPresent || launching)) Modifier else if (editing) Modifier.pointerInput(editing) {
-        detectDragGesturesAfterLongPress(onDragStart = { startDrag(it) },
-            onDrag = { change, amount -> if (drag != null || widgetDrag != null) {
-                change.consume()
-                drag = drag?.let { it.copy(position = it.position + amount) }
-                widgetDrag = widgetDrag?.let { it.copy(position = it.position + amount) }
-            } },
-            onDragEnd = { drop() }, onDragCancel = { drag = null; widgetDrag = null; folderTarget = null })
-    } else Modifier.pointerInput(editing) {
+    val cancelCurrentDrag by rememberUpdatedState<() -> Unit>({ cancelDrag() })
+    val finishCurrentDrag by rememberUpdatedState<() -> Unit>({ drop() })
+    val gestureModifier = Modifier.pointerInput(Unit) {
         // Observe before the home scroll container. It otherwise owns vertical
         // drags even when all rows fit, preventing the Spotlight gesture.
         awaitEachGesture {
@@ -579,38 +674,47 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                 down.position.x / size.width, down.position.y / density.density, safePanelTop,
                 a.panelGestureHeight, controlsEnabled, a.notificationCenter)
             if (panel == null && currentPage !in 1..currentHomePages) return@awaitEachGesture
-            if (panel == null && cellBounds.any { (id, bounds) ->
-                id.startsWith("widget:") && !isBuiltinWidget(id.removePrefix("widget:").toIntOrNull() ?: 0) && bounds.contains(down.position + rootPosition)
+            if (panel == null && !currentEditing && cellBounds.any { (key, bounds) ->
+                key.page == currentPage && key.id.startsWith("widget:") && !isBuiltinWidget(key.id.removePrefix("widget:").toIntOrNull() ?: 0) && bounds.contains(down.position + rootPosition)
             }) return@awaitEachGesture
             val tracker = VelocityTracker().apply { addPosition(down.uptimeMillis, down.position) }
+            val editingAtDown = currentEditing
             var pulling = false
             var distanceY = 0f
             var released = false
             var iconDragging = false
-            val startedOnIcon = cellBounds.any { (id, bounds) -> !id.startsWith("widget:") && bounds.contains(down.position + rootPosition) }
+            val picked = cellBounds.entries.firstOrNull { (key, bounds) ->
+                (key.page == currentPage || key.page == 0) && bounds.contains(down.position + rootPosition)
+            }?.key?.id
+            val startedOnIcon = picked != null && !picked.startsWith("widget:")
             try {
                 while (true) {
                     val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: break
                     tracker.addPosition(change.uptimeMillis, change.position)
                     if (!change.pressed) {
+                        // Compose represents Android ACTION_CANCEL as an already-consumed
+                        // synthetic release. It must discard the preview, never commit it.
+                        if (change.isConsumed) break
                         released = true
-                        if (iconDragging) { change.consume(); drop(); editing = true }
+                        if (iconDragging) { change.consume(); finishCurrentDrag(); editing = true }
                         else if (pulling) change.consume()
                         break
                     }
                     val distance = change.position - down.position
-                    if (!pulling && startedOnIcon && (iconDragging || change.uptimeMillis - down.uptimeMillis >= viewConfiguration.longPressTimeoutMillis && distance.getDistance() > viewConfiguration.touchSlop)) {
+                    if (!pulling && (iconDragging || picked != null && distance.getDistance() > viewConfiguration.touchSlop &&
+                            (editingAtDown || startedOnIcon && change.uptimeMillis - down.uptimeMillis >= viewConfiguration.longPressTimeoutMillis))) {
                         if (!iconDragging) {
                             actionTarget = null; choiceSheet = null; actionReturn = null
-                            startDrag(down.position); iconDragging = drag != null
+                            startDrag(down.position); iconDragging = drag != null || widgetDrag != null
                         }
                         if (iconDragging) {
                             change.consume()
-                            drag = drag?.copy(position = change.position + rootPosition)
+                            drag?.position = change.position + rootPosition
+                            widgetDrag = widgetDrag?.copy(position = change.position + rootPosition)
                             continue
                         }
                     }
-                    if (!pulling && abs(distance.x) > viewConfiguration.touchSlop && abs(distance.x) > abs(distance.y)) break
+                    if (!pulling && homeHorizontalSwipe(distance.x, distance.y, viewConfiguration.touchSlop)) break
                     distanceY = distance.y
                     if (panel != null && (pulling || distance.y > 24.dp.toPx() && distance.y > abs(distance.x))) {
                         change.consume()
@@ -625,7 +729,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                     }
                 }
             } finally {
-                if (iconDragging && !released) { drag = null; folderTarget = null }
+                if (iconDragging && !released) cancelCurrentDrag()
                 if (pulling) {
                     val velocity = if (released) tracker.calculateVelocity().y / density.density else 0f
                     if (!released || !shouldOpenHomePanel(distanceY / density.density, velocity)) sheet = null
@@ -703,9 +807,12 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                         .onGloballyPositioned { workspaceBounds = it.boundsInRoot() })
                     if (!ui.ready) CircularProgressIndicator(Modifier.align(Alignment.Center), color = Color.White)
                     else HorizontalPager(pager, Modifier.fillMaxSize(), userScrollEnabled = drag == null && widgetDrag == null && !modalPresent && !launching,
-                        flingBehavior = PagerDefaults.flingBehavior(pager, snapAnimationSpec = LauncherMotion.panel()),
+                        flingBehavior = PagerDefaults.flingBehavior(pager, snapAnimationSpec = if (appearance.reducedEffects) tween(0) else spring(dampingRatio = 1f, stiffness = 650f)),
                         key = { page -> when (page) { 0 -> "today"; homePages + 1 -> "library"; else -> "home:$page" } },
-                        beyondViewportPageCount = 0) { page ->
+                        beyondViewportPageCount = 1) { page ->
+                        // Keep adjacent pages warm without exposing their controls to
+                        // accessibility while another page owns the viewport.
+                        Box(Modifier.fillMaxSize().then(if (page != pager.currentPage) Modifier.clearAndSetSemantics {} else Modifier)) {
                         when (page) {
                             0 -> TodayPage(now, widgets, suggestions, apps, ui.layout.appearance, model::appearance,
                                 todayEditing, { todayEditing = it }, onSearch = ::openSearch,
@@ -720,16 +827,18 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                                 val grid = homeGrid.getOrNull(page - 1) ?: HomeGridPage(emptyList(), emptyList(), false)
                                 Box(Modifier.fillMaxSize().padding(bottom = footerHeight)) {
                                     HomeWorkspace(grid, geometry.rows, rowHeight, geometry.iconSize, appearance.showLabels,
-                                    editing || drag != null, drag?.entry?.id, widgetDrag?.placement?.id, apps, widgets, now,
+                                    editing || drag != null, drag?.entry?.id ?: landing?.entry?.id, widgetDrag?.placement?.id, apps, widgets, now,
                                     ::openClockWidget, ::openCalendarWidget, openEntry,
                                     { entry, bounds -> actionTarget = AppActionTarget(entry, bounds) },
                                     { entry -> if (entry is HomeEntry.App) model.removeApp(entry.id) else model.dissolve(entry.id) },
                                     { sheet = Sheet.Widget(it) },
-                                    { id, bounds -> if (bounds == null) cellBounds.remove(id) else cellBounds[id] = bounds },
+                                    { id, bounds -> recordBounds(id, bounds, page) },
                                     groupingHover = hovered, groupingTarget = folderTarget,
-                                    onEditBuiltin = { pushPage(Sheet.BuiltinWidget(it)) })
+                                    onEditBuiltin = { pushPage(Sheet.BuiltinWidget(it)) }, onContentBounds = { homeContents[page] = it })
+                                    DisposableEffect(page) { onDispose { homeContents.remove(page) } }
                                 }
                             }
+                        }
                         }
                     }
                 }
@@ -753,8 +862,8 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                             iconSize = geometry.iconSize,
                             density = density,
                             editing = editing,
-                            dragEntryId = drag?.entry?.id,
-                            cellBounds = cellBounds,
+                            dragEntryId = drag?.entry?.id ?: landing?.entry?.id,
+                            onCellBounds = { id, rect -> recordBounds(id, rect, 0) },
                             model = model,
                             onDockBounds = { dockBounds = it },
                             openSearch = ::openSearch,
@@ -776,10 +885,10 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                                             LauncherTile(HomeEntry.App(id), apps, geometry.iconSize.dp, false,
                                                 Modifier.weight(1f).fillMaxHeight().then(homeArrival(
                                                     Offset(dockBounds.left + dockBounds.width * (slot + .5f) / DOCK_SLOTS, dockBounds.center.y),
-                                                    with(density) { geometry.iconSize.dp.toPx() })), editing, drag?.entry?.id == id,
+                                                    with(density) { geometry.iconSize.dp.toPx() })), editing, (drag?.entry?.id ?: landing?.entry?.id) == id,
                                                 onClick = { openEntry(HomeEntry.App(id), it) }, onActions = { actions(id, it) },
-                                                onBounds = { cellBounds[id] = it }, onRemove = { model.addHome(id) })
-                                            DisposableEffect(id) { onDispose { cellBounds.remove(id) } }
+                                                onBounds = { recordBounds(id, it, 0) }, onRemove = { model.addHome(id) })
+                                            DisposableEffect(id) { onDispose { recordBounds(id, null, 0) } }
                                         }
                                     }
                                 }
@@ -799,14 +908,14 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                     }
                     IconButton(onClick = { sheet = Sheet.Settings }, modifier = Modifier.testTag("settings_button")) { LauncherSymbol(Icons.Outlined.Settings, "Settings", tint = LocalGlassContentColor.current) }
                     GlassPanel(radius = 20f) { Text("Done", color = Color.White, fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.testTag("edit_done").clickable { editing = false }.padding(horizontal = 17.dp, vertical = 10.dp)) }
+                        modifier = Modifier.testTag("edit_done").clickable { editing = false; landing = null; previewHome = null }.padding(horizontal = 17.dp, vertical = 10.dp)) }
                 }
             }
-            drag?.let { session ->
-                val px = with(density) { geometry.iconSize.dp.toPx() }
-                EntryIcon(session.entry, apps, geometry.iconSize.dp, Modifier.offset {
-                    IntOffset((session.position.x - rootPosition.x - px / 2).roundToInt(), (session.position.y - rootPosition.y - px / 2).roundToInt()) })
-            }
+            (drag?.entry ?: landing?.entry)?.let { entry -> key(entry.id) {
+                FloatingHomeIcon(entry, apps, geometry.iconSize.dp, lifted = drag != null, center = {
+                    (drag?.center ?: landing?.point?.value ?: Offset.Zero) - rootPosition
+                })
+            } }
             widgetDrag?.let { session ->
                 val cardWidth = with(density) { (geometry.cells.cellWidth * session.placement.columns).dp }
                 val cardHeight = with(density) { (rowHeight * session.placement.rows).dp }
@@ -983,7 +1092,7 @@ private fun CyberQuickhackDock(
     density: Density,
     editing: Boolean,
     dragEntryId: String?,
-    cellBounds: MutableMap<String, Rect>,
+    onCellBounds: (String, Rect?) -> Unit,
     model: LauncherViewModel,
     onDockBounds: (Rect) -> Unit,
     openSearch: () -> Unit,
@@ -1063,10 +1172,10 @@ private fun CyberQuickhackDock(
                                     dragEntryId == id,
                                     onClick = { openEntry(HomeEntry.App(id), it) },
                                     onActions = { actions(id, it) },
-                                    onBounds = { cellBounds[id] = it },
+                                    onBounds = { onCellBounds(id, it) },
                                     onRemove = { model.addHome(id) }
                                 )
-                                DisposableEffect(id) { onDispose { cellBounds.remove(id) } }
+                                DisposableEffect(id) { onDispose { onCellBounds(id, null) } }
                             }
                         }
                     }

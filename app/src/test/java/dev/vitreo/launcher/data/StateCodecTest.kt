@@ -31,7 +31,7 @@ class StateCodecTest {
         assertEquals(.72f, Appearance(cyberStatusOpacity = Float.POSITIVE_INFINITY).sanitized().cyberStatusOpacity)
         val withFaction = LauncherState(appearance = Appearance(themePreset = 1, cyberFaction = 2)).sanitized()
         assertEquals(withFaction, StateCodec.decode(StateCodec.encode(withFaction)))
-        assertEquals(3, Appearance(cyberFaction = 99).sanitized().cyberFaction)
+        assertEquals(dev.vitreo.launcher.core.CYBER_FACTION_COUNT - 1, Appearance(cyberFaction = 99).sanitized().cyberFaction)
         assertEquals(0, Appearance(cyberFaction = -1).sanitized().cyberFaction)
     }
     @Test fun builtInOverridesAreAllowlistedPortableAndFollowAliasChanges() {
@@ -179,6 +179,6 @@ class StateCodecTest {
         assertEquals(androidx.compose.ui.graphics.Color(0xffff7700), trauma.accent)
 
         assertEquals("Kiroshi Optics", dev.vitreo.launcher.ui.CyberColors.forFaction(-5).name)
-        assertEquals("Trauma Team", dev.vitreo.launcher.ui.CyberColors.forFaction(99).name)
+        assertEquals("Kiwi", dev.vitreo.launcher.ui.CyberColors.forFaction(99).name)
     }
 }

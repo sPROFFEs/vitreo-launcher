@@ -58,10 +58,14 @@ object CyberColors {
         CyberPalette("Kiroshi Optics", Color(0xff090d13), Color(0xff141b23), Color(0xfffcee0a), Color(0xffff4b5c), Color(0xff63f5f7), Color(0xffff4b5c), Color(0xff63f5f7), Color(0xfffcee0a), Color(0xffeaf2f2)),
         CyberPalette("Arasaka Corpo", Color(0xff050508), Color(0xff111116), Color(0xffff001e), Color(0xffe82030), Color(0xffffffff), Color(0xffff001e), Color(0xffffffff), Color(0xffff001e), Color(0xfff0f2f5)),
         CyberPalette("Netrunner Deep-Net", Color(0xff040907), Color(0xff09140f), Color(0xff00ff66), Color(0xff00b34d), Color(0xff00e5ff), Color(0xff00ff66), Color(0xff00e5ff), Color(0xff39ff14), Color(0xffe6f5ec)),
-        CyberPalette("Trauma Team", Color(0xff060c0c), Color(0xff0d1717), Color(0xffff7700), Color(0xff00ffaa), Color(0xffffffff), Color(0xffff7700), Color(0xff00ffaa), Color(0xffff9900), Color(0xffe8f7f5))
+        CyberPalette("Trauma Team", Color(0xff060c0c), Color(0xff0d1717), Color(0xffff7700), Color(0xff00ffaa), Color(0xffffffff), Color(0xffff7700), Color(0xff00ffaa), Color(0xffff9900), Color(0xffe8f7f5)),
+        CyberPalette("David", Color(0xff070e13), Color(0xff15201c), Color(0xffffd43b), Color(0xff71f77b), Color(0xff71e4e6), Color(0xffffba40), Color(0xff71e4e6), Color(0xffffd43b), Color(0xfff4f8e8)),
+        CyberPalette("Lucy", Color(0xff0b0b1b), Color(0xff181b30), Color(0xffdce9ff), Color(0xffb29afa), Color(0xff90e8f3), Color(0xffd7a2ee), Color(0xff90e8f3), Color(0xffddd3ff), Color(0xfff3f3ff)),
+        CyberPalette("Rebecca", Color(0xff0a1112), Color(0xff152327), Color(0xff99f3cc), Color(0xffff65b7), Color(0xff9effe1), Color(0xffff65b7), Color(0xff9effe1), Color(0xffb7ff8b), Color(0xfff0fff7)),
+        CyberPalette("Kiwi", Color(0xff120c10), Color(0xff251820), Color(0xffffb1a6), Color(0xffe85e74), Color(0xffe3d3ad), Color(0xffe85e74), Color(0xffd6e8eb), Color(0xffe3d3ad), Color(0xfffcf2ed))
     )
 
-    fun forFaction(faction: Int): CyberPalette = Factions.getOrElse(faction.coerceIn(0, 3)) { Factions[0] }
+    fun forFaction(faction: Int): CyberPalette = Factions[faction.coerceIn(0, Factions.lastIndex)]
 }
 val LocalCyberPalette = staticCompositionLocalOf { CyberColors.Factions[0] }
 val CyberFont = FontFamily(Font(R.font.rajdhani_medium), Font(R.font.rajdhani_semibold, FontWeight.SemiBold))

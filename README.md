@@ -149,8 +149,14 @@ stop when Home is obscured or loses focus, and respect Reduce Motion/Battery Sav
 iOS remains the default; changing theme keeps your layout.
 
 **Neural Pearl**, **Neural Carbon** and **Neural Crimson** are also bundled, from
-the maintainer's supplied images. All five Cyberpunk images are available for Home
+the maintainer's supplied images. These five Cyberpunk images are available for Home
 and the independently configurable lock screen, without downloading anything.
+
+**Themes & Icons → Edgerunners** offers David, Lucy, Rebecca and Kiwi with
+four original offline wallpapers. Tap a character for its HUD colors, or choose
+**Apply style + Home & Lock wallpapers** to set both backgrounds explicitly.
+Existing factions, Classic / Immersive and your motion preferences remain available.
+Artwork and generation prompts: [Edgerunners wallpapers](docs/artwork/EDGERUNNERS_WALLPAPERS.md).
 
 **Themes & Icons → Status bar appearance** adjusts Cyberpunk rail thickness
 (16–40 dp) and opacity, with a live preview and Reset. It applies to Home, Lock
@@ -208,7 +214,13 @@ editor, glass lettering, independent wallpapers, battery/alarm widgets and a
 full-screen preview. **Customize Lock Screen** edits a draft with Cancel / Done:
 six font designs, color, Glass / Solid, vertical clock resizing, wallpaper
 thumbnails, dimming and accessory switches. Cyberpunk has Classic and optional Immersive HUD motion.
-It is **off by default** and requires Vitreo to be the default Home and an Android
+**Depth effect · Experimental** is optional and off by default. It locally detects
+people in a still wallpaper and lets a small part of the subject overlap the clock.
+An uncertain mask, no overlap or too much clock coverage leaves the normal
+wallpaper intact. It uses a bundled model, works without Google Play services and
+never sends your photo anywhere. Notifications, status icons and unlock controls
+stay above the wallpaper. See [depth processing](docs/LOCK_SCREEN_DEPTH.md).
+The custom Lock Screen is **off by default** and requires Vitreo to be the default Home and an Android
 PIN, password or pattern to be configured.
 
 This is a visual surface over Android's secure keyguard. Swipe up in the central

@@ -223,9 +223,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
     fun move(id: String, delta: Int) = commit(LayoutOps.move(_ui.value.layout, id, delta))
     fun moveToSlot(id: String, target: String) = commit(LayoutOps.moveToSlot(_ui.value.layout, id, target))
+    fun applyHomeOrder(order: List<String>, fromDock: String? = null) = commit(LayoutOps.applyHomeOrder(_ui.value.layout, order, fromDock))
     fun dockDrop(id: String, slot: Int) = commit(LayoutOps.placeInDock(_ui.value.layout, id, slot))
-    fun folder(first: String, second: String) {
-        val s = if (first in _ui.value.layout.dock) LayoutOps.addToHome(_ui.value.layout, first) else _ui.value.layout
+    fun folder(first: String, second: String, order: List<String>? = null) {
+        val current = _ui.value.layout
+        val ordered = if (order != null) LayoutOps.applyHomeOrder(current, order, first.takeIf { it in current.dock }) else current
+        val s = if (first in ordered.dock) LayoutOps.addToHome(ordered, first) else ordered
         commit(LayoutOps.folder(s, first, second, "folder:${UUID.randomUUID()}"))
     }
     fun createFolder(appIds: List<String>, title: String) = commit(LayoutOps.createFolder(_ui.value.layout,
@@ -236,7 +239,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _ui.value = _ui.value.copy(recentApps = recent)
         recentPreferences.edit().putString("apps", recent.joinToString("|")).apply()
     }
-    fun addToFolder(appId: String, folder: String) = commit(LayoutOps.addToFolder(_ui.value.layout, appId, folder))
+    fun addToFolder(appId: String, folder: String, order: List<String>? = null) {
+        val current = _ui.value.layout
+        val s = if (order != null) LayoutOps.applyHomeOrder(current, order, appId.takeIf { it in current.dock }) else current
+        commit(LayoutOps.addToFolder(s, appId, folder))
+    }
     fun dissolve(id: String) = commit(LayoutOps.dissolve(_ui.value.layout, id))
     fun renameFolder(id: String, name: String) = commit(LayoutOps.renameFolder(_ui.value.layout, id, name))
     fun message(text: String) { _messages.tryEmit(text) }

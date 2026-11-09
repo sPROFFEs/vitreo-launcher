@@ -18,6 +18,19 @@ no exige modificar componentes del sistema.
 
 ## Primera comprobación
 
+- En edición, arrastra dos iconos sin volver a mantener pulsado: el resto abre
+  hueco antes de soltar. Cancela un arrastre y comprueba que el orden guardado no
+  cambia. Mantén el icono en el borde, suelta durante la transición y vuelve:
+  ninguna página debe quedar a medio camino. Repite con widgets y con el dock.
+- Desliza diagonalmente sobre un icono sin mantener pulsado: debe pasar de página
+  sin entrar en edición ni crear carpetas. Comprueba ambos sentidos y Reduce Motion.
+- Lock Screen → Depth effect · Experimental: prueba una foto con persona, otra
+  sin ella y una que tape demasiado el reloj. La opción está desactivada por
+  defecto; al desactivarla no quedan restos. Revisa dim, recorte, hora alta,
+  notificaciones, desbloqueo rápido y uso sin red / sin Play Services.
+- Themes & Icons → Edgerunners: prueba los cuatro personajes. Solo colores
+  conserva la foto; aplicar estilo con fondos cambia Home y Lock explícitamente.
+  Revisa paletas en paneles, reloj, iconos y barra opcional, y restaura un backup.
 - Abre varias apps, vuelve con Home y con Atrás, bloquea/desbloquea y gira el teléfono.
 - Busca una app por nombre, por paquete y con/sin tildes; comprueba el teclado.
 - Usa Editar y arrastra dentro de una página; mantén el icono junto al borde

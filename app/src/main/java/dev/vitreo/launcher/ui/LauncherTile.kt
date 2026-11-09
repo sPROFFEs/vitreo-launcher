@@ -151,7 +151,7 @@ fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, l
     onClick: (Rect?) -> Unit, onActions: (Rect?) -> Unit, onBounds: (Rect) -> Unit = {}, onRemove: (() -> Unit)? = null, groupingHover: Boolean = false, groupingTarget: Boolean = false) {
     val appearance = LocalGlass.current.appearance
     val cyber = LocalCyber.current
-    val isJiggling = editing && !appearance.reducedEffects && !cyber
+    val isJiggling = editing && !dragging && !appearance.reducedEffects && !cyber
     val hash = entry.id.hashCode()
     val angle: State<Float>
     val jitterX: State<Float>
@@ -218,7 +218,7 @@ fun LauncherTile(entry: HomeEntry, apps: Map<String, AppRecord>, iconSize: Dp, l
             onClick(iconBounds)
         },
             onLongClickLabel = "Actions for $label", onLongClick = if (editing) null else ({ onActions(iconBounds) }))
-        .alpha(if (dragging) .2f else if (entry is HomeEntry.App && apps[entry.id] == null) .5f else 1f)
+        .alpha(if (dragging) 0f else if (entry is HomeEntry.App && apps[entry.id] == null) .5f else 1f)
         .padding(top = 7.dp, bottom = 5.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.onGloballyPositioned { iconBounds = it.boundsInRoot() }.graphicsLayer {
             translationX = if (groupingHover) 0f else jitterX.value.dp.toPx()

@@ -161,6 +161,9 @@ class LauncherSmokeTest {
             compose.onNodeWithTag("lock_enable").assertIsOff()
             compose.onNodeWithTag("lock_fingerprint_option").performClick().assertIsOff()
             assertTrue(!model.ui.value.layout.appearance.lockScreen.showSystemUnlock)
+            compose.onNodeWithTag("lock_depth_option").performScrollTo().assertIsOff().performClick()
+            assertTrue(model.ui.value.layout.appearance.lockScreen.depthEffect)
+            compose.onNodeWithTag("lock_enable").performScrollTo().assertIsOff()
             compose.onNodeWithText("Cyberpunk", substring = false).performScrollTo().performClick()
             assertEquals(2, model.ui.value.layout.appearance.lockScreen.theme)
             compose.onNodeWithText("iOS", substring = false).performClick()
@@ -1022,6 +1025,76 @@ class LauncherSmokeTest {
         openSettings()
         compose.onNodeWithTag("settings_title").assertExists()
     }
+    @Test fun editingPreviewsReorderCancelsSafelyAndDoesNotRequireAnotherLongPress() {
+        awaitReady()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val original = model.ui.value.layout
+        val ids = original.home.filterIsInstance<dev.vitreo.launcher.core.HomeEntry.App>().take(2).map { it.id }
+        assertEquals(2, ids.size)
+        fun art(id: String) = compose.onNode(hasTestTag("icon_art:$id") and hasAnyAncestor(hasTestTag("home_entry:$id")), useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        fun target() = compose.onNodeWithTag("home_entry:${ids[1]}").fetchSemanticsNode().boundsInRoot.let {
+            // Use the insertion area beside the artwork, leaving its center for folder hover.
+            Offset(it.right - 4f, art(ids[1]).center.y)
+        }
+        try {
+            compose.runOnUiThread { model.appearance(original.appearance.copy(showWidgets = false, iconSize = 72f)) }
+            compose.waitForIdle()
+            val origin = art(ids[0]).center
+            compose.onNodeWithTag("launcher_root").performTouchInput {
+                down(origin); advanceEventTime(700); moveTo(origin + Offset(24f, 0f), delayMillis = 50)
+            }
+            compose.onNodeWithTag("home_drag_icon", useUnmergedTree = true).assertExists()
+            compose.waitForIdle()
+            val insertion = target()
+            compose.onNodeWithTag("launcher_root").performTouchInput { moveTo(insertion, delayMillis = 220) }
+            compose.waitUntil(5000) { kotlin.math.abs(art(ids[1]).center.x - origin.x) < 4f }
+            assertEquals("Preview must not write a layout on every hover", original.home, model.ui.value.layout.home)
+            compose.onNodeWithTag("launcher_root").performTouchInput { cancel() }
+            compose.waitForIdle()
+            assertEquals(original.home, model.ui.value.layout.home)
+            val secondOrigin = art(ids[0]).center
+            val destination = target()
+            compose.onNodeWithTag("launcher_root").performTouchInput {
+                down(secondOrigin); moveTo(secondOrigin + Offset(24f, 0f), delayMillis = 30)
+                moveTo(destination, delayMillis = 180)
+            }
+            compose.onNodeWithTag("home_drag_icon", useUnmergedTree = true).assertExists()
+            compose.onNodeWithTag("launcher_root").performTouchInput { up() }
+            compose.waitUntil(5000) { model.ui.value.layout.home.take(2).map { it.id } == ids.reversed() }
+            assertEquals(original.placedApps().toSet(), model.ui.value.layout.placedApps().toSet())
+            compose.onNodeWithTag("edit_done").performClick()
+            captureEvidence("home-live-reorder")
+        } finally {
+            runCatching { compose.onNodeWithTag("launcher_root").performTouchInput { cancel() } }
+            returnHome()
+            compose.runOnUiThread { model.applyHomeOrder(original.home.map { it.id }); model.appearance(original.appearance) }
+        }
+    }
+
+    @Test fun diagonalSwipesOverIconsKeepPagingAndNeverStartAnIconDrag() {
+        awaitReady()
+        val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
+        val original = model.ui.value.layout
+        try {
+            compose.runOnUiThread { model.appearance(original.appearance.copy(showWidgets = false, news = original.appearance.news.copy(enabled = false))) }
+            compose.waitForIdle()
+            val id = original.home.filterIsInstance<dev.vitreo.launcher.core.HomeEntry.App>()[3].id
+            val icon = compose.onNode(hasTestTag("icon_art:$id") and hasAnyAncestor(hasTestTag("home_entry:$id")), useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+            compose.onNodeWithTag("launcher_root").performTouchInput {
+                swipe(icon.center, Offset(16f, icon.center.y + 60f), durationMillis = 220)
+            }
+            compose.onNodeWithTag("home_drag_icon", useUnmergedTree = true).assertDoesNotExist()
+            compose.onNodeWithTag("edit_done").assertDoesNotExist()
+            assertEquals(original.home, model.ui.value.layout.home)
+            openLibrary()
+            compose.onNodeWithTag("home_workspace").performTouchInput { swipeRight() }
+            returnHome()
+            compose.onNodeWithTag("home_workspace").performTouchInput { swipeRight() }
+            compose.onNodeWithTag("today_page").assertIsDisplayed()
+            assertEquals(original.home, model.ui.value.layout.home)
+        } finally { returnHome(); compose.runOnUiThread { model.appearance(original.appearance) } }
+    }
+
     @Test fun draggingAppOntoAnotherCreatesFolderAndKeepsTheHomeIconSize() {
         awaitReady()
         val model = ViewModelProvider(compose.activity)[LauncherViewModel::class.java]
@@ -1032,7 +1105,7 @@ class LauncherSmokeTest {
             compose.runOnUiThread { model.appearance(original.copy(showWidgets = false, iconSize = 100f)) }
             compose.waitForIdle()
             val target = compose.onNodeWithTag("home_entry:${ids[1]}").fetchSemanticsNode().boundsInRoot
-            val icon = compose.onNodeWithTag("icon_art:${ids[0]}", useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+            val icon = compose.onNode(hasTestTag("icon_art:${ids[0]}") and hasAnyAncestor(hasTestTag("home_entry:${ids[0]}")), useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
             val destination = Offset(target.center.x, icon.center.y)
             compose.onNodeWithTag("launcher_root").performTouchInput {
                 down(icon.center); advanceEventTime(700)
@@ -1118,7 +1191,7 @@ class LauncherSmokeTest {
             compose.waitForIdle()
             val dock = compose.onNodeWithTag("dock").fetchSemanticsNode().boundsInRoot
             val id = model.ui.value.layout.dock.first()
-            val icon = compose.onNodeWithTag("icon_art:$id", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+            val icon = compose.onNode(hasTestTag("icon_art:$id") and hasAnyAncestor(hasTestTag("dock")), useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
             assertTrue("Large icons must exceed the old 68pt limit", icon.width / compose.activity.resources.displayMetrics.density > 68f)
             assertTrue(icon.left >= dock.left && icon.right <= dock.right && icon.top >= dock.top && icon.bottom <= dock.bottom)
             assertEquals(placed, model.ui.value.layout.placedApps())

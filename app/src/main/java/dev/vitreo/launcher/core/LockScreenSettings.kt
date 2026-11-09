@@ -18,6 +18,7 @@ data class LockScreenSettings(
     val dim: Float = .18f,
     val immersive: Boolean = false,
     val showSystemUnlock: Boolean = false, // Optional shortcut to the real keyguard; never app authentication.
+    val depthEffect: Boolean = false, // Experimental, local person segmentation; safe fallback to the normal clock.
 ) {
     fun sanitized() = copy(theme = theme.coerceIn(0, 2),
         idleTimeoutSeconds = idleTimeoutSeconds.takeIf { it in listOf(5, 10, 15, 30) } ?: 10,

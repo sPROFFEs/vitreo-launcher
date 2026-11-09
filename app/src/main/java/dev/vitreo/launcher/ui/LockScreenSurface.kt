@@ -28,6 +28,8 @@ import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.*
@@ -110,6 +112,25 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
         if (current != null && viewport.width > 1 && viewport.height > 1)
             value = withContext(Dispatchers.Default) { HomeBackground.render(current, appearance, viewport.width.toInt(), viewport.height.toInt(), metrics.density) }
     }
+    val depthMask by produceState<android.graphics.Bitmap?>(null, options.depthEffect, frame) {
+        value = null
+        val source = frame?.sharp
+        if (options.depthEffect && source != null)
+            value = withTimeoutOrNull(5_000) { DepthWallpaper.mask(context, source) }
+    }
+    val foreground by produceState<android.graphics.Bitmap?>(null, depthMask, background) {
+        value = null
+        val mask = depthMask; val source = frame?.sharp; val backdrop = background
+        if (options.depthEffect && mask != null && source != null && backdrop != null)
+            value = withContext(Dispatchers.Default) {
+                try { DepthWallpaper.foreground(mask, source, backdrop) }
+                catch (_: RuntimeException) { null }
+                catch (_: OutOfMemoryError) { null }
+            }
+    }
+    var depthRoot by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var depthClock by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var clockRestBounds by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
     val arrival = remember { Animatable(0f) }
     LaunchedEffect(interactive, resumed, background != null, home.reducedEffects, saving) {
         if (!interactive || background == null) arrival.snapTo(0f)
@@ -161,7 +182,7 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
     val palette = CyberColors.forFaction(appearance.cyberFaction)
     VitreoTheme(style = 2, preset = appearance.themePreset, appearance = appearance) {
         CompositionLocalProvider(LocalGlass provides GlassEnvironment(frame, viewport, appearance, drag.asState()), LocalCyberPhase provides ambient, LocalCyberPalette provides palette, LocalGlassContentColor provides Color.White) {
-            Box(Modifier.fillMaxSize().background(Color(0xff101b2b)).onSizeChanged {
+            Box(Modifier.fillMaxSize().background(Color(0xff101b2b)).onGloballyPositioned { depthRoot = it }.onSizeChanged {
                 viewport = Viewport(it.width.toFloat(), it.height.toFloat())
             }.testTag("lock_screen")) {
                 background?.let { Image(it.asImageBitmap(), null, Modifier.fillMaxSize().graphicsLayer {
@@ -200,7 +221,10 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                         Box(Modifier.fillMaxWidth().then(if (onEditClock != null) Modifier
                             .border(1.dp, Color.White.copy(alpha = .5f), RoundedCornerShape(18.dp))
                             .clickable(onClickLabel = "Edit clock font and color", onClick = onEditClock).testTag("lock_edit_clock") else Modifier)) {
-                            LockClock(now, appearance, Modifier.fillMaxWidth().padding(vertical = 2.dp))
+                            LockClock(now, appearance, Modifier.fillMaxWidth().padding(vertical = 2.dp).onGloballyPositioned {
+                                depthClock = it
+                                depthRoot?.takeIf { root -> root.isAttached }?.let { root -> clockRestBounds = root.localBoundingBoxOf(it, clipBounds = false) }
+                            })
                             if (onClockHeight != null && !cyber && !appearance.iosClassic) Box(Modifier.align(Alignment.BottomEnd).size(44.dp)
                                 .pointerInput(Unit) {
                                     var value = options.clockHeight
@@ -279,6 +303,12 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                         }
                     }
                     }
+                }
+                if (options.depthEffect) foreground?.let { image ->
+                    LockDepthLayer(image, depthClock, depthRoot, clockRestBounds,
+                        scale = { 1f + drag.value / 4000f + (1f - arrival.value) * .025f },
+                        opacity = { arrival.value * (1f - drag.value / 180f).coerceIn(0f, 1f) },
+                        modifier = Modifier.matchParentSize().testTag("lock_depth_layer"))
                 }
             }
         }

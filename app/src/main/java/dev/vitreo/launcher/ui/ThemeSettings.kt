@@ -28,6 +28,8 @@ import dev.vitreo.launcher.core.IconOverride
 import dev.vitreo.launcher.core.THEME_ICON_PACK
 import dev.vitreo.launcher.core.THEME_ICON_KINDS
 import dev.vitreo.launcher.core.WALLPAPER_NAMES
+import dev.vitreo.launcher.core.CYBER_CHARACTERS
+import dev.vitreo.launcher.core.withCyberCharacter
 import dev.vitreo.launcher.graphics.WallpaperStore
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
@@ -85,7 +87,7 @@ fun ThemeSettings(ui: LauncherViewModel.UiState, onAppearance: (Appearance) -> U
     if (a.themePreset == 1) {
         IosSectionLabel("Night City faction")
         IosGroup {
-            CyberColors.Factions.forEachIndexed { index, faction ->
+            CyberColors.Factions.take(4).forEachIndexed { index, faction ->
                 if (index > 0) IosDivider()
                 Row(Modifier.fillMaxWidth().clickable { onAppearance(a.copy(cyberFaction = index)) }
                     .padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -101,6 +103,38 @@ fun ThemeSettings(ui: LauncherViewModel.UiState, onAppearance: (Appearance) -> U
             }
         }
         Text("Sets the faction HUD color profile across panels, borders, widgets and indicators.",
+            Modifier.padding(horizontal = 17.dp, vertical = 6.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+        IosSectionLabel("Edgerunners")
+        CYBER_CHARACTERS.forEach { character ->
+            val palette = CyberColors.forFaction(character.faction)
+            val context = LocalContext.current
+            val thumbnail by produceState<Bitmap?>(null, character.wallpaper) {
+                value = withContext(Dispatchers.IO) { WallpaperStore(context).thumbnail(character.wallpaper) }
+            }
+            IosGroup {
+                Row(Modifier.fillMaxWidth().clickable { onAppearance(a.copy(cyberFaction = character.faction)) }
+                    .testTag("cyber_character:${character.name}").padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(64.dp, 90.dp).clip(CyberShape).background(palette.background)) {
+                        thumbnail?.let { Image(it.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop) }
+                    }
+                    Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                        Text(character.name, fontFamily = CyberFont, fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
+                        Text(character.description, fontSize = 12.sp)
+                        Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf(palette.accent, palette.structural, palette.info).forEach {
+                                Box(Modifier.size(14.dp).background(it, CutCornerShape(3.dp)))
+                            }
+                        }
+                    }
+                    RadioButton(a.cyberFaction == character.faction, onClick = null)
+                }
+                IosDivider()
+                IosRow("Apply style + Home & Lock wallpapers", onClick = { onAppearance(a.withCyberCharacter(character)) })
+            }
+            Spacer(Modifier.height(10.dp))
+        }
+        Text("Tap a character for colors only, or apply the complete style with both wallpapers. Original fan-inspired artwork, available offline. Your existing HUD effects and motion preferences are retained.",
             Modifier.padding(horizontal = 17.dp, vertical = 6.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         IosSectionLabel("Cyberpunk experience")

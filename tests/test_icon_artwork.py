@@ -46,12 +46,17 @@ class IconArtworkTests(unittest.TestCase):
 
     def test_original_stock_wallpapers_match_provenance_and_bundled_credits(self):
         records = (ROOT / "docs/artwork/wallpapers.sha256").read_text().splitlines()
-        self.assertEqual(len(records), 5)
+        self.assertEqual(len(records), 9)
         for record in records:
             digest, filename = record.split(maxsplit=1)
             data = (ROOT / filename).read_bytes()
-            self.assertEqual(data[:8], b"\x89PNG\r\n\x1a\n")
+            if filename.endswith(".webp"):
+                self.assertEqual(data[:4], b"RIFF")
+                self.assertEqual(data[8:12], b"WEBP")
+            else:
+                self.assertEqual(data[:8], b"\x89PNG\r\n\x1a\n")
             self.assertEqual(hashlib.sha256(data).hexdigest(), digest)
         notice = (ROOT / "app/src/main/assets/licenses/NOTICE.txt").read_text()
         self.assertIn("Neon Rider and Digital Dusk", notice)
         self.assertIn("docs/artwork/CYBERPUNK_WALLPAPERS.md", notice)
+        self.assertIn("docs/artwork/EDGERUNNERS_WALLPAPERS.md", notice)

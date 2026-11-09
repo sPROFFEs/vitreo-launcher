@@ -118,7 +118,7 @@ data class Appearance(
         photoTransform = photoTransform.sanitized(),
         wallpaperDim = if (wallpaperDim.isFinite()) wallpaperDim.coerceIn(0f, .6f) else .12f,
         themePreset = themePreset.coerceIn(0, 1),
-        cyberFaction = cyberFaction.coerceIn(0, 3),
+        cyberFaction = cyberFaction.coerceIn(0, CYBER_FACTION_COUNT - 1),
         cyberNightEffects = cyberNightEffects.intersect(DEFAULT_CYBER_NIGHT_EFFECTS),
         cyberStatusHeight = if (cyberStatusHeight.isFinite()) cyberStatusHeight.coerceIn(16f, 40f) else 22f,
         cyberStatusOpacity = if (cyberStatusOpacity.isFinite()) cyberStatusOpacity.coerceIn(.2f, 1f) else .72f,
