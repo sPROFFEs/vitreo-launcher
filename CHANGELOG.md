@@ -1,5 +1,11 @@
 # Cambios
 
+## Unreleased
+
+- Documentación reorganizada por uso, desarrollo y diseño, con guías actualizadas
+  y un README más conciso. Nueva galería del APK firmado 0.10.14 con capturas de
+  iOS 26, iOS 16 Classic y Cyberpunk, perfiles de ejemplo y procedencia verificable.
+
 ## 0.10.14
 
 - Home: arrastre con hueco y recolocación en directo, conservación del punto de

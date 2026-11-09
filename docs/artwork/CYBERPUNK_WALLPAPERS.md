@@ -4,8 +4,9 @@
 
 The maintainer supplied these three portrait PNGs for inclusion. They are bundled
 byte for byte, without image edits, and are available in Themes & Icons, Wallpaper
-and the independent Lock Screen wallpaper selector. Existing palette IDs are unchanged;
-the new entries append IDs 6–8. All five bundled images are pinned in `wallpapers.sha256`.
+and the independent Lock Screen wallpaper selector. Existing palette IDs are
+unchanged; the new entries append IDs 6–8. The five original images and later
+Edgerunners additions are pinned in `wallpapers.sha256`.
 
 | Wallpaper | Supplied filename | APK resource |
 | --- | --- | --- |
@@ -36,3 +37,7 @@ Use case: stylized-concept. Asset type: original portrait Android launcher stock
 
 Use case: stylized-concept. Asset type: original portrait 9:20 stock wallpaper for cyberpunk Android launcher, no interface. Primary request: moody anime cinematic rooftop night scene, a mysterious futuristic female netrunner seen from behind with short white bob hair and dark tech jacket, standing in the lower third looking over vast electric violet and cyan city lights. Completely original character, not a depiction of an existing named character. Composition: quiet midnight navy and purple gradient sky and soft holographic haze across upper two thirds for readable app icons, city skyline and small figure in lower third. Beautiful luminous 2D anime film background, restrained pink highlights, cyan rim light, distant orbital moon. No closeup, no readable text, no logos, no watermark, no frame, no UI, no lettering.
 
+
+The four later character illustrations are documented separately in
+[Edgerunners artwork](EDGERUNNERS_WALLPAPERS.md). See the [theme guide](../guide/THEMES.md)
+for the current collection and selection behavior.

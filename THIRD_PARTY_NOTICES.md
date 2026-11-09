@@ -1,94 +1,82 @@
-# Licencias y atribuciones
+# Licenses and attribution
 
-## Profundidad experimental y nuevos fondos
+Vitreo's own code is MIT licensed, Copyright (c) 2026 Vitreo contributors; see
+[LICENSE](LICENSE). The launcher identity, original vectors, procedural backgrounds
+and glass.agsl are project assets. There is no affiliation with Apple, GrapheneOS,
+SVG Stack, Folio or CD PROJEKT RED.
 
-- DeepLab V3, TensorFlow / MediaPipe Authors, Apache 2.0. Modelo incluido sin
-  modificaciones, normalización RGB y clase persona según sus metadatos.
-  Fuente, hash SHA-256 y procesamiento local en [LOCK_SCREEN_DEPTH.md](docs/LOCK_SCREEN_DEPTH.md).
-- LiteRT 1.4.1, The TensorFlow Authors, Apache 2.0. Runtime autónomo para CPU,
-  sin dependencia de Google Play Services. Licencia íntegra incluida en
-  `app/src/main/assets/licenses/Apache-2.0.txt`.
-- Los fondos de David, Lucy, Rebecca y Kiwi son ilustraciones nuevas generadas
-  para Vitreo, codificadas a WebP. No son imágenes promocionales ni recursos
-  extraídos del juego o la serie. Archivos bajo MIT; personajes y nombres de
-  Cyberpunk / Edgerunners pertenecen a sus titulares. Prompts, rutas y procedencia
-  en [EDGERUNNERS_WALLPAPERS.md](docs/artwork/EDGERUNNERS_WALLPAPERS.md).
-- La foto de prueba de MediaPipe `segmentation_input_rotation0.jpg` se incluye
-  únicamente en el APK de instrumentación; no forma parte de la aplicación publicada.
+## App artwork and fonts
 
-## Cyberpunk: iconos y tipografía
+| Material | License and attribution | Provenance |
+| --- | --- | --- |
+| 22 SVG Stack Apple IOS Icon Set WebP images | CC BY 4.0, SVG Stack | [Manifest](third_party/svgstack/assets.json), [provenance](third_party/svgstack/PROVENANCE.md) |
+| 23 Arcticons app-family WebP glyphs | CC BY-SA 4.0, Arcticons contributors | [Manifest](third_party/arcticons/assets.json), [provenance](third_party/arcticons/PROVENANCE.md) |
+| 13 CYBERCORE CSS control glyphs | MIT, Copyright (c) 2026 sebyx07 | [Provenance](third_party/cybercore/PROVENANCE.md) |
+| Rajdhani Medium/Semibold | SIL OFL 1.1, Copyright (c) 2014 Indian Type Foundry | [Manifest](third_party/fonts/assets.json) |
+| Contacts address-book vector | Vitreo MIT artwork | [Original vector](app/src/main/res/drawable/ios_contacts.xml) |
 
-- 23 WebP de Arcticons, CC BY-SA 4.0, Arcticons contributors. Fuentes y hashes en
-  `third_party/arcticons/assets.json`; bytes sin modificar, tinte y marcos en runtime.
-  Las adaptaciones del arte conservan CC BY-SA 4.0. No se copia código de su aplicación GPL.
-- 13 glyphs de CYBERCORE CSS, MIT, Copyright (c) 2026 sebyx07. Geometría SVG convertida
-  a VectorDrawable; originales, licencia y procedencia en `third_party/cybercore`.
-- Rajdhani Medium/Semibold, SIL Open Font License 1.1, Copyright (c) 2014 Indian
-  Type Foundry. Fuentes/hashes en `third_party/fonts/assets.json`; licencia íntegra incluida.
+SVG Stack's [collection](https://svgstack.com/collections/apple-ios-icon-set) and
+[license policy](https://svgstack.com/page/license) are the original sources.
+Bundled images retain their bytes; runtime masks, tint and live clock/calendar
+layers are launcher treatments. Arcticons artwork adaptations retain CC BY-SA;
+no code from its GPL Android application is copied. CYBERCORE SVG geometry was
+converted to Android vectors with its notices retained.
 
-Estas atribuciones y licencias también están en los assets de la APK. El HUD es
-código y geometría propios; las capturas del videojuego y las fuentes Blender/Cyberpunk
-de las referencias CSS no se incorporan. Los packs externos se leen desde la instalación
-del usuario y no se redistribuyen con Vitreo.
+Full texts are in [third_party/licenses](third_party/licenses) and the corresponding APK license assets.
+Per-resource manifests retain source revisions and SHA-256. External icon packs
+are read from the user's installation and are not redistributed by Vitreo.
 
-## Código propio de Vitreo
+## Adapted Folio material
 
-MIT, Copyright (c) 2026 Vitreo contributors. Texto completo en `LICENSE`.
-El nombre, vector de icono, fondos procedurales y shader `glass.agsl` son propios.
-No existe afiliación con Apple, GrapheneOS, SVG Stack o Folio.
+MIT, Copyright (c) 2026 Duo Launcher contributors. Retain
+[third_party/folio/LICENSE](third_party/folio/LICENSE), the attribution headers in
+FolioGeometry.kt, SurfaceMotion.kt and AppContextMenu.kt, and
+[Folio provenance](third_party/folio/PROVENANCE.md) when redistributing.
+That record documents the upstream reference and adaptation boundaries.
 
-## Arte de iconos de SVG Stack
+## Wallpapers
 
-22 imágenes WebP del conjunto [Apple IOS Icon Set](https://svgstack.com/collections/apple-ios-icon-set),
-publicadas por [SVG Stack](https://svgstack.com), según su [política CC BY 4.0](https://svgstack.com/page/license).
-Se conservan sin modificar; el launcher aplica máscara, tamaño y tratamientos de
-color, y superpone hora y fecha actuales. Procedencia y hashes por recurso en
-`third_party/svgstack/assets.json`; licencia completa en `third_party/licenses/CC-BY-4.0.txt`.
-La atribución y las fuentes también se incluyen en los avisos de la APK.
+Neon Rider and Digital Dusk are original imagegen illustrations made for Vitreo,
+distributed under the project's MIT license. Neural Pearl, Neural Carbon and
+Neural Crimson were supplied by the maintainer for inclusion and retain their
+original bytes. [Stock provenance and prompts](docs/artwork/CYBERPUNK_WALLPAPERS.md)
+and [hashes](docs/artwork/wallpapers.sha256) record these files.
 
-## Folio: geometría, movimiento y anclaje de menús adaptados
+David, Lucy, Rebecca and Kiwi are original fan-inspired illustrations generated
+for Vitreo and encoded to WebP under MIT for the new artwork files. Character
+names and Cyberpunk / Edgerunners belong to their holders; these are not official
+promotional images or extracted game/series assets. See
+[Edgerunners prompts and provenance](docs/artwork/EDGERUNNERS_WALLPAPERS.md).
+Referenced MotionBGS videos and IconScout animations are not bundled.
 
-MIT, Copyright (c) 2026 Duo Launcher contributors.
-Conservar `third_party/folio/LICENSE`, los encabezados de `FolioGeometry.kt`, `SurfaceMotion.kt`, `AppContextMenu.kt` y
-`third_party/folio/PROVENANCE.md` al redistribuir. La procedencia exacta y la
-limitación de la referencia upstream están documentadas allí.
+## Experimental depth
 
-## Bibliotecas de la aplicación
+DeepLab V3 is included unchanged under Apache 2.0, TensorFlow / MediaPipe Authors.
+LiteRT 1.4.1 is the standalone CPU runtime, Apache 2.0, The TensorFlow Authors.
+[Model provenance](docs/development/LOCK_SCREEN_DEPTH.md) records the exact source,
+normalization, labels and SHA-256. The full Apache text is also bundled in
+app/src/main/assets/licenses/Apache-2.0.txt.
 
-Las dependencias declaradas de AndroidX/Jetpack Compose, Material Components,
-Kotlin y kotlinx.coroutines utilizan Apache License 2.0. El texto se incluye en
-`third_party/licenses/Apache-2.0.txt` y en los assets de la APK.
+MediaPipe's segmentation_input_rotation0.jpg fixture belongs only to the
+instrumentation APK, not the published application. Its source/hash are recorded
+with the model provenance.
 
-Fuentes primarias para revisar sus avisos:
-- AndroidX: https://android.googlesource.com/platform/frameworks/support/+/androidx-main/LICENSE.txt
-- Kotlin: https://github.com/JetBrains/kotlin/blob/master/license/LICENSE.txt
-- kotlinx.coroutines: https://github.com/Kotlin/kotlinx.coroutines/blob/master/LICENSE.txt
-- Material Icons: https://github.com/google/material-design-icons/blob/master/LICENSE
+## Application dependencies
 
-Las dependencias se descargan de Google Maven/Maven Central al compilar, no se
-incluyen como binarios en el repositorio. Para revisar el árbol resuelto y los
-avisos de sus versiones transitivas:
-`bash gradlew :app:dependencies --configuration releaseRuntimeClasspath`.
-La configuración de empaquetado combina los avisos META-INF comunes en lugar de
-eliminarlos. Este documento no sustituye esa verificación de dependencias.
+AndroidX / Jetpack Compose, Material Components, Kotlin and kotlinx.coroutines
+use Apache License 2.0. Sources for reviewing their notices:
 
-JUnit, JSON-java y las herramientas de compilación se usan para pruebas/build;
-no son dependencias runtime adicionales de la aplicación. Android proporciona
-`org.json` en el dispositivo. Los workflows usan acciones de terceros fijadas
-por SHA; no se ha incluido su código dentro de Vitreo.
+- [AndroidX](https://android.googlesource.com/platform/frameworks/support/+/androidx-main/LICENSE.txt)
+- [Kotlin](https://github.com/JetBrains/kotlin/blob/master/license/LICENSE.txt)
+- [kotlinx.coroutines](https://github.com/Kotlin/kotlinx.coroutines/blob/master/LICENSE.txt)
+- [Material Icons](https://github.com/google/material-design-icons/blob/master/LICENSE)
 
-## Exclusiones deliberadas
+Dependencies are resolved from Google Maven/Maven Central at build time. Inspect
+the resolved graph with `bash gradlew :app:dependencies --configuration releaseRuntimeClasspath`.
+Packaging merges common META-INF notices instead of discarding them. This document
+is not a substitute for reviewing transitive notices.
 
-Liquid Touch no se incorpora. Backdrop tampoco es una dependencia. No hay
-fuentes comerciales, APKs upstream ni una clave privada de firma
-compartida en el repositorio.
-
-El icono de Contactos (`drawable/ios_contacts.xml`) es una ilustración vectorial original de Vitreo: agenda gris con pestañas de color, bajo la licencia MIT del proyecto. Sustituye al icono azul de SVG Stack utilizado en 0.4.1.
-
-## Original Cyberpunk wallpapers
-
-Neon Rider and Digital Dusk are original AI-generated illustrations created for
-Vitreo 0.5.3 with imagegen and distributed under the project's MIT license.
-[Prompts, provenance and references](docs/artwork/CYBERPUNK_WALLPAPERS.md) and
-[SHA-256 hashes](docs/artwork/wallpapers.sha256) are recorded in the repository.
-The referenced MotionBGS videos and IconScout animations are not bundled.
+JUnit, JSON-java and build tools are test/build dependencies; Android supplies
+org.json on-device. Third-party Actions are SHA-pinned and are not packaged into
+the app. No Liquid Touch/Backdrop dependency, commercial font, upstream APK or
+private signing key is included.

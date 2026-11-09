@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "initialized": true,
+  "knownApps": [
+    "com.android.calendar/com.android.calendar.AllInOneActivity",
+    "com.android.camera2/com.android.camera.CameraLauncher",
+    "com.android.deskclock/com.android.deskclock.DeskClock",
+    "com.android.contacts/com.android.contacts.activities.PeopleActivity",
+    "com.android.documentsui/com.android.documentsui.LauncherActivity",
+    "com.android.gallery3d/com.android.gallery3d.app.GalleryActivity",
+    "com.android.settings/com.android.settings.Settings",
+    "com.android.quicksearchbox/com.android.quicksearchbox.SearchActivity",
+    "com.android.stk/com.android.stk.StkMain",
+    "com.android.dialer/com.android.dialer.main.impl.MainActivity",
+    "org.chromium.webview_shell/org.chromium.webview_shell.WebViewBrowserActivity",
+    "com.android.messaging/com.android.messaging.ui.conversationlist.ConversationListActivity"
+  ],
+  "home": [
+    {
+      "type": "app",
+      "id": "com.android.calendar/com.android.calendar.AllInOneActivity"
+    },
+    {
+      "type": "app",
+      "id": "com.android.camera2/com.android.camera.CameraLauncher"
+    },
+    {
+      "type": "app",
+      "id": "com.android.deskclock/com.android.deskclock.DeskClock"
+    },
+    {
+      "type": "app",
+      "id": "com.android.contacts/com.android.contacts.activities.PeopleActivity"
+    },
+    {
+      "type": "app",
+      "id": "com.android.documentsui/com.android.documentsui.LauncherActivity"
+    },
+    {
+      "type": "app",
+      "id": "com.android.settings/com.android.settings.Settings"
+    },
+    {
+      "type": "folder",
+      "id": "folder:screenshot-utilities",
+      "title": "Utilities",
+      "apps": [
+        "com.android.quicksearchbox/com.android.quicksearchbox.SearchActivity",
+        "com.android.stk/com.android.stk.StkMain"
+      ]
+    }
+  ],
+  "dock": [
+    "com.android.dialer/com.android.dialer.main.impl.MainActivity",
+    "org.chromium.webview_shell/org.chromium.webview_shell.WebViewBrowserActivity",
+    "com.android.messaging/com.android.messaging.ui.conversationlist.ConversationListActivity",
+    "com.android.gallery3d/com.android.gallery3d.app.GalleryActivity"
+  ],
+  "appearance": {
+    "iconSize": 72,
+    "themePreset": 1,
+    "iosClassic": false,
+    "palette": 4,
+    "cyberFaction": 0,
+    "cyberImmersive": false,
+    "homeStatusBar": true,
+    "controlCenter": true,
+    "wallpaperDim": 0.12,
+    "showWidgets": true,
+    "syncWallpaper": true,
+    "iconOverrides": {
+      "org.chromium.webview_shell/org.chromium.webview_shell.WebViewBrowserActivity": {
+        "pack": "@theme",
+        "drawable": "browser"
+      }
+    },
+    "lockScreen": {
+      "wallpaper": 4,
+      "clockSize": 120,
+      "clockHeight": 1.6,
+      "clockStyle": 0,
+      "glassClock": true,
+      "showNotifications": false,
+      "showAlarm": false,
+      "showBattery": true,
+      "dim": 0.12,
+      "immersive": false,
+      "depthEffect": false
+    },
+    "cyberNightEffects": [],
+    "cyberEffects": false
+  }
+}

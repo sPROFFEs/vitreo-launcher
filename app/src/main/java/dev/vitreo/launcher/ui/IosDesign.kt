@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.sp
 import dev.vitreo.launcher.core.homePageIndicatorStart
 import kotlin.math.abs
 
-/** Original Android implementation; reference decisions and pinned sources are in docs/IOS_DESIGN.md. */
+/** Original Android implementation; reference decisions and pinned sources are in docs/design/IOS.md. */
 internal object IosDesign {
     const val HomeInset = 20f
     const val DockInset = 12f
