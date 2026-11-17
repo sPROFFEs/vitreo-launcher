@@ -14,7 +14,8 @@ LauncherViewModel exposes StateFlow to Compose. The catalog respects effective
 component state, retains temporarily unavailable activities and remaps equivalent
 aliases while preserving placements. Package callbacks invalidate caches without waiting on bitmap rendering. Refresh
 is single-flight with one pending rescan; ordinary quick resumes reuse the catalog.
-Membership is published first and Home/Dock artwork is prioritized in IO batches.
+Known Home/Dock labels and artwork are prioritized in IO batches. New membership,
+removals and alias remapping publish atomically with the reconciled layout.
 Confirmed uninstalls clear Home, Dock, folders, known apps, overrides and recent
 suggestions; package replacement does not. Refresh only removes a missing package
 when both platform checks confirm its absence. Launch targets are rechecked

@@ -74,7 +74,10 @@ flag. The activity is excluded from Recents and real use blocks screenshots;
 the unlocked preview permits the documentation captures.
 
 Vitreo prepares its surface when the display turns off with secure keyguard
-active. A quick-wake recovery is bounded to a single 600 ms window. Android's
+active. A quick-wake recovery is bounded to a single 600 ms window. If Android delivers
+the screen-off signal after an already secured display has woken, the first
+queued signal consumes that recovery immediately; a later screen-on signal does
+not launch a second surface. Android's
 native screen remains available after reboot, process death, delayed locking,
 user changes, calls or another activity allowed above keyguard. There are no
 late retries that force the custom screen over an ongoing interaction.

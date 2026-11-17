@@ -27,6 +27,9 @@ import kotlinx.coroutines.flow.asStateFlow
  * The real keyguard must already be secure and locked. Native keyguard remains the fallback. */
 object LockScreenRuntime {
     private const val PREFS = "lock-screen-local"
+    private inline fun trace(message: () -> String) {
+        if (dev.vitreo.launcher.BuildConfig.DEBUG) android.util.Log.d("VitreoLock", message())
+    }
     private val handler = Handler(Looper.getMainLooper())
     private val active = MutableStateFlow(false)
     val enabled = active.asStateFlow()
@@ -87,11 +90,21 @@ object LockScreenRuntime {
             override fun onReceive(context: Context, intent: Intent) {
                 when (intent.action) {
                     Intent.ACTION_SCREEN_OFF -> {
-                        wakeWindow.screenOff(SystemClock.elapsedRealtime())
-                        prepare(context, ++cycle, 0)
+                        val now = SystemClock.elapsedRealtime()
+                        wakeWindow.screenOff(now)
+                        val token = ++cycle
+                        val keyguard = context.getSystemService(KeyguardManager::class.java)
+                        val queuedAfterWake = wakeWindow.consumeQueuedOff(now,
+                            context.getSystemService(PowerManager::class.java)?.isInteractive == true,
+                            keyguard?.isDeviceLocked == true && keyguard.isKeyguardLocked)
+                        trace { "off cycle=$token queuedAfterWake=$queuedAfterWake" }
+                        prepare(context, token, 0, waking = queuedAfterWake)
                     }
-                    Intent.ACTION_SCREEN_ON -> if (wakeWindow.consumeWake(SystemClock.elapsedRealtime()))
-                        prepare(context, cycle, 0, waking = true)
+                    Intent.ACTION_SCREEN_ON -> {
+                        val recover = wakeWindow.consumeWake(SystemClock.elapsedRealtime())
+                        trace { "on cycle=$cycle recover=$recover" }
+                        if (recover) prepare(context, cycle, 0, waking = true)
+                    }
                     Intent.ACTION_USER_PRESENT -> { cycle++; wakeWindow.cancel() }
                 }
             }
@@ -107,13 +120,14 @@ object LockScreenRuntime {
         context.getSystemService(AudioManager::class.java)?.mode == AudioManager.MODE_NORMAL
 
     private fun prepare(context: Context, token: Int, attempt: Int, waking: Boolean = false) {
-        if (cycle != token || !canPresent(context)) return
+        if (cycle != token || !canPresent(context)) { trace { "skip cycle=$token attempt=$attempt unavailable/stale" }; return }
         val interactive = context.getSystemService(PowerManager::class.java)?.isInteractive != false
-        if (interactive && !waking) return
+        if (interactive && !waking) { trace { "skip cycle=$token attempt=$attempt already interactive" }; return }
         // Never cover an existing custom surface, authentication session or secure camera return.
-        if (surface?.get()?.let { !it.isFinishing && !it.isDestroyed } == true) return
+        if (surface?.get()?.let { !it.isFinishing && !it.isDestroyed } == true) { trace { "skip cycle=$token existing surface" }; return }
         val keyguard = context.getSystemService(KeyguardManager::class.java)
         if (keyguard?.isKeyguardLocked == true && keyguard.isDeviceLocked) {
+            trace { "present cycle=$token attempt=$attempt waking=$waking" }
             runCatching { context.startActivity(Intent(context, LockScreenActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION or Intent.FLAG_ACTIVITY_NO_USER_ACTION)) }
         } else if (!waking && !interactive && attempt < 24) {

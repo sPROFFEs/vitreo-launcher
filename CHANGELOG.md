@@ -4,7 +4,9 @@
 
 - Rendimiento: Home reutiliza el catálogo en regresos rápidos; los cambios de
   paquetes se agrupan en una consulta pendiente. Los nombres y los iconos de Home
-  y Dock aparecen antes de terminar de procesar el resto de la biblioteca.
+  y Dock aparecen antes de terminar de procesar el resto de la biblioteca. Las apps
+  recién instaladas se publican junto a su disposición para que una acción rápida
+  no se adelante a su incorporación al Home.
 - El reloj actualiza sus consumidores sin recomponer todo el escritorio cada
   segundo. La animación de regreso se recupera al reanudar la actividad.
 - Fondos: caché compartida y limitada para Home y Lock Screen, decodificación
@@ -17,7 +19,9 @@
   también cuando pertenecen a instancias distintas del almacén.
 - Lock Screen: recuperación de autenticación interrumpida por apagado rápido,
   protección frente a callbacks atrasados y salida a Android si la petición no
-  responde. Se mantienen la autenticación y el bloqueo seguros de Android.
+  responde. Recuperación inmediata cuando la señal de apagado llega después del
+  encendido, sin ampliar la ventana ni repetir intentos tardíos. Se mantienen la
+  autenticación y el bloqueo seguros de Android.
 - Cámara y linterna: respuesta háptica del sistema y feedback de pulsación;
   respeta las preferencias de vibración. Accesos opcionales y ocultables.
 - Personalización: widgets eliminables desde la vista previa, área Add Widgets,

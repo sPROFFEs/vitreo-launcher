@@ -177,10 +177,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     }).toSet()
                     val records = catalog.load(priority, checkActive = { owner.ensureActive() }) { progress ->
                         viewModelScope.launch {
-                            // Preserve the live layout while artwork arrives; only the complete
-                            // query below may reconcile removals and aliases or persist anything.
-                            if (owner.isActive && _ui.value.layout.initialized)
-                                _ui.value = _ui.value.copy(apps = progress, ready = true)
+                            // Artwork may arrive early, but new membership must be published
+                            // atomically with its reconciled layout. Otherwise a just-installed
+                            // app can be visible before folder/Dock operations can find it.
+                            val before = _ui.value
+                            if (owner.isActive && before.layout.initialized) {
+                                val known = before.layout.knownApps + before.layout.placedApps() + before.apps.map { it.id }
+                                _ui.value = before.copy(apps = progress.filter { it.id in known }, ready = true)
+                            }
                         }
                     }
                     val removed = explicitRemovals + catalog.confirmedRemovedPackages(known, records, unavailable)
