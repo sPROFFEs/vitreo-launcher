@@ -59,12 +59,12 @@ class LockScreenActivity : ComponentActivity() {
         pendingNotice = null
     }
     private val authenticationTimeout = Runnable {
-        if (authenticating && !isFinishing) {
-            val ownsInput = hasWindowFocus()
+        if (authenticating && !isFinishing && hasWindowFocus()) {
+            // Only our own stalled input has a deadline. Android's credential UI may
+            // legitimately remain focused while the user takes time to enter a PIN.
+            // Keep its callback and pending notification until it succeeds or cancels.
             cancelAuthentication()
-            // A missing OEM callback must never leave our buttons disabled indefinitely.
-            // Leave a focused native credential UI alone; only retire our stalled surface.
-            if (ownsInput && !preview) finishAndRemoveTask()
+            if (!preview) finishAndRemoveTask()
         }
     }
     override fun onWindowFocusChanged(hasFocus: Boolean) {

@@ -199,6 +199,8 @@ class LockScreenDeviceTest {
         compose.onNodeWithText("A real Android notification displayed by Vitreo.").assertDoesNotExist()
         compose.onNodeWithTag("lock_notifications").onChildren().onFirst().performClick()
         awaitSystemAuth()
+        android.os.SystemClock.sleep(10_500)
+        assertTrue("Waiting at the native PIN screen must not authenticate", keyguard.isDeviceLocked)
         enterPin()
         await("authenticated notification destination survives private lock task removal") {
             !keyguard.isDeviceLocked && lockActivity() == null &&
