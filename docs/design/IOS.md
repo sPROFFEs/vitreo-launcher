@@ -180,3 +180,18 @@ older read-back tween cannot pull the bar backward.
 Current Home editing and depth are documented in [Motion](MOTION.md#home-editing)
 and [Lock Screen](../guide/LOCK_SCREEN.md#experimental-depth); this dated study
 is design provenance rather than the user manual.
+
+## Lock accessories and haptics
+
+Reviewed 2026-11-17 against the supplied visual references and Apple's
+[Lock Screen customization guide](https://support.apple.com/en-lamr/guide/iphone/iph4d0e6c351/ios).
+The unlocked editor supports removing accessories directly, an empty Add Widgets
+area, accessory ordering/placement and hidden camera/flashlight shortcuts. These
+are Vitreo's safe built-in accessories, not arbitrary provider views above keyguard.
+The clock's saved stretch is retained while its actual rendering fits the screen.
+
+Shortcuts use Android's
+[confirmation haptic](https://developer.android.com/develop/ui/views/haptics/haptic-feedback),
+without overriding system preferences or claiming an identical iPhone waveform.
+Performance work follows [Compose's guidance](https://developer.android.com/develop/ui/compose/performance/bestpractices)
+on isolating frequent state reads and avoiding repeated work in composition.

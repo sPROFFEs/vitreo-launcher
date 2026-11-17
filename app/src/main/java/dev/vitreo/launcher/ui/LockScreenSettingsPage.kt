@@ -161,9 +161,7 @@ fun LockScreenSettingsPage(a: Appearance, onAppearance: (Appearance) -> Unit, on
     LockFootnote("Shows real app icons, app names, times and notification counts after you grant access. Message text, titles, attachments and actions stay hidden. Notifications marked secret by the app or channel are excluded. Tap a card to open it after Android authentication.")
     IosSectionLabel("Widgets & privacy")
     IosGroup {
-        IosToggleRow("Battery", options.showBattery) { change(options.copy(showBattery = it)) }; IosDivider()
-        IosToggleRow("Next alarm", options.showAlarm) { change(options.copy(showAlarm = it)) }; IosDivider()
-        IosToggleRow("Notification indicator", options.notificationCount) { change(options.copy(notificationCount = it)) }
+        LockWidgetOptions(options, ::change)
     }
     LockFootnote("The indicator and lock cards use Android notification access independently of Home Notification Center. Message text, artwork and actions remain hidden until you unlock. Third-party widgets are kept on Home and Today to protect private content.")
     IosSectionLabel("Pixel & GrapheneOS")
@@ -211,4 +209,22 @@ private fun LockScreenPreviewCard(a: Appearance, onClick: () -> Unit) {
             }
         }
     }
+}
+
+/** Shared editor/settings controls: appearance only, never notification permission or auth. */
+@Composable
+internal fun LockWidgetOptions(options: dev.vitreo.launcher.core.LockScreenSettings,
+    change: (dev.vitreo.launcher.core.LockScreenSettings) -> Unit) {
+    IosToggleRow("Battery", options.showBattery) { change(options.copy(showBattery = it)) }
+    IosToggleRow("Next alarm", options.showAlarm) { change(options.copy(showAlarm = it)) }
+    IosToggleRow("Notification indicator", options.notificationCount) { change(options.copy(notificationCount = it)) }
+    Text("Widget position", Modifier.padding(12.dp), fontSize = 13.sp)
+    IosSegmented(listOf("Automatic", "Below clock", "Bottom"), options.widgetPlacement,
+        Modifier.padding(horizontal = 8.dp).testTag("lock_widget_position")) { change(options.copy(widgetPlacement = it)) }
+    IosToggleRow("Reverse widget order", options.widgetsReversed) { change(options.copy(widgetsReversed = it)) }
+    TextButton(onClick = { change(options.copy(showBattery = false, showAlarm = false, notificationCount = false)) },
+        modifier = Modifier.testTag("lock_remove_all_widgets")) { Text("Remove All Widgets") }
+    IosDivider()
+    IosToggleRow("Flashlight shortcut", options.showFlashlight) { change(options.copy(showFlashlight = it)) }
+    IosToggleRow("Camera shortcut", options.showCamera) { change(options.copy(showCamera = it)) }
 }

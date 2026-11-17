@@ -547,7 +547,7 @@ private fun MediaTile(modifier: Modifier, media: NowPlaying, legacyActive: Boole
                     fontSize = if (expanded) 16.sp else if (LocalCyber.current) 11.sp else 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             if (expanded && media.available && media.duration > 0) {
-                val tick = LocalHomeClock.current
+                val tick = LocalHomeClock.current.value
                 val elapsed = if (media.playing && media.updatedAt > 0) (android.os.SystemClock.elapsedRealtime() - media.updatedAt).coerceAtLeast(0) * media.speed else 0f
                 val position = (media.position + elapsed.toLong()).coerceIn(0, media.duration)
                 Column {

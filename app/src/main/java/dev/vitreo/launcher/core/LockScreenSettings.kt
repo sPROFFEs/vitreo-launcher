@@ -19,11 +19,16 @@ data class LockScreenSettings(
     val immersive: Boolean = false,
     val showSystemUnlock: Boolean = false, // Optional shortcut to the real keyguard; never app authentication.
     val depthEffect: Boolean = false, // Experimental, local person segmentation; safe fallback to the normal clock.
+    val widgetPlacement: Int = 0, // Automatic, below clock, bottom; append-only IDs.
+    val widgetsReversed: Boolean = false,
+    val showFlashlight: Boolean = true,
+    val showCamera: Boolean = true,
 ) {
     fun sanitized() = copy(theme = theme.coerceIn(0, 2),
         idleTimeoutSeconds = idleTimeoutSeconds.takeIf { it in listOf(5, 10, 15, 30) } ?: 10,
         clockSize = if (clockSize.isFinite()) clockSize.coerceIn(72f, 132f) else 104f,
         clockStyle = clockStyle.coerceIn(0, 5),
+        widgetPlacement = widgetPlacement.coerceIn(0, 2),
         clockHeight = if (clockHeight.isFinite()) clockHeight.coerceIn(1f, 2.4f) else 1f,
         clockColor = clockColor or 0xff000000.toInt(),
         wallpaper = wallpaper.coerceIn(-1, WALLPAPER_NAMES.lastIndex), dim = if (dim.isFinite()) dim.coerceIn(0f, .65f) else .18f)

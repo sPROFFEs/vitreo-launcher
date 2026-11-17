@@ -4,6 +4,8 @@ import dev.vitreo.launcher.R
 import android.content.Context
 import android.graphics.*
 import android.net.Uri
+import android.util.LruCache
+import java.util.concurrent.atomic.AtomicLong
 import android.util.AtomicFile
 import dev.vitreo.launcher.core.PhotoTransform
 import dev.vitreo.launcher.core.photoPlacement
@@ -21,20 +23,30 @@ class WallpaperStore(private val context: Context) {
     @Synchronized
     fun load(usePhoto: Boolean, palette: Int, transform: PhotoTransform = PhotoTransform(),
         width: Int = 720, height: Int = 1600): WallpaperFrame {
-        val bitmap = if (usePhoto) readPhoto() else null
-        if (bitmap == null) return frame(procedural(palette))
-        val source = frame(bitmap)
-        val factor = min(1f, 1600f / max(width, height).coerceAtLeast(1))
-        val w = max(1, (width * factor).roundToInt()); val h = max(1, (height * factor).roundToInt())
-        val composed = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-        drawPhoto(Canvas(composed), source, w.toFloat(), h.toFloat(), transform)
-        return frame(composed)
+        // Shared across Home, previews and repeated secure activities. This lock is IO-only;
+        // it prevents simultaneous decodes/blur allocations of the same large wallpaper.
+        return synchronized(decodeLock) {
+            val identity = context.filesDir.absolutePath
+            val photoKey = "$identity:photo:${file.lastModified()}:${file.length()}:${photoRevision.get()}"
+            val sourceKey = if (usePhoto) photoKey else "$identity:builtin:$palette"
+            val key = if (usePhoto) "$sourceKey:$width:$height:${transform.sanitized()}" else sourceKey
+            frames.get(key)?.let { return@synchronized it }
+            val cachedSource = if (usePhoto) frames.get(sourceKey) else null
+            val photo = if (usePhoto && cachedSource == null) readPhoto() else null
+            if (cachedSource == null && photo == null) return@synchronized frame(procedural(palette)).also { frames.put(key, it) }
+            val source = cachedSource ?: frame(checkNotNull(photo)).also { frames.put(sourceKey, it) }
+            val factor = min(1f, 1600f / max(width, height).coerceAtLeast(1))
+            val w = max(1, (width * factor).roundToInt()); val h = max(1, (height * factor).roundToInt())
+            val composed = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            drawPhoto(Canvas(composed), source, w.toFloat(), h.toFloat(), transform)
+            frame(composed).also { frames.put(key, it) }
+        }
     }
 
     @Synchronized
-    fun readPhoto(): Bitmap? = runCatching {
+    fun readPhoto(): Bitmap? = synchronized(photoLock) { runCatching {
             AtomicFile(file).openRead().use { BitmapFactory.decodeStream(it) }
-        }.getOrNull()
+        }.getOrNull() }
 
     @Synchronized
     fun importPhoto(uri: Uri) {
@@ -57,29 +69,42 @@ class WallpaperStore(private val context: Context) {
     }
 
     @Synchronized
-    fun savePhoto(opaque: Bitmap) {
+    fun savePhoto(opaque: Bitmap): Unit = synchronized(photoLock) {
         val atomic = AtomicFile(file)
         val stream = atomic.startWrite()
         try {
             check(opaque.compress(Bitmap.CompressFormat.PNG, 100, stream)) { "Could not save this image." }
             atomic.finishWrite(stream)
+            photoRevision.incrementAndGet()
         } catch (e: Exception) { atomic.failWrite(stream); throw e }
     }
 
     /** Small gallery copy; the full source remains available for Home/Lock rendering. */
     fun thumbnail(palette: Int): Bitmap {
-        val source = procedural(palette)
+        val key = "${context.filesDir.absolutePath}:$palette"
+        thumbnails.get(key)?.let { return it }
+        val source = procedural(palette, maxSide = 640)
         val factor = min(1f, 640f / max(source.width, source.height))
         val preview = Bitmap.createScaledBitmap(source, max(1, (source.width * factor).roundToInt()),
             max(1, (source.height * factor).roundToInt()), true)
         if (preview !== source) source.recycle() // This fresh decode has never been exposed to Compose.
+        thumbnails.put(key, preview)
         return preview
     }
 
-    fun procedural(palette: Int): Bitmap {
-        builtinResource(palette)?.let { resource -> return requireNotNull(BitmapFactory.decodeResource(context.resources,
-            resource,
-            BitmapFactory.Options().apply { inScaled = false; inSampleSize = 1 })) }
+    fun procedural(palette: Int, maxSide: Int = 1600): Bitmap {
+        builtinResource(palette)?.let { resource ->
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true; inScaled = false }
+            BitmapFactory.decodeResource(context.resources, resource, bounds)
+            var sample = 1
+            while (max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxSide) sample *= 2
+            val decoded = requireNotNull(BitmapFactory.decodeResource(context.resources, resource,
+                BitmapFactory.Options().apply { inScaled = false; inSampleSize = sample }))
+            val factor = min(1f, maxSide.toFloat() / max(decoded.width, decoded.height))
+            if (factor >= 1f) return decoded
+            return Bitmap.createScaledBitmap(decoded, max(1, (decoded.width * factor).roundToInt()),
+                max(1, (decoded.height * factor).roundToInt()), true).also { if (it !== decoded) decoded.recycle() }
+        }
         val b = Bitmap.createBitmap(720, 1600, Bitmap.Config.ARGB_8888)
         val colors = when (palette.coerceIn(0, 3)) {
             1 -> intArrayOf(0xff2c246f.toInt(), 0xff9476d7.toInt(), 0xffedacbb.toInt())
@@ -133,6 +158,26 @@ class WallpaperStore(private val context: Context) {
     }
 
     companion object {
+        private val decodeLock = Any()
+        private val photoLock = Any()
+        private val photoRevision = AtomicLong()
+        private val thumbnails = object : LruCache<String, Bitmap>(4 * 1024 * 1024) {
+            override fun sizeOf(key: String, value: Bitmap) = value.allocationByteCount
+        }
+        fun trimMemory(level: Int) {
+            if (level == android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW ||
+                level == android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL ||
+                level >= android.content.ComponentCallbacks2.TRIM_MEMORY_MODERATE) {
+                frames.evictAll()
+                thumbnails.evictAll()
+                BundledArtwork.clear()
+            }
+        }
+        private val frames = object : LruCache<String, WallpaperFrame>(16 * 1024 * 1024) {
+            override fun sizeOf(key: String, value: WallpaperFrame) = value.sharp.allocationByteCount + value.frosted.allocationByteCount
+            // Eviction drops ownership only; Compose can still be drawing the old frame.
+        }
+
         fun builtinResource(palette: Int): Int? = when (palette) {
             4 -> R.drawable.wallpaper_neon_rider
             5 -> R.drawable.wallpaper_digital_dusk

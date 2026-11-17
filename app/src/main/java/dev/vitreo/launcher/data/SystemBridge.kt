@@ -18,6 +18,7 @@ import android.provider.Settings
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.view.KeyEvent
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -42,6 +43,16 @@ object SystemBridge {
     private val mutable = MutableStateFlow(BridgeState())
     val state = mutable.asStateFlow()
     private var service: VitreoNotificationListener? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var connectionJob: Job? = null
+    private var noticeJob: Job? = null
+    private var noticeGeneration = 0
+    private var noticesPending = false
+    private val postedKeys = linkedSetOf<String>()
+    private fun cancelNotices() {
+        noticeGeneration++; noticeJob?.cancel(); noticeJob = null
+        noticesPending = false; postedKeys.clear()
+    }
     private var configured = false
     private var requestedNotifications = false
     private var notifications = false
@@ -57,7 +68,7 @@ object SystemBridge {
     private val callback = object : MediaController.Callback() {
         override fun onMetadataChanged(metadata: MediaMetadata?) = publishMedia()
         override fun onPlaybackStateChanged(state: PlaybackState?) = publishMedia()
-        override fun onSessionDestroyed() { refresh() }
+        override fun onSessionDestroyed() { refreshSessions() }
     }
     fun component(context: Context) = ComponentName(context, VitreoNotificationListener::class.java)
     fun hasAccess(context: Context): Boolean = context.getSystemService(NotificationManager::class.java)
@@ -69,7 +80,7 @@ object SystemBridge {
         requestedNotifications = notifications
         this.notifications = notifications || dev.vitreo.launcher.island.NotificationIsland.enabled.value; this.media = media
         val access = hasAccess(context)
-        if (!this.notifications) NoticeIcons.clear()
+        if (!access || !this.notifications) { cancelNotices(); NoticeIcons.clear() }
         mutable.value = mutable.value.copy(access = access,
             notices = if (access && this.notifications) mutable.value.notices else emptyList(),
             media = if (access && media) mutable.value.media else NowPlaying())
@@ -80,51 +91,85 @@ object SystemBridge {
     internal fun connect(listener: VitreoNotificationListener) {
         service = listener
         dev.vitreo.launcher.island.NotificationIsland.connect(listener)
-        dev.vitreo.launcher.island.NotificationIsland.configure(StateStore(listener).load().state.appearance)
         mutable.value = mutable.value.copy(connected = true)
-        if (configured) configure(listener, requestedNotifications, media)
-        else { val a = StateStore(listener).load().state.appearance; configure(listener, a.notificationCenter || dev.vitreo.launcher.lock.LockScreenRuntime.enabled.value && (a.lockScreen.showNotifications || a.lockScreen.notificationCount), a.mediaIntegration) }
+        connectionJob?.cancel()
+        connectionJob = scope.launch {
+            val a = withContext(Dispatchers.IO) { StateStore(listener).load().state.appearance }
+            if (service !== listener) return@launch
+            dev.vitreo.launcher.island.NotificationIsland.configure(a)
+            if (configured) configure(listener, requestedNotifications, media)
+            else configure(listener, a.notificationCenter || dev.vitreo.launcher.lock.LockScreenRuntime.enabled.value &&
+                (a.lockScreen.showNotifications || a.lockScreen.notificationCount), a.mediaIntegration)
+        }
     }
+
     internal fun disconnect(listener: VitreoNotificationListener) {
         if (service !== listener) return
+        connectionJob?.cancel(); cancelNotices()
         dev.vitreo.launcher.island.NotificationIsland.disconnect()
         stopMedia(); NoticeIcons.clear(); service = null
         mutable.value = BridgeState(access = hasAccess(listener))
     }
     fun refresh() {
         val listener = service ?: return
-        if (!hasAccess(listener)) { stopMedia(); mutable.value = BridgeState(); dev.vitreo.launcher.island.NotificationIsland.disconnect(); return }
-        val notices = if (!notifications) emptyList() else runCatching {
-            listener.activeNotifications.asSequence()
-                .filter { it.user == Process.myUserHandle() && it.notification.flags and Notification.FLAG_GROUP_SUMMARY == 0 }
-                .sortedByDescending { it.postTime }.take(100).map { sbn ->
-                    val n = sbn.notification
-                    val channel = NotificationListenerService.Ranking().let { ranking ->
-                        if (listener.currentRanking.getRanking(sbn.key, ranking)) ranking.channel else null
-                    }
-                    val app = runCatching { listener.packageManager.getApplicationLabel(
-                        listener.packageManager.getApplicationInfo(sbn.packageName, 0)).toString() }.getOrDefault(sbn.packageName)
-                    Notice(sbn.key, sbn.packageName, app.take(160), n.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.take(256).orEmpty(),
-                        (n.extras.getCharSequence(Notification.EXTRA_BIG_TEXT) ?: n.extras.getCharSequence(Notification.EXTRA_TEXT))?.toString()?.take(2000).orEmpty(),
-                        sbn.postTime, sbn.isClearable, n.contentIntent,
-                        n.actions.orEmpty().filter { it.remoteInputs.isNullOrEmpty() }.take(3).mapNotNull {
-                            val intent = it.actionIntent ?: return@mapNotNull null
-                            NoticeAction(it.title?.toString()?.take(80).orEmpty(), intent)
-                        }, ongoing = sbn.isOngoing, mediaNotice = n.extras.containsKey(Notification.EXTRA_MEDIA_SESSION), appIcon = NoticeIcons.load(listener, sbn.packageName, n.smallIcon), visibility = n.visibility, channelVisibility = channel?.lockscreenVisibility ?: NotificationListenerService.Ranking.VISIBILITY_NO_OVERRIDE,
-                        channelId = n.channelId.orEmpty(), channelName = channel?.name?.toString()?.take(160).orEmpty())
-                }.toList()
-        }.getOrDefault(emptyList())
-        mutable.value = mutable.value.copy(notices = notices)
-        dev.vitreo.launcher.island.NotificationIsland.inbox(notices)
-        if (media && !observing) startMedia(listener) else if (media) refreshSessions()
+        if (!hasAccess(listener)) { cancelNotices(); NoticeIcons.clear(); stopMedia(); mutable.value = BridgeState(); dev.vitreo.launcher.island.NotificationIsland.disconnect(); return }
+        if (media && !observing) startMedia(listener)
+        if (!notifications) return
+        if (noticeJob?.isActive == true) { noticesPending = true; return }
+        noticesPending = false
+        val generation = noticeGeneration
+        noticeJob = scope.launch {
+            try {
+                delay(32) // Coalesce post/ranking/removal bursts into one bounded inbox scan.
+                val fresh = postedKeys.toSet()
+                val notices = withContext(Dispatchers.IO) {
+                    val labels = mutableMapOf<String, String>()
+                    val rankingMap = listener.currentRanking
+                    try {
+                        listener.activeNotifications.asSequence()
+                            .filter { it.user == Process.myUserHandle() && it.notification.flags and Notification.FLAG_GROUP_SUMMARY == 0 }
+                            .sortedByDescending { it.postTime }.take(100).map { sbn ->
+                                ensureActive()
+                                val n = sbn.notification
+                                val channel = NotificationListenerService.Ranking().let { ranking ->
+                                    if (rankingMap.getRanking(sbn.key, ranking)) ranking.channel else null
+                                }
+                                val app = labels.getOrPut(sbn.packageName) { runCatching { listener.packageManager.getApplicationLabel(
+                                    listener.packageManager.getApplicationInfo(sbn.packageName, 0)).toString() }.getOrDefault(sbn.packageName) }
+                                Notice(sbn.key, sbn.packageName, app.take(160), n.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.take(256).orEmpty(),
+                                    (n.extras.getCharSequence(Notification.EXTRA_BIG_TEXT) ?: n.extras.getCharSequence(Notification.EXTRA_TEXT))?.toString()?.take(2000).orEmpty(),
+                                    sbn.postTime, sbn.isClearable, n.contentIntent,
+                                    n.actions.orEmpty().filter { it.remoteInputs.isNullOrEmpty() }.take(3).mapNotNull {
+                                        val intent = it.actionIntent ?: return@mapNotNull null
+                                        NoticeAction(it.title?.toString()?.take(80).orEmpty(), intent)
+                                    }, ongoing = sbn.isOngoing, mediaNotice = n.extras.containsKey(Notification.EXTRA_MEDIA_SESSION), appIcon = NoticeIcons.load(listener, sbn.packageName, n.smallIcon), visibility = n.visibility, channelVisibility = channel?.lockscreenVisibility ?: NotificationListenerService.Ranking.VISIBILITY_NO_OVERRIDE,
+                                    channelId = n.channelId.orEmpty(), channelName = channel?.name?.toString()?.take(160).orEmpty())
+                            }.toList()
+                    } catch (e: CancellationException) { throw e }
+                    catch (_: Exception) { emptyList() }
+                }
+                if (generation != noticeGeneration || service !== listener || !notifications || !hasAccess(listener)) return@launch
+                mutable.value = mutable.value.copy(notices = notices)
+                dev.vitreo.launcher.island.NotificationIsland.inbox(notices)
+                notices.filter { it.key in fresh }.forEach { dev.vitreo.launcher.island.NotificationIsland.posted(it) }
+                postedKeys.removeAll(fresh)
+            } finally {
+                if (generation == noticeGeneration) {
+                    noticeJob = null
+                    if (noticesPending && isActive) refresh()
+                }
+            }
+        }
     }
     internal fun islandChanged(context: Context) = configure(context, requestedNotifications, media)
     internal fun posted(sbn: StatusBarNotification?) {
-        refresh()
-        if (sbn?.user == Process.myUserHandle()) mutable.value.notices.firstOrNull { it.key == sbn.key }?.let {
-            dev.vitreo.launcher.island.NotificationIsland.posted(it)
+        if (notifications && mutable.value.access && sbn?.user == Process.myUserHandle()) {
+            if (postedKeys.size >= 100) postedKeys.remove(postedKeys.first())
+            postedKeys.add(sbn.key)
         }
+        refresh()
     }
+
     fun dismiss(key: String) {
         if (notifications && mutable.value.notices.any { it.key == key && it.clearable }) runCatching { service?.cancelNotification(key) }
     }

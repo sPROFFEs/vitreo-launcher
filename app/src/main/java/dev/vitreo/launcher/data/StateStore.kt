@@ -10,12 +10,15 @@ import java.io.ByteArrayOutputStream
 class StateStore(context: Context) {
     private val file = File(context.filesDir, "layout.json")
     private val atomic = AtomicFile(file)
+    // AtomicFile requires caller synchronization, including across StateStore instances.
+    // Home's writer, listener initialization and lock setup all use the same local file.
+    private val ioLock = locks.getOrPut(file.absolutePath) { Any() }
     data class Loaded(val state: LauncherState, val warning: String? = null)
 
-    fun load(): Loaded {
+    fun load(): Loaded = synchronized(ioLock) {
         // openRead also restores AtomicFile's .bak after interrupted writes.
-        if (!file.exists() && !File(file.path + ".bak").exists()) return Loaded(LauncherState())
-        return try { Loaded(atomic.openRead().use { StateCodec.decode(readLimited(it)) }) }
+        if (!file.exists() && !File(file.path + ".bak").exists()) return@synchronized Loaded(LauncherState())
+        return@synchronized try { Loaded(atomic.openRead().use { StateCodec.decode(readLimited(it)) }) }
         catch (e: Exception) {
             val recovery = File(file.parentFile, "layout-corrupt-${System.currentTimeMillis()}.json")
             runCatching { if (file.exists()) file.copyTo(recovery) }
@@ -23,7 +26,7 @@ class StateStore(context: Context) {
         }
     }
 
-    fun save(state: LauncherState) {
+    fun save(state: LauncherState): Unit = synchronized(ioLock) {
         val bytes = StateCodec.encode(state).toByteArray(Charsets.UTF_8)
         require(bytes.size <= StateCodec.MAX_BYTES) { "Layout exceeds the storage limit." }
         val stream = atomic.startWrite()
@@ -32,6 +35,7 @@ class StateStore(context: Context) {
     }
 
     companion object {
+        private val locks = java.util.concurrent.ConcurrentHashMap<String, Any>()
         fun readLimited(stream: InputStream): String {
             val output = ByteArrayOutputStream()
             val buffer = ByteArray(8192)

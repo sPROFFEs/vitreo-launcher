@@ -1,6 +1,28 @@
 # Cambios
 
-## Unreleased
+## 0.10.15
+
+- Rendimiento: Home reutiliza el catálogo en regresos rápidos; los cambios de
+  paquetes se agrupan en una consulta pendiente. Los nombres y los iconos de Home
+  y Dock aparecen antes de terminar de procesar el resto de la biblioteca.
+- El reloj actualiza sus consumidores sin recomponer todo el escritorio cada
+  segundo. La animación de regreso se recupera al reanudar la actividad.
+- Fondos: caché compartida y limitada para Home y Lock Screen, decodificación
+  acotada y miniaturas más económicas. El editor agrupa cambios rápidos de dim;
+  la galería del editor carga las vistas visibles.
+- Notificaciones: lectura de estado, nombres e iconos fuera del hilo principal;
+  las ráfagas de publicaciones y cambios de ranking se agrupan y se descartan
+  resultados pendientes al desactivar el acceso.
+- Persistencia: lectores y escritores del mismo archivo comparten transacción,
+  también cuando pertenecen a instancias distintas del almacén.
+- Lock Screen: recuperación de autenticación interrumpida por apagado rápido,
+  protección frente a callbacks atrasados y salida a Android si la petición no
+  responde. Se mantienen la autenticación y el bloqueo seguros de Android.
+- Cámara y linterna: respuesta háptica del sistema y feedback de pulsación;
+  respeta las preferencias de vibración. Accesos opcionales y ocultables.
+- Personalización: widgets eliminables desde la vista previa, área Add Widgets,
+  orden y posición configurables. Tamaño del reloj en el editor y altura ajustada
+  al espacio disponible para mantener los controles de desbloqueo accesibles.
 
 - Documentación reorganizada por uso, desarrollo y diseño, con guías actualizadas
   y un README más conciso. Nueva galería del APK firmado 0.10.14 con capturas de

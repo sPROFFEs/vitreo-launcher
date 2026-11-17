@@ -176,18 +176,21 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val snackbar = remember { SnackbarHostState() }
     val widgets = remember { WidgetController(context) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    var homeResumed by remember(lifecycle) { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) homeResumed = true
             if (event == Lifecycle.Event.ON_STOP) {
+                homeResumed = false
                 drag = null; widgetDrag = null; previewHome = null; landing = null; folderTarget = null
-                scope.launch { arrival.snapTo(0f) }
             }
         }
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }
     }
-    LaunchedEffect(homeRevealSerial, appearance.reducedEffects) {
-        if (appearance.reducedEffects || homeRevealSerial == 0) arrival.snapTo(1f)
+    LaunchedEffect(homeRevealSerial, appearance.reducedEffects, homeResumed) {
+        if (!homeResumed) arrival.snapTo(0f)
+        else if (appearance.reducedEffects || homeRevealSerial == 0) arrival.snapTo(1f)
         else {
             if (arrival.value >= .999f) arrival.snapTo(0f)
             arrival.animateTo(1f, spring(dampingRatio = 1f, stiffness = 550f))
@@ -253,11 +256,11 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val backupExport = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { it?.let(model::exportLayout) }
     val backupImport = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let(model::importLayout) }
     val reportExport = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { it?.let(model::exportDiagnostics) }
-    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    val now = remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(lifecycle, appearance.reducedEffects) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             val interval = if (appearance.reducedEffects) 60_000L else 1_000L
-            while (true) { now = System.currentTimeMillis(); delay(interval - now % interval) }
+            while (true) { now.longValue = System.currentTimeMillis(); delay(interval - now.longValue % interval) }
         }
     }
     fun openSearch(alphabetical: Boolean = false) {
@@ -331,9 +334,8 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
             }
         }
     }
-    LaunchedEffect(appReturnSerial) {
-        launching = false
-        departure.snapTo(0f)
+    LaunchedEffect(appReturnSerial, homeResumed) {
+        if (homeResumed) { launching = false; departure.snapTo(0f) }
     }
     LaunchedEffect(launching) {
         if (launching) {
@@ -814,7 +816,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                         // accessibility while another page owns the viewport.
                         Box(Modifier.fillMaxSize().then(if (page != pager.currentPage) Modifier.clearAndSetSemantics {} else Modifier)) {
                         when (page) {
-                            0 -> TodayPage(now, widgets, suggestions, apps, ui.layout.appearance, model::appearance,
+                            0 -> TodayPage(widgets, suggestions, apps, ui.layout.appearance, model::appearance,
                                 todayEditing, { todayEditing = it }, onSearch = ::openSearch,
                                 onSettings = { sheet = Sheet.Settings }, onWidgets = { widgetGalleryHomePage = null; sheet = Sheet.Widgets },
                                 onControls = { if (appearance.controlCenter) sheet = Sheet.Controls },
@@ -827,7 +829,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                                 val grid = homeGrid.getOrNull(page - 1) ?: HomeGridPage(emptyList(), emptyList(), false)
                                 Box(Modifier.fillMaxSize().padding(bottom = footerHeight)) {
                                     HomeWorkspace(grid, geometry.rows, rowHeight, geometry.iconSize, appearance.showLabels,
-                                    editing || drag != null, drag?.entry?.id ?: landing?.entry?.id, widgetDrag?.placement?.id, apps, widgets, now,
+                                    editing || drag != null, drag?.entry?.id ?: landing?.entry?.id, widgetDrag?.placement?.id, apps, widgets,
                                     ::openClockWidget, ::openCalendarWidget, openEntry,
                                     { entry, bounds -> actionTarget = AppActionTarget(entry, bounds) },
                                     { entry -> if (entry is HomeEntry.App) model.removeApp(entry.id) else model.dissolve(entry.id) },
@@ -928,8 +930,8 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                     shadowElevation = 16f
                 }) {
                     when (session.placement.id) {
-                        ID_BUILTIN_CLOCK -> ClockWidgetCard(now, Modifier.fillMaxSize(), onClick = {})
-                        ID_BUILTIN_CALENDAR -> CalendarWidgetCard(now, Modifier.fillMaxSize(), onClick = {})
+                        ID_BUILTIN_CLOCK -> HomeTimeContent { ClockWidgetCard(it, Modifier.fillMaxSize(), onClick = {}) }
+                        ID_BUILTIN_CALENDAR -> HomeTimeContent { CalendarWidgetCard(it, Modifier.fillMaxSize(), onClick = {}) }
                         else -> GlassPanel(Modifier.fillMaxSize(), radius = 24f) {
                             NativeWidgetContent(widgets, session.placement.id, Modifier.fillMaxSize(), fitToBounds = true)
                         }
@@ -937,10 +939,10 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                 }
             }
             if (integratedBar && sheet != Sheet.Controls && sheet != Sheet.Notifications) {
-                HomeStatusBar(now,
+                HomeTimeContent { tick -> HomeStatusBar(tick,
                 Modifier.height(customBarHeight).windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal)),
                 onNotices = if (appearance.notificationCenter && !modalPresent) ({ sheet = Sheet.Notifications }) else null,
-                onControls = if (appearance.controlCenter && !modalPresent) ({ sheet = Sheet.Controls }) else null)
+                onControls = if (appearance.controlCenter && !modalPresent) ({ sheet = Sheet.Controls }) else null) }
             }
             if (panelBackdrop && !opaqueScreen) {
                 // Full-screen diffusion includes the wallpaper; panel lenses sample the same

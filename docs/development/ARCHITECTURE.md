@@ -12,7 +12,9 @@ Android APIs.
 LauncherApps plus MAIN/LAUNCHER queries feed AppCatalog on IO, then
 LauncherViewModel exposes StateFlow to Compose. The catalog respects effective
 component state, retains temporarily unavailable activities and remaps equivalent
-aliases while preserving placements. Package callbacks invalidate caches off Main.
+aliases while preserving placements. Package callbacks invalidate caches without waiting on bitmap rendering. Refresh
+is single-flight with one pending rescan; ordinary quick resumes reuse the catalog.
+Membership is published first and Home/Dock artwork is prioritized in IO batches.
 Confirmed uninstalls clear Home, Dock, folders, known apps, overrides and recent
 suggestions; package replacement does not. Refresh only removes a missing package
 when both platform checks confirm its absence. Launch targets are rechecked
@@ -22,7 +24,8 @@ LayoutOps maintains ordered Home entries, folders and a four-slot Dock.
 LauncherState.sanitized bounds input and removes invalid/duplicate entries.
 StateCodec uses optional, bounded appearance fields in schema 1; StateStore uses
 AtomicFile and a serial IO writer. ViewModel cleanup closes/drains pending saves,
-though abrupt process death can lose the last in-flight change. Import size is
+though abrupt process death can lose the last in-flight change. StateStore instances
+share a per-file IO lock so AtomicFile reads cannot race another instance's write. Import size is
 limited to 1 MiB and unreadable state is retained for recovery when possible.
 
 ## Home and gestures
@@ -70,6 +73,10 @@ sampling. Draw-time coordinates keep a moving lens aligned without wallpaper
 redecoding or per-frame bitmap blur. iOS 16 uses uniform frost. Cyberpunk bypasses
 the glass renderer and shares CyberPalette, shapes and typography across its HUD.
 Character/faction and wallpaper IDs are append-only for backup stability.
+Wallpaper frames share a 16 MiB LRU and thumbnails a 4 MiB LRU. Decodes are bounded,
+bundled raster icons use an 8 MiB IO-loaded LRU. Eviction never recycles images
+still owned by UI, and memory-pressure callbacks do
+not wait on the IO decode lock. Clock ticks invalidate consumers, not the root grid.
 
 ## Device controls, notices and island
 
@@ -79,7 +86,8 @@ Vitreo's window; restricted device controls open Android settings.
 
 SystemBridge holds ephemeral notification/media flows. Android binds the protected,
 non-exported VitreoNotificationListener after explicit permission. Independent
-feature switches gate collection and media callbacks; disable/revocation clears
+feature switches gate collection and media callbacks; inbox scans/label and icon
+loading run on IO with burst coalescing and stale-result guards; disable/revocation clears
 the relevant memory. Notification bodies and artwork never enter layout files,
 backups, diagnostics or network requests.
 

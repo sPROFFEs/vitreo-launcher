@@ -430,7 +430,7 @@ fun WidgetGallery(controller: WidgetController, showHomeWidgets: Boolean, onTogg
             item {
                 Text("Add what matters", fontSize = 28.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 15.dp))
                 CompositionLocalProvider(LocalGlassContentColor provides MaterialTheme.colorScheme.onSurface) {
-                    HomeWidgets(LocalHomeClock.current, Modifier.height(190.dp),
+                    HomeWidgets(LocalHomeClock.current.value, Modifier.height(190.dp),
                         onClock = { onEditBuiltin?.invoke("clock") },
                         onCalendar = { onEditBuiltin?.invoke("calendar") },
                         showClock = appearance?.showClockWidget ?: true,

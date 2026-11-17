@@ -14,6 +14,8 @@ object LockScreenCodec {
         put("dim", a.dim.toDouble()); put("immersive", a.immersive)
         put("showSystemUnlock", a.showSystemUnlock)
         put("depthEffect", a.depthEffect)
+        put("widgetPlacement", a.widgetPlacement); put("widgetsReversed", a.widgetsReversed)
+        put("showFlashlight", a.showFlashlight); put("showCamera", a.showCamera)
     } }
     fun decode(a: JSONObject?): LockScreenSettings {
         if (a == null) return LockScreenSettings()
@@ -26,6 +28,8 @@ object LockScreenCodec {
             notificationCount = a.optBoolean("notificationCount", false), wallpaper = a.optInt("wallpaper", -1),
             dim = a.optDouble("dim", .18).toFloat(), immersive = a.optBoolean("immersive", false),
             showSystemUnlock = a.optBoolean("showSystemUnlock", false),
-            depthEffect = a.optBoolean("depthEffect", false)).sanitized()
+            depthEffect = a.optBoolean("depthEffect", false), widgetPlacement = a.optInt("widgetPlacement", 0),
+            widgetsReversed = a.optBoolean("widgetsReversed", false), showFlashlight = a.optBoolean("showFlashlight", true),
+            showCamera = a.optBoolean("showCamera", true)).sanitized()
     }
 }

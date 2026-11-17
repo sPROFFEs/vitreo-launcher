@@ -77,4 +77,27 @@ class StateStoreDeviceTest {
         WallpaperStore.drawPhoto(Canvas(preview), store.frame(original), 400f, 900f, fit)
         assertTrue("The editor and committed wallpaper must match", preview.sameAs(fitted.sharp))
     }
+    @Test fun independentReadersAndWritersShareTheAtomicFileTransaction() {
+        val first = LauncherState(initialized = true)
+        StateStore(context).save(first)
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(4)
+        val gate = java.util.concurrent.CountDownLatch(1)
+        try {
+            val tasks = (0..3).map { worker -> pool.submit {
+                gate.await()
+                repeat(30) { index ->
+                    val store = StateStore(context)
+                    if (worker < 2) store.save(first.copy(appearance = first.appearance.copy(palette = index % 2)))
+                    else {
+                        val loaded = store.load()
+                        assertNull("Concurrent valid writes must not trigger corrupt-layout recovery", loaded.warning)
+                        assertTrue(loaded.state.initialized)
+                        assertTrue(loaded.state.appearance.palette in 0..1)
+                    }
+                }
+            } }
+            gate.countDown()
+            tasks.forEach { it.get(20, java.util.concurrent.TimeUnit.SECONDS) }
+        } finally { pool.shutdownNow() }
+    }
 }

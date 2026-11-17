@@ -221,6 +221,13 @@ class LockScreenDeviceTest {
         prepareAndWake(quick = true)
         compose.onNodeWithTag("lock_unlock").performClick()
         awaitSystemAuth()
+        shell("input keyevent KEYCODE_SLEEP")
+        await("display off during native authentication") { !context.getSystemService(android.os.PowerManager::class.java).isInteractive }
+        shell("input keyevent KEYCODE_WAKEUP")
+        await("quick wake recovers the custom lock input") { lockActivity()?.hasWindowFocus() == true }
+        assertTrue(keyguard.isDeviceLocked)
+        compose.onNodeWithTag("lock_unlock").assertIsEnabled().performClick()
+        awaitSystemAuth()
         shell("input keyevent KEYCODE_BACK")
         await("cancel returns to custom screen") { lockActivity()?.hasWindowFocus() == true }
         assertTrue(keyguard.isDeviceLocked)

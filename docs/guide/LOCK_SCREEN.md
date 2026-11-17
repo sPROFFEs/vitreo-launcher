@@ -15,10 +15,17 @@ lock screen**. A preview never enables the feature or authenticates the device.
 - Follow Home, iOS or Cyberpunk independently of the Home theme.
 - Choose six clock fonts, size and color, date, Glass / Solid and vertical height.
   The clock follows Android's 12/24-hour preference and fits the available width.
-  Tap its outline to edit, or drag the lower-right resize handle. iOS 16 retains
+  Tap its outline to edit font, size and color, or drag the lower-right resize handle. The visible height fits the available screen space. iOS 16 retains
   a solid clock at its original proportions while preserving modern preferences.
 - Follow Home's photo/crop, or choose **Separate wallpaper from Home** and a
   collection image, with independent dimming.
+- Tap the outlined widget area in the editor to add or change accessories, or
+  use each widget's minus button to remove it. **Widgets** offers Battery, Next
+  alarm, order, Automatic / Below clock / Bottom placement and Remove All Widgets.
+  The empty editor area shows **Add Widgets**; real use leaves that space clear.
+  Placement adapts when the clock or notifications need more room.
+- Camera and flashlight shortcuts can be hidden individually. Taps give a short
+  system haptic response, respecting Android's haptic preferences.
 - Show battery, next alarm and optional notification summaries. Cyberpunk also
   offers an Immersive HUD; motion respects Reduce Motion and Battery Saver.
 
@@ -77,3 +84,8 @@ credentials, profiles and auto reboot. This feature does not change those polici
 Its activation is local to the device and is never enabled by importing a backup.
 Emulator tests cover Android PIN/authentication flows; physical Pixel / GrapheneOS
 biometric behavior still needs [device testing](../development/TESTING.md#physical-device-checks).
+
+Interrupted authentication is cleared on screen-off. Late callbacks cannot alter a
+new request, and a stalled request yields to the native keyguard rather than
+leaving Vitreo's unlock button disabled. This does not authenticate the device
+or place a time limit on entering credentials in Android's own UI.

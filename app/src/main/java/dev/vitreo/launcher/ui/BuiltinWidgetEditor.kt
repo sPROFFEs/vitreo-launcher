@@ -42,7 +42,7 @@ internal fun BuiltinWidgetEditor(
 ) {
     val isClock = kind == "clock"
     val title = if (isClock) "Clock Widget" else "Calendar Widget"
-    val now = LocalHomeClock.current
+    val now = LocalHomeClock.current.value
     val currentAppId = if (isClock) appearance.clockApp else appearance.calendarApp
     val currentAppName = apps[currentAppId]?.label ?: currentAppId.takeIf { it.isNotEmpty() } ?: "Default / Auto"
     val isShownOnHome = if (isClock) appearance.showClockWidget && appearance.showWidgets else appearance.showCalendarWidget && appearance.showWidgets

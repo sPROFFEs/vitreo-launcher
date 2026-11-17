@@ -76,6 +76,9 @@ internal fun LockScreenEditor(appearance: Appearance, onCancel: () -> Unit, onSa
                 LockScreenSurface(appearance.copy(lockScreen = draft), preview = true, busy = false, message = null,
                     onUnlock = {}, onSystemLock = onCancel, onCamera = {}, onEmergency = {},
                     onEditClock = { panel = 1 }, onClockHeight = { draft = draft.copy(clockHeight = it) },
+                    onEditWidgets = { panel = 3 }, onRemoveWidget = { kind ->
+                        draft = if (kind == "battery") draft.copy(showBattery = false) else draft.copy(showAlarm = false)
+                    },
                     editorHeader = {
                         Column(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
                             Row(Modifier.fillMaxWidth().height(maxOf(44.dp, statusBandHeight(LocalGlass.current.appearance))).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -101,6 +104,9 @@ internal fun LockScreenEditor(appearance: Appearance, onCancel: () -> Unit, onSa
                                 when (shownPanel) {
                                     1 -> {
                                         LockClockStylePicker(draft, cyber) { draft = it }
+                                        Text("Clock size", Modifier.padding(top = 12.dp), fontSize = 13.sp)
+                                        IosSlider(draft.clockSize, { draft = draft.copy(clockSize = it) },
+                                            Modifier.testTag("lock_editor_size"), valueRange = 72f..132f)
                                         Row(Modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                                             LockClockColors.forEach { (name, value) ->
                                                 Box(Modifier.size(36.dp).clip(CircleShape).background(Color(value))
@@ -131,9 +137,7 @@ internal fun LockScreenEditor(appearance: Appearance, onCancel: () -> Unit, onSa
                                         IosSlider(draft.dim, { draft = draft.copy(dim = it) }, valueRange = 0f..0.65f)
                                     }
                                     3 -> {
-                                        IosToggleRow("Battery", draft.showBattery) { draft = draft.copy(showBattery = it) }
-                                        IosToggleRow("Next alarm", draft.showAlarm) { draft = draft.copy(showAlarm = it) }
-                                        IosToggleRow("Notification indicator", draft.notificationCount) { draft = draft.copy(notificationCount = it) }
+                                        LockWidgetOptions(draft) { draft = it }
                                         Text("Private notification content stays hidden until Android unlocks.", fontSize = 12.sp, color = Color.White.copy(alpha = .65f))
                                     }
                                 }
@@ -174,8 +178,9 @@ internal fun LockClockStylePicker(options: LockScreenSettings, cyber: Boolean, o
 @Composable
 private fun LockWallpaperStrip(selected: Int, onSelect: (Int) -> Unit) {
     val context = LocalContext.current
-    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        WALLPAPER_NAMES.forEachIndexed { id, name ->
+    androidx.compose.foundation.lazy.LazyRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        items(WALLPAPER_NAMES.size, key = { it }) { id ->
+            val name = WALLPAPER_NAMES[id]
             val thumbnail by produceState<android.graphics.Bitmap?>(null, id) {
                 value = withContext(Dispatchers.IO) { WallpaperStore(context).thumbnail(id) }
             }

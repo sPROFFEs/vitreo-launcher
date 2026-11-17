@@ -240,7 +240,7 @@ internal fun NotificationCenter(onClose: () -> Unit, onAccess: () -> Unit, onErr
     val bridge by SystemBridge.state.collectAsStateWithLifecycle()
     val locked = context.getSystemService(KeyguardManager::class.java).isDeviceLocked
     var expanded by remember { mutableStateOf(emptySet<String>()) }
-    val now = LocalHomeClock.current
+    val now = LocalHomeClock.current.value
     val appearance = LocalGlass.current.appearance
     val reduced = appearance.reducedEffects
     val controller = remember { ControlCenterController(context) }

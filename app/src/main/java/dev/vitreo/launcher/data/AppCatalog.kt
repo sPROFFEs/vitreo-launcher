@@ -45,7 +45,8 @@ class AppCatalog(private val context: Context) {
 
     @Synchronized
     @Suppress("DEPRECATION")
-    fun load(): List<AppRecord> {
+    fun load(priority: Set<String> = emptySet(), checkActive: () -> Unit = {},
+        onProgress: ((List<AppRecord>) -> Unit)? = null): List<AppRecord> {
         if (clearArtwork.getAndSet(false)) artwork.clear()
         val invalidated = mutableSetOf<String>()
         while (true) invalidated.add(dirtyPackages.poll() ?: break)
@@ -74,41 +75,58 @@ class AppCatalog(private val context: Context) {
             listOfNotNull(native.exceptionOrNull(), intents.exceptionOrNull()).joinToString { it.javaClass.simpleName }.ifEmpty { "none" })
         // Union the two public launcher queries. A vendor-specific omission or one
         // failed service must not silently discard otherwise launchable activities.
+        val pending = linkedMapOf<String, Pair<Launchable, Long>>()
         val records = (native.getOrDefault(emptyList()) + intents.getOrDefault(emptyList())).asSequence()
             .distinctBy { it.component }
             .filter { it.activity.exported && it.component.packageName != context.packageName }
             .map { info ->
+                checkActive()
                 val component = info.component
                 val id = component.flattenToString()
                 live.add(id)
                 val updated = packageUpdates.getOrPut(component.packageName) {
                     runCatching { pm.getPackageInfo(component.packageName, 0).lastUpdateTime }.getOrDefault(-1L)
                 }
-                // A disappearing resource during a package update must not hide every app.
                 val label = runCatching { info.label().toString().trim() }.getOrDefault("")
                     .ifBlank { component.packageName }
                 val activity = info.activity
                 artwork[id]?.takeIf { it.updated == updated && it.iconResource == activity.iconResource &&
-                    it.labelResource == activity.labelRes && it.label == label }?.let { return@map it.record }
-                val images = runCatching {
-                    val drawable = info.icon()
-                    if (drawable is AdaptiveIconDrawable) {
-                        val icon = Bitmap.createBitmap(128, 128, Bitmap.Config.ARGB_8888)
-                        drawable.background?.apply { setBounds(0, 0, 128, 128); draw(Canvas(icon)) }
-                        val glyph = Bitmap.createBitmap(128, 128, Bitmap.Config.ARGB_8888)
-                        drawable.foreground?.apply { setBounds(-32, -32, 160, 160); draw(Canvas(glyph)) }
-                        Canvas(icon).drawBitmap(glyph, 0f, 0f, null)
-                        icon to glyph
-                    } else drawable.toBitmap(128, 128, Bitmap.Config.ARGB_8888) to null
-                }.getOrNull()
-                AppRecord(id, label, component.packageName,
-                    images?.first, activity.applicationInfo.category, images?.second).also {
-                    artwork[id] = Artwork(updated, activity.iconResource, activity.labelRes, label, it)
-                }
-            }.distinctBy { it.id }.toList()
-            .sortedWith { a, b -> collator.compare(a.label, b.label).takeIf { it != 0 } ?: a.id.compareTo(b.id) }
+                    it.labelResource == activity.labelRes && it.label == label }?.record
+                    ?: AppRecord(id, label, component.packageName, null, activity.applicationInfo.category).also {
+                        pending[id] = info to updated
+                    }
+            }.toList().sortedWith { a, b ->
+                collator.compare(a.label, b.label).takeIf { it != 0 } ?: a.id.compareTo(b.id)
+            }.toMutableList()
+        // Publish membership/labels before rasterizing every installed icon. Home and Dock
+        // artwork is rendered first, then bounded batches; order remains alphabetical.
+        onProgress?.invoke(records.toList())
+        val positions = records.withIndex().associate { it.value.id to it.index }
+        val work = pending.entries.sortedBy { if (it.key in priority) 0 else 1 }
+        val priorityCount = work.count { it.key in priority }
+        work.forEachIndexed { index, (id, item) ->
+            checkActive()
+            val (info, updated) = item
+            val images = runCatching {
+                val drawable = info.icon()
+                if (drawable is AdaptiveIconDrawable) {
+                    val icon = Bitmap.createBitmap(128, 128, Bitmap.Config.ARGB_8888)
+                    drawable.background?.apply { setBounds(0, 0, 128, 128); draw(Canvas(icon)) }
+                    val glyph = Bitmap.createBitmap(128, 128, Bitmap.Config.ARGB_8888)
+                    drawable.foreground?.apply { setBounds(-32, -32, 160, 160); draw(Canvas(glyph)) }
+                    Canvas(icon).drawBitmap(glyph, 0f, 0f, null)
+                    icon to glyph
+                } else drawable.toBitmap(128, 128, Bitmap.Config.ARGB_8888) to null
+            }.getOrNull()
+            val position = positions.getValue(id)
+            val record = records[position].copy(icon = images?.first, glyph = images?.second)
+            records[position] = record
+            artwork[id] = Artwork(updated, info.activity.iconResource, info.activity.labelRes, record.label, record)
+            if (onProgress != null && (index + 1 == priorityCount || (index + 1) % 32 == 0))
+                onProgress(records.toList())
+        }
         artwork.keys.retainAll(live)
-        return records
+        return records.toList()
     }
 
     /** Confirm removal separately from a missing launcher activity. */

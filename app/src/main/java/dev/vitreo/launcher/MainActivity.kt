@@ -71,7 +71,7 @@ class MainActivity : ComponentActivity() {
         revealHome()
         defaultHome = isDefaultHome()
         model.homeRole(defaultHome)
-        model.refresh()
+        model.refreshIfStale()
     }
     override fun onStop() { pendingHomeReveal = true; super.onStop() }
     override fun onDestroy() { unregisterReceiver(overviewReceiver); super.onDestroy() }

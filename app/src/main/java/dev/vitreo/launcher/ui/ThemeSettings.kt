@@ -182,7 +182,7 @@ fun ThemeSettings(ui: LauncherViewModel.UiState, onAppearance: (Appearance) -> U
                 Box(Modifier.fillMaxWidth().height(72.dp).clip(CyberShape)
                     .background(Brush.linearGradient(listOf(Color(0xff56798d), currentPalette.background)))
                     .testTag("cyber_status_preview"), contentAlignment = Alignment.Center) {
-                    HomeStatusBar(LocalHomeClock.current, Modifier.height(statusBandHeight(a)), null, null)
+                    HomeStatusBar(LocalHomeClock.current.value, Modifier.height(statusBandHeight(a)), null, null)
                 }
                 Row(Modifier.padding(top = 16.dp)) {
                     Text("Rail thickness", Modifier.weight(1f)); Text("${a.cyberStatusHeight.roundToInt()} dp")

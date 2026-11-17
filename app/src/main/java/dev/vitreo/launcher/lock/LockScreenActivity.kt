@@ -30,6 +30,8 @@ class LockScreenActivity : ComponentActivity() {
     internal var preview = false
         private set
     private var authenticating = false
+    private var authenticationGeneration = 0
+    private var authenticationLostFocus = false
     private var pendingNotice: String? = null
     private val idleHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private val idleReturn = Runnable { if (!preview && !authenticating && !isFinishing && keyguard?.isDeviceLocked == true) finishAndRemoveTask() }
@@ -50,7 +52,30 @@ class LockScreenActivity : ComponentActivity() {
         pendingNotice = null
         finishAndRemoveTask()
     }
-    override fun onWindowFocusChanged(hasFocus: Boolean) { super.onWindowFocusChanged(hasFocus); resetIdle() }
+    private fun cancelAuthentication() {
+        authenticationGeneration++
+        authenticating = false; busy = false; authenticationLostFocus = false
+        idleHandler.removeCallbacks(authenticationTimeout)
+        pendingNotice = null
+    }
+    private val authenticationTimeout = Runnable {
+        if (authenticating && !isFinishing) {
+            val ownsInput = hasWindowFocus()
+            cancelAuthentication()
+            // A missing OEM callback must never leave our buttons disabled indefinitely.
+            // Leave a focused native credential UI alone; only retire our stalled surface.
+            if (ownsInput && !preview) finishAndRemoveTask()
+        }
+    }
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (!hasFocus && authenticating) authenticationLostFocus = true
+        if (hasFocus && authenticating && authenticationLostFocus) {
+            if (keyguard?.isDeviceLocked == false) completeUnlock()
+            else cancelAuthentication()
+        }
+        resetIdle()
+    }
     override fun onUserInteraction() { super.onUserInteraction(); resetIdle() }
     override fun onPause() { idleHandler.removeCallbacks(idleReturn); super.onPause() }
 
@@ -82,7 +107,7 @@ class LockScreenActivity : ComponentActivity() {
                 override fun onReceive(context: Context, intent: Intent) {
                     when (intent.action) {
                         Intent.ACTION_USER_PRESENT -> completeUnlock()
-                        Intent.ACTION_SCREEN_OFF -> { pendingNotice = null; idleHandler.removeCallbacks(idleReturn) }
+                        Intent.ACTION_SCREEN_OFF -> { cancelAuthentication(); idleHandler.removeCallbacks(idleReturn) }
                         Intent.ACTION_SCREEN_ON -> resetIdle()
                     }
                 }
@@ -137,7 +162,7 @@ class LockScreenActivity : ComponentActivity() {
         super.onResume()
         if (!preview && !isFinishing) {
             if (keyguard?.isDeviceLocked == false) completeUnlock()
-            else if (!LockScreenRuntime.enabled.value || LockScreenRuntime.unavailableReason(this) != null) finishAndRemoveTask()
+            else if (!LockScreenRuntime.canPresent(this)) finishAndRemoveTask()
             else resetIdle()
         }
     }
@@ -147,17 +172,28 @@ class LockScreenActivity : ComponentActivity() {
         if (keyguard?.isDeviceLocked == false) { completeUnlock(); return }
         idleHandler.removeCallbacks(idleReturn)
         authenticating = true; busy = true; failure = null
-        keyguard?.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
+        authenticationLostFocus = false
+        val generation = ++authenticationGeneration
+        idleHandler.postDelayed(authenticationTimeout, 10_000L)
+        val callback = object : KeyguardManager.KeyguardDismissCallback() {
             override fun onDismissSucceeded() {
+                if (generation != authenticationGeneration || isFinishing) return
+                idleHandler.removeCallbacks(authenticationTimeout)
                 authenticating = false; busy = false
                 completeUnlock()
             }
-            override fun onDismissCancelled() { authenticating = false; busy = false; pendingNotice = null; resetIdle() }
+            override fun onDismissCancelled() {
+                if (generation != authenticationGeneration || isFinishing) return
+                cancelAuthentication(); resetIdle()
+            }
             override fun onDismissError() {
-                authenticating = false; busy = false; pendingNotice = null; resetIdle()
+                if (generation != authenticationGeneration || isFinishing) return
+                cancelAuthentication(); resetIdle()
                 failure = "Use the system lock screen to unlock this device."
             }
-        })
+        }
+        try { checkNotNull(keyguard).requestDismissKeyguard(this, callback) }
+        catch (_: RuntimeException) { callback.onDismissError() }
     }
 
     private fun openSecureCamera() {
@@ -172,6 +208,7 @@ class LockScreenActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        cancelAuthentication()
         idleHandler.removeCallbacks(idleReturn)
         pendingNotice = null
         LockScreenRuntime.removed(this)

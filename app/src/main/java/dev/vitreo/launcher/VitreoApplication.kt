@@ -4,6 +4,11 @@ import android.app.Application
 import java.io.File
 
 class VitreoApplication : Application() {
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        dev.vitreo.launcher.graphics.WallpaperStore.trimMemory(level)
+    }
+
     override fun onCreate() {
         super.onCreate()
         dev.vitreo.launcher.island.NotificationIsland.initialize(this)

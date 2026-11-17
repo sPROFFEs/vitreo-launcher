@@ -14,6 +14,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.res.painterResource
 import dev.vitreo.launcher.R
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import dev.vitreo.launcher.graphics.BundledArtwork
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -22,7 +26,13 @@ import java.util.Calendar
 import java.util.Locale
 import kotlin.math.*
 
-val LocalHomeClock = compositionLocalOf { System.currentTimeMillis() }
+val LocalHomeClock = compositionLocalOf<State<Long>> { mutableStateOf(System.currentTimeMillis()) }
+
+/** Read the tick inside a restartable child, not the pager/grid's composition. */
+@Composable
+fun HomeTimeContent(content: @Composable (Long) -> Unit) {
+    content(LocalHomeClock.current.value)
+}
 
 /** Bundled SVG Stack artwork; see third_party/svgstack and the APK's license notice. */
 fun commonIconKind(packageName: String): String? = when (packageName) {
@@ -78,12 +88,21 @@ fun IosAppIcon(kind: String, style: Int, tint: Color, modifier: Modifier = Modif
         val scale = maxWidth.value / 60f
         val textScale = scale / LocalDensity.current.fontScale
         if (style == 3) GlassPanel(Modifier.fillMaxSize(), radius = 15f * scale, tint = .1f) {}
-        Image(painterResource(artwork), null, Modifier.fillMaxSize(), colorFilter = monochrome,
-            alpha = if (style == 3) .72f else 1f)
+        if (artwork == R.drawable.ios_contacts) {
+            Image(painterResource(artwork), null, Modifier.fillMaxSize(), colorFilter = monochrome,
+                alpha = if (style == 3) .72f else 1f)
+        } else {
+            val context = LocalContext.current
+            val bitmap by produceState(BundledArtwork.peek(artwork), artwork) {
+                if (value == null) value = withContext(Dispatchers.IO) { BundledArtwork.load(context.applicationContext, artwork) }
+            }
+            bitmap?.let { Image(it.asImageBitmap(), null, Modifier.fillMaxSize(), colorFilter = monochrome,
+                alpha = if (style == 3) .72f else 1f) }
+        }
         if (style == 1) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .16f)))
         // Keep the clock and date live while retaining the supplied clock case.
         if (kind == "clock") {
-            val time = LocalHomeClock.current
+            val time = LocalHomeClock.current.value
             val cal = remember(time) { Calendar.getInstance().apply { timeInMillis = time } }
             val seconds = !LocalGlass.current.appearance.reducedEffects
             val ink = if (style == 0) Color(0xff171719) else if (style == 2) tint else Color.White
@@ -116,7 +135,7 @@ fun IosAppIcon(kind: String, style: Int, tint: Color, modifier: Modifier = Modif
                 if (seconds) drawCircle(Color(0xffff9500), size.width * .010f, center)
             }
         } else if (kind == "calendar") {
-            val time = LocalHomeClock.current
+            val time = LocalHomeClock.current.value
             val cal = remember(time) { Calendar.getInstance().apply { timeInMillis = time } }
             val ink = if (style == 0) Color(0xff171719) else if (style == 2) tint else Color.White
             val locale = Locale.getDefault()

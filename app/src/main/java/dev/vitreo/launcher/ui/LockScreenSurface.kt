@@ -11,6 +11,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -50,6 +51,8 @@ import dev.vitreo.launcher.data.ControlCenterController
 import dev.vitreo.launcher.data.SystemBridge
 import dev.vitreo.launcher.graphics.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.roundToInt
@@ -60,7 +63,8 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
     onUnlock: () -> Unit, onSystemLock: () -> Unit, onCamera: () -> Unit, onEmergency: () -> Unit,
     onEditClock: (() -> Unit)? = null, onClockHeight: ((Float) -> Unit)? = null,
     editorHeader: (@Composable () -> Unit)? = null, onSystemUnlock: (() -> Unit)? = null,
-    onNotification: (String) -> Unit = {}) {
+    onNotification: (String) -> Unit = {}, onEditWidgets: (() -> Unit)? = null,
+    onRemoveWidget: ((String) -> Unit)? = null) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var interactive by remember { mutableStateOf(context.getSystemService(PowerManager::class.java).isInteractive) }
@@ -109,6 +113,7 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
     val ambient = cyberAmbientPhase(appearance, active)
     val background by produceState<android.graphics.Bitmap?>(null, frame, appearance.wallpaperDim, cyber, options.immersive, viewport.width, viewport.height) {
         val current = frame
+        if (value != null) delay(100) // Coalesce editor dim/resize gestures; keep the previous frame visible.
         if (current != null && viewport.width > 1 && viewport.height > 1)
             value = withContext(Dispatchers.Default) { HomeBackground.render(current, appearance, viewport.width.toInt(), viewport.height.toInt(), metrics.density) }
     }
@@ -174,7 +179,10 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
     }
     DisposableEffect(controller) { onDispose { controller.stop() } }
     val device = controller.state
-    val bridge by SystemBridge.state.collectAsState()
+    val lockNotices = remember {
+        SystemBridge.state.map { it.copy(media = dev.vitreo.launcher.data.NowPlaying()) }.distinctUntilChanged()
+    }
+    val bridge by lockNotices.collectAsState(initial = dev.vitreo.launcher.data.BridgeState())
     val notices = remember(bridge.notices) { dev.vitreo.launcher.data.lockNotices(bridge.notices) }
     val alarm = remember(now / 60_000) { context.getSystemService(AlarmManager::class.java).nextAlarmClock?.triggerTime }
     var localMessage by remember { mutableStateOf<String?>(null) }
@@ -206,7 +214,7 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                       var clockPixels by remember { mutableIntStateOf(0) }
                       var accessoryPixels by remember { mutableIntStateOf(0) }
                       val availableGap = with(metrics) { (maxHeight.toPx() - clockPixels - accessoryPixels).coerceAtLeast(0f).toDp() }
-                      val accessoryGap by animateDpAsState(if (tall && !(options.showNotifications && notices.isNotEmpty()) && clockPixels > 0 && accessoryPixels > 0) availableGap else 0.dp,
+                      val accessoryGap by animateDpAsState(if ((options.widgetPlacement == 2 || options.widgetPlacement == 0 && tall) && clockPixels > 0 && accessoryPixels > 0) availableGap else 0.dp,
                           if (appearance.reducedEffects) tween(0) else tween(240), label = "Lock accessories position")
                       Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState(), enabled = onEditClock != null).heightIn(min = maxHeight).graphicsLayer {
                           translationY = (-drag.value * .65f + (1f - arrival.value) * 16f) * metrics.density
@@ -221,7 +229,9 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                         Box(Modifier.fillMaxWidth().then(if (onEditClock != null) Modifier
                             .border(1.dp, Color.White.copy(alpha = .5f), RoundedCornerShape(18.dp))
                             .clickable(onClickLabel = "Edit clock font and color", onClick = onEditClock).testTag("lock_edit_clock") else Modifier)) {
-                            LockClock(now, appearance, Modifier.fillMaxWidth().padding(vertical = 2.dp).onGloballyPositioned {
+                            LockClock(now, appearance, Modifier.fillMaxWidth()
+                                .heightIn(max = (lockContentHeight - 56.dp).coerceAtLeast(72.dp))
+                                .padding(vertical = 2.dp).onGloballyPositioned {
                                 depthClock = it
                                 depthRoot?.takeIf { root -> root.isAttached }?.let { root -> clockRestBounds = root.localBoundingBoxOf(it, clipBounds = false) }
                             })
@@ -240,13 +250,30 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                        }
                        Spacer(Modifier.height(accessoryGap))
                        Column(Modifier.onSizeChanged { accessoryPixels = it.height }, horizontalAlignment = Alignment.CenterHorizontally) {
-                        if (options.showBattery || options.showAlarm) {
-                            Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)) {
-                                if (options.showBattery) LockAccessory(if (charging) Icons.Outlined.BatteryChargingFull else Icons.Outlined.BatteryFull,
-                                    "$battery%", "${if (charging) "Charging, " else ""}$battery percent battery", Modifier.weight(1f), battery, charging, saving)
-                                if (options.showAlarm) LockAccessory(Icons.Outlined.Alarm,
-                                    alarm?.let { DateFormat.getTimeFormat(context).format(Date(it)) } ?: "No alarm",
-                                    alarm?.let { "Next alarm ${DateFormat.getTimeFormat(context).format(Date(it))}" } ?: "No alarm set", Modifier.weight(1f))
+                        if (options.showBattery || options.showAlarm || onEditWidgets != null) {
+                            Box(Modifier.fillMaxWidth().padding(top = 12.dp)
+                                .then(if (onEditWidgets != null) Modifier.border(1.dp, Color.White.copy(alpha = .45f), RoundedCornerShape(18.dp))
+                                    .clickable(onClickLabel = "Edit lock screen widgets", onClick = onEditWidgets) else Modifier)
+                                .testTag("lock_widget_area")) {
+                                if (!options.showBattery && !options.showAlarm) TextButton(onClick = { onEditWidgets?.invoke() },
+                                    modifier = Modifier.align(Alignment.Center).heightIn(min = 54.dp).testTag("lock_add_widgets")) {
+                                    Text("Add Widgets", color = Color.White)
+                                } else Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)) {
+                                    val order = if (options.widgetsReversed) listOf("alarm", "battery") else listOf("battery", "alarm")
+                                    order.filter { if (it == "battery") options.showBattery else options.showAlarm }.forEach { kind ->
+                                        Box(Modifier.weight(1f).testTag("lock_widget:$kind")) {
+                                            if (kind == "battery") LockAccessory(if (charging) Icons.Outlined.BatteryChargingFull else Icons.Outlined.BatteryFull,
+                                                "$battery%", "${if (charging) "Charging, " else ""}$battery percent battery", Modifier.fillMaxWidth(), battery, charging, saving)
+                                            else LockAccessory(Icons.Outlined.Alarm,
+                                                alarm?.let { DateFormat.getTimeFormat(context).format(Date(it)) } ?: "No alarm",
+                                                alarm?.let { "Next alarm ${DateFormat.getTimeFormat(context).format(Date(it))}" } ?: "No alarm set", Modifier.fillMaxWidth())
+                                            if (onRemoveWidget != null) IconButton(onClick = { onRemoveWidget(kind) },
+                                                modifier = Modifier.align(Alignment.TopStart).size(32.dp).testTag("lock_remove_widget:$kind")) {
+                                                Icon(Icons.Outlined.RemoveCircle, "Remove $kind widget", Modifier.size(20.dp), tint = Color.White)
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                         Spacer(Modifier.height(28.dp))
@@ -288,13 +315,15 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                     if (notice != null) Text(notice, color = Color.White, fontSize = 13.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp).testTag("lock_message"))
                     Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp).testTag("lock_shortcuts"), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        LockShortcut(if (device.torchOn) Icons.Outlined.FlashlightOff else Icons.Outlined.FlashlightOn,
-                            if (device.torchOn) "Turn flashlight off" else "Turn flashlight on", "lock_flashlight") {
+                        if (options.showFlashlight) LockShortcut(if (device.torchOn) Icons.Outlined.FlashlightOff else Icons.Outlined.FlashlightOn,
+                            if (device.torchOn) "Turn flashlight off" else "Turn flashlight on", "lock_flashlight", active = device.torchOn) {
                             if (preview) localMessage = "Flashlight is available on the real lock screen."
                             else if (!controller.toggleTorch()) localMessage = "Flashlight is unavailable."
                         }
+                        else Spacer(Modifier.size(54.dp))
                         TextButton(onClick = onEmergency, modifier = Modifier.weight(1f).padding(horizontal = 6.dp)) { Text(if (preview) "Emergency preview" else "System / Emergency", color = Color.White.copy(alpha = .85f), fontSize = 13.sp) }
-                        LockShortcut(Icons.Outlined.PhotoCamera, "Secure camera", "lock_camera", onCamera)
+                        if (options.showCamera) LockShortcut(Icons.Outlined.PhotoCamera, "Secure camera", "lock_camera", onClick = onCamera)
+                        else Spacer(Modifier.size(54.dp))
                     }
                     Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(top = 8.dp, bottom = 14.dp),
                         horizontalAlignment = Alignment.CenterHorizontally) {
@@ -329,8 +358,12 @@ internal fun lockClockFont(cyber: Boolean, style: Int): FontFamily = remember(cy
 internal fun LockClock(now: Long, a: Appearance, modifier: Modifier) {
     val options = a.lockScreen.presentation(a)
     val cyber = a.themePreset == 1
-    val time = DateFormat.getBestDateTimePattern(Locale.getDefault(), if (DateFormat.is24HourFormat(LocalContext.current)) "Hm" else "hm")
-        .let { SimpleDateFormat(it.replace("a", "").trim(), Locale.getDefault()).format(Date(now)) }
+    val locale = Locale.getDefault()
+    val is24Hour = DateFormat.is24HourFormat(LocalContext.current)
+    val pattern = remember(locale, is24Hour) {
+        DateFormat.getBestDateTimePattern(locale, if (is24Hour) "Hm" else "hm").replace("a", "").trim()
+    }
+    val time = remember(now / 60_000L, pattern, locale) { SimpleDateFormat(pattern, locale).format(Date(now)) }
     val font = lockClockFont(cyber, options.clockStyle)
     val clockColor by animateColorAsState(Color(options.clockColor),
         if (LocalGlass.current.appearance.reducedEffects) tween(0) else tween(180), label = "Lock clock color")
@@ -360,8 +393,9 @@ internal fun LockClock(now: Long, a: Appearance, modifier: Modifier) {
             .layout { measurable, constraints ->
                 val child = measurable.measure(constraints)
                 val stretch = if (cyber) 1f else options.clockHeight
-                val height = (child.height * stretch).roundToInt()
-                layout(child.width, height) { child.placeRelativeWithLayer(0, (height - child.height) / 2) { scaleY = stretch } }
+                val height = constraints.constrainHeight((child.height * stretch).roundToInt())
+                val fittedStretch = if (child.height > 0) height.toFloat() / child.height else 1f
+                layout(child.width, height) { child.placeRelativeWithLayer(0, (height - child.height) / 2) { scaleY = fittedStretch } }
             }) {
           BasicText(time, style = style, maxLines = 1, softWrap = false, modifier = Modifier.fillMaxWidth()
             .then(if (glass) Modifier.drawWithCache {
@@ -389,7 +423,7 @@ internal fun LockClock(now: Long, a: Appearance, modifier: Modifier) {
 private fun LockAccessory(icon: androidx.compose.ui.graphics.vector.ImageVector, value: String, label: String, modifier: Modifier,
     batteryLevel: Int? = null, charging: Boolean = false, saving: Boolean = false) {
     if (!LocalCyber.current) {
-        Row(modifier.heightIn(min = 64.dp).clip(RoundedCornerShape(20.dp)).background(Color.White.copy(alpha = .045f))
+        Row(modifier.heightIn(min = 54.dp)
             .clearAndSetSemantics { contentDescription = label }.padding(12.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
             if (batteryLevel != null) Box(Modifier.size(34.dp), contentAlignment = Alignment.Center) {
@@ -414,17 +448,24 @@ private fun LockAccessory(icon: androidx.compose.ui.graphics.vector.ImageVector,
 }
 
 @Composable
-private fun LockShortcut(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tag: String, onClick: () -> Unit) {
+private fun LockShortcut(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tag: String,
+    active: Boolean = false, onClick: () -> Unit) {
+    val view = LocalView.current
+    val click = { view.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM); onClick() }
+    val interactions = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val pressed by interactions.collectIsPressedAsState()
+    val scale = animateFloatAsState(if (pressed && !LocalGlass.current.appearance.reducedEffects) .90f else 1f,
+        LauncherMotion.iconPress(), label = "Lock shortcut press")
     if (!LocalCyber.current) {
-        IconButton(onClick = onClick, modifier = Modifier.size(54.dp).clip(CircleShape)
-            .background(Color.Black.copy(alpha = .25f)).border(.7.dp, Color.White.copy(alpha = .24f), CircleShape).testTag(tag)) {
-            Icon(if (tag == "lock_camera") StatusSymbols.camera else StatusSymbols.flashlight, label, Modifier.size(25.dp), tint = Color.White)
+        IconButton(onClick = click, interactionSource = interactions, modifier = Modifier.size(54.dp).graphicsLayer { scaleX = scale.value; scaleY = scale.value }.clip(CircleShape)
+            .background(if (active) Color.White else Color.Black.copy(alpha = .25f)).border(.7.dp, Color.White.copy(alpha = .24f), CircleShape).testTag(tag)) {
+            Icon(if (tag == "lock_camera") StatusSymbols.camera else StatusSymbols.flashlight, label, Modifier.size(25.dp), tint = if (active) Color.Black else Color.White)
         }
         return
     }
     GlassPanel(Modifier.size(54.dp), radius = 27f, interactive = true) {
-        IconButton(onClick = onClick, modifier = Modifier.fillMaxSize().testTag(tag)) {
-            ControlSymbol(icon, label, Modifier.size(25.dp), tint = Color.White)
+        IconButton(onClick = click, interactionSource = interactions, modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = scale.value; scaleY = scale.value }.testTag(tag)) {
+            ControlSymbol(icon, label, Modifier.size(25.dp), tint = if (active) Color.Black else Color.White)
         }
     }
 }

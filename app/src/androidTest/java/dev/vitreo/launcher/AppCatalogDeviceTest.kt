@@ -77,6 +77,18 @@ class AppCatalogDeviceTest {
         }
     }
 
+    @Test fun catalogPublishesMembershipBeforeArtworkAndPrioritizesHomeIcons() {
+        val catalog = AppCatalog(ApplicationProvider.getApplicationContext<Context>())
+        val settings = "com.android.settings/com.android.settings.Settings"
+        val snapshots = mutableListOf<List<dev.vitreo.launcher.data.AppRecord>>()
+        val complete = catalog.load(setOf(settings), onProgress = { snapshots.add(it) })
+        assertTrue(snapshots.size >= 2)
+        assertTrue(snapshots.first().all { it.icon == null })
+        assertEquals(complete.map { it.id }, snapshots.first().map { it.id })
+        assertNotNull(snapshots[1].first { it.id == settings }.icon)
+        assertTrue("Unplaced icon decoding must not delay Home artwork", snapshots[1].any { it.icon == null })
+    }
+
     @Test fun returningToHomeReusesUnchangedAppArtwork() {
         val catalog = AppCatalog(ApplicationProvider.getApplicationContext<Context>())
         val first = catalog.load()

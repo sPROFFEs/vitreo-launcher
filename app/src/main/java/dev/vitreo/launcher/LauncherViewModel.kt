@@ -72,6 +72,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     // Process termination can still interrupt any asynchronous save; AtomicFile protects integrity.
     private val persistenceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var catalogJob: Job? = null
+    private var refreshPending = false
+    private var catalogUpdatedAt = 0L
+    internal var catalogRefreshCount = 0
+        private set
     private var wallpaperJob: Job? = null
     private var loaded = false
     private val launcherApps = app.getSystemService(LauncherApps::class.java)
@@ -153,19 +157,36 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun refresh() {
         if (!loaded) return
-        catalogJob?.cancel()
+        // Package/launcher callbacks often arrive in bursts. Cancellation cannot interrupt
+        // a PackageManager binder call: queue one follow-up instead of piling up IO scans.
+        if (catalogJob?.isActive == true) { refreshPending = true; return }
+        refreshPending = false
         catalogJob = viewModelScope.launch {
             try {
+                catalogRefreshCount++
                 val explicitRemovals = removedPackages.toSet()
                 val unavailable = unavailablePackages.toSet()
                 val known = _ui.value.layout.knownApps
                 val (apps, replacements, removed) = withContext(Dispatchers.IO) {
-                    val records = catalog.load()
+                    val owner = currentCoroutineContext()
+                    // Bound the first batch to the initial phone workspace. Home may contain
+                    // hundreds of entries across pages; prioritizing all of them delays the
+                    // very icons this staged load is meant to reveal first.
+                    val priority = (_ui.value.layout.dock + _ui.value.layout.home.take(24).flatMap {
+                        when (it) { is HomeEntry.App -> listOf(it.id); is HomeEntry.Folder -> it.apps.take(9) }
+                    }).toSet()
+                    val records = catalog.load(priority, checkActive = { owner.ensureActive() }) { progress ->
+                        viewModelScope.launch {
+                            // Preserve the live layout while artwork arrives; only the complete
+                            // query below may reconcile removals and aliases or persist anything.
+                            if (owner.isActive && _ui.value.layout.initialized)
+                                _ui.value = _ui.value.copy(apps = progress, ready = true)
+                        }
+                    }
                     val removed = explicitRemovals + catalog.confirmedRemovedPackages(known, records, unavailable)
                     val remaining = records.filterNot { it.packageName in removed }
                     Triple(remaining, catalog.aliasReplacements(known, remaining), removed)
                 }
-                val availablePacks = withContext(Dispatchers.IO) { iconPacks.refresh() }
                 ensureActive()
                 val installed = if (_ui.value.layout.initialized) apps.map { it.id }
                     else catalog.preferredDock(apps) + apps.map { it.id }
@@ -174,16 +195,29 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 val before = _ui.value
                 val recent = before.recentApps.map { replacements[it] ?: it }.filterNot { it.substringBefore('/') in removed }.distinct()
                 _ui.value = before.copy(layout = merged, apps = apps, ready = true, powerSaver = saving, recentApps = recent,
-                    iconPacks = availablePacks, iconRevision = iconPacks.revision)
+                    iconRevision = iconPacks.revision)
                 if (recent != before.recentApps) recentPreferences.edit().putString("apps", recent.joinToString("|")).apply()
                 if (merged != before.layout) saves.trySend(merged)
                 removedPackages.removeAll(removed)
+                catalogUpdatedAt = android.os.SystemClock.elapsedRealtime()
+                // Pack discovery must not hold up the first usable Home grid.
+                val availablePacks = withContext(Dispatchers.IO) { iconPacks.refresh() }
+                _ui.value = _ui.value.copy(iconPacks = availablePacks, iconRevision = iconPacks.revision)
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 _ui.value = _ui.value.copy(ready = true)
                 _messages.emit("Could not refresh your apps. Try again in Settings.")
             }
+            finally {
+                catalogJob = null
+                if (refreshPending && isActive) refresh()
+            }
         }
+    }
+
+    fun refreshIfStale() {
+        if (catalogJob?.isActive == true) return
+        if (catalogUpdatedAt == 0L || !_ui.value.ready || android.os.SystemClock.elapsedRealtime() - catalogUpdatedAt >= 60_000L) refresh()
     }
 
     private fun commit(next: LauncherState, preparedWallpaper: WallpaperFrame? = null) {
@@ -389,6 +423,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             put("intentQueryActivityCount", catalog.queryStats.intentActivities)
             put("catalogQueryFailure", catalog.queryStats.queryFailure)
             put("launchableActivityCount", _ui.value.apps.size)
+            put("catalogRefreshCount", catalogRefreshCount)
             put("lastCrash", File(app.filesDir, "last-crash.txt").takeIf(File::exists)?.readText()?.take(32768) ?: "none")
             put("note", "No app inventory, images, tokens or layout included. Crash stack may contain technical context.")
         }.toString(2)

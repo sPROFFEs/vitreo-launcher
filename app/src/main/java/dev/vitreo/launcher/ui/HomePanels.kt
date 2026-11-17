@@ -29,7 +29,7 @@ import dev.vitreo.launcher.data.AppRecord
 import dev.vitreo.launcher.data.WidgetController
 
 @Composable
-fun TodayPage(now: Long, widgets: WidgetController, suggestions: List<AppRecord>, apps: Map<String, AppRecord>,
+fun TodayPage(widgets: WidgetController, suggestions: List<AppRecord>, apps: Map<String, AppRecord>,
     appearance: Appearance, onAppearance: (Appearance) -> Unit, editing: Boolean, onEditing: (Boolean) -> Unit,
     onSearch: () -> Unit, onSettings: () -> Unit,
     onWidgets: () -> Unit, onControls: () -> Unit, onClock: () -> Unit, onCalendar: () -> Unit,
@@ -118,10 +118,10 @@ fun TodayPage(now: Long, widgets: WidgetController, suggestions: List<AppRecord>
                 }
                 when (id) {
                     "clock_calendar" -> {
-                        HomeWidgets(now, Modifier.height(207.dp), { if (!editing) onClock() else onEditBuiltin?.invoke("clock") },
+                        HomeTimeContent { tick -> HomeWidgets(tick, Modifier.height(207.dp), { if (!editing) onClock() else onEditBuiltin?.invoke("clock") },
                             { if (!editing) onCalendar() else onEditBuiltin?.invoke("calendar") },
                             showClock = true, showCalendar = true, editing = editing,
-                            onEditClock = { onEditBuiltin?.invoke("clock") }, onEditCalendar = { onEditBuiltin?.invoke("calendar") })
+                            onEditClock = { onEditBuiltin?.invoke("clock") }, onEditCalendar = { onEditBuiltin?.invoke("calendar") }) }
                         if (editing) TextButton(onClick = {
                             onAppearance(appearance.copy(showWidgets = true, hiddenTodaySections = appearance.hiddenTodaySections + id))
                         }, modifier = Modifier.testTag("today_move_home")) { Text("Move to Home Screen", color = ink) }

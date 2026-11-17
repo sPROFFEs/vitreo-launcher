@@ -90,4 +90,13 @@ class LockScreenSettingsTest {
         assertFalse(LockScreenGesture.commits(Float.NaN, 9999f))
         assertFalse(LockScreenGesture.commits(120f, Float.POSITIVE_INFINITY))
     }
+    @Test fun widgetArrangementAndHiddenShortcutsRoundTripWithSafeLegacyDefaults() {
+        val settings = LockScreenSettings(showBattery = false, showAlarm = false,
+            widgetPlacement = 2, widgetsReversed = true, showFlashlight = false, showCamera = false)
+        assertEquals(settings, LockScreenCodec.decode(LockScreenCodec.encode(settings)))
+        val legacy = LockScreenCodec.decode(org.json.JSONObject("{}"))
+        assertEquals(0, legacy.widgetPlacement)
+        assertTrue(legacy.showCamera && legacy.showFlashlight)
+        assertEquals(2, LockScreenSettings(widgetPlacement = 99).sanitized().widgetPlacement)
+    }
 }

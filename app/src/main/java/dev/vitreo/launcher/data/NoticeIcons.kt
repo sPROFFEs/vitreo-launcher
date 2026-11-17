@@ -9,11 +9,13 @@ import androidx.core.graphics.drawable.toBitmap
 /** Actual application identities, independent of Home's icon packs and overrides. */
 internal object NoticeIcons {
     private val cache = LruCache<String, Bitmap>(64)
-    fun clear() = cache.evictAll()
+    private val generation = java.util.concurrent.atomic.AtomicInteger()
+    fun clear() { generation.incrementAndGet(); cache.evictAll() }
     fun load(context: Context, packageName: String, fallback: Icon?): Bitmap? {
         cache.get(packageName)?.let { return it }
+        val token = generation.get()
         val bitmap = runCatching { context.packageManager.getApplicationIcon(packageName).toBitmap(64, 64) }.getOrNull()
-        if (bitmap != null) cache.put(packageName, bitmap)
+        if (bitmap != null && generation.get() == token) cache.put(packageName, bitmap)
         return bitmap ?: runCatching { fallback?.loadDrawable(context)?.toBitmap(64, 64) }.getOrNull()
     }
 }

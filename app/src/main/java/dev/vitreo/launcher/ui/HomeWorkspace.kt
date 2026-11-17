@@ -27,7 +27,7 @@ import dev.vitreo.launcher.data.WidgetController
 @Composable
 internal fun HomeWorkspace(page: HomeGridPage, rows: Int, rowHeight: Float, iconSize: Float, showLabels: Boolean,
     editing: Boolean, draggedApp: String?, draggedWidget: Int?, apps: Map<String, AppRecord>, widgets: WidgetController,
-    now: Long, onClock: () -> Unit, onCalendar: () -> Unit, onOpen: (HomeEntry, Rect?) -> Unit,
+    onClock: () -> Unit, onCalendar: () -> Unit, onOpen: (HomeEntry, Rect?) -> Unit,
     onActions: (HomeEntry, Rect?) -> Unit, onRemove: (HomeEntry) -> Unit, onEditWidget: (Int) -> Unit,
     onBounds: (String, Rect?) -> Unit, groupingHover: String? = null, groupingTarget: String? = null,
     onEditBuiltin: ((String) -> Unit)? = null, onContentBounds: (Rect) -> Unit = {}) {
@@ -62,7 +62,7 @@ internal fun HomeWorkspace(page: HomeGridPage, rows: Int, rowHeight: Float, icon
                                     alpha = if (draggedWidget == placement.id) .25f else (p * 3).coerceIn(0f, 1f)
                                     translationY = (1f - p) * 24.dp.toPx()
                                 }) {
-                                ClockWidgetCard(now, Modifier.fillMaxSize(), onClock, editing, onEdit = { onEditBuiltin?.invoke("clock") })
+                                HomeTimeContent { ClockWidgetCard(it, Modifier.fillMaxSize(), onClock, editing, onEdit = { onEditBuiltin?.invoke("clock") }) }
                             }
                             DisposableEffect(placement.id) { onDispose { onBounds("widget:${placement.id}", null) } }
                         }
@@ -77,17 +77,17 @@ internal fun HomeWorkspace(page: HomeGridPage, rows: Int, rowHeight: Float, icon
                                     alpha = if (draggedWidget == placement.id) .25f else (p * 3).coerceIn(0f, 1f)
                                     translationY = (1f - p) * 24.dp.toPx()
                                 }) {
-                                CalendarWidgetCard(now, Modifier.fillMaxSize(), onCalendar, editing, onEdit = { onEditBuiltin?.invoke("calendar") })
+                                HomeTimeContent { CalendarWidgetCard(it, Modifier.fillMaxSize(), onCalendar, editing, onEdit = { onEditBuiltin?.invoke("calendar") }) }
                             }
                             DisposableEffect(placement.id) { onDispose { onBounds("widget:${placement.id}", null) } }
                         }
                     }
                 }
             } else if (page.builtins) {
-                HomeWidgets(now, Modifier.height((rowHeight * 2).dp).testTag("home_builtin_widgets").graphicsLayer {
+                HomeTimeContent { tick -> HomeWidgets(tick, Modifier.height((rowHeight * 2).dp).testTag("home_builtin_widgets").graphicsLayer {
                     if (arrival.enabled) { val p = arrival.progress.value; alpha = (p * 3).coerceIn(0f, 1f); translationY = (1f - p) * 24.dp.toPx() }
                 }, onClock, onCalendar, showClock = page.builtinClock, showCalendar = page.builtinCalendar,
-                   editing = editing, onEditClock = { onEditBuiltin?.invoke("clock") }, onEditCalendar = { onEditBuiltin?.invoke("calendar") })
+                   editing = editing, onEditClock = { onEditBuiltin?.invoke("clock") }, onEditCalendar = { onEditBuiltin?.invoke("calendar") }) }
             }
             page.apps.forEach { cell -> key(cell.entry.id) {
                 LauncherTile(cell.entry, apps, iconSize.dp, showLabels,
