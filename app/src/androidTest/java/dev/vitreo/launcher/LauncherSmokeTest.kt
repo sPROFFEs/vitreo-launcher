@@ -202,12 +202,12 @@ class LauncherSmokeTest {
             assertEquals(beforeEditor, model.ui.value.layout.appearance.lockScreen) // Draft is isolated until Done.
             captureEvidence("lock-editor", "lock_editor")
             compose.onNodeWithTag("lock_editor_tab:1").performClick()
-            val shortClock = editorNode("lock_clock", unmerged = true).fetchSemanticsNode().boundsInRoot.height
+            val shortClock = editorNode("lock_clock_frame", unmerged = true).fetchSemanticsNode().boundsInRoot.height
             compose.onNodeWithTag("lock_clock_resize", useUnmergedTree = true).performTouchInput { swipe(center, center + Offset(0f, 100f), 500) }
-            val tallClock = editorNode("lock_clock", unmerged = true).fetchSemanticsNode().boundsInRoot.height
+            val tallClock = editorNode("lock_clock_frame", unmerged = true).fetchSemanticsNode().boundsInRoot.height
             assertTrue("The resize handle changes the rendered height", tallClock > shortClock)
             compose.onNodeWithTag("lock_clock_resize", useUnmergedTree = true).performTouchInput { swipe(center, center - Offset(0f, 100f), 500) }
-            assertTrue("Dragging upward shrinks the rendered clock", editorNode("lock_clock", unmerged = true).fetchSemanticsNode().boundsInRoot.height < tallClock)
+            assertTrue("Dragging upward shrinks the rendered clock", editorNode("lock_clock_frame", unmerged = true).fetchSemanticsNode().boundsInRoot.height < tallClock)
             compose.onNodeWithTag("lock_editor_tab:1").performClick()
             editorNode("lock_editor_height").performSemanticsAction(SemanticsActions.SetProgress) { it(1.8f) }
             compose.onNodeWithTag("lock_editor_save").performClick()

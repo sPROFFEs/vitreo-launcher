@@ -429,7 +429,7 @@ internal fun LockClock(now: Long, a: Appearance, modifier: Modifier) {
                 val height = (child.height + (maxHeight - child.height) * fraction).roundToInt()
                 val fittedStretch = if (child.height > 0) height.toFloat() / child.height else 1f
                 layout(child.width, height) { child.placeRelativeWithLayer(0, (height - child.height) / 2) { scaleY = fittedStretch } }
-            }.testTag("lock_clock")) {
+            }.testTag("lock_clock_frame")) {
           BasicText(time, style = style, maxLines = 1, softWrap = false, modifier = Modifier.fillMaxWidth()
             .then(if (glass) Modifier.drawWithCache {
                 val outline = measurer.measure(time, typography(size), maxLines = 1, softWrap = false,
@@ -447,7 +447,7 @@ internal fun LockClock(now: Long, a: Appearance, modifier: Modifier) {
                     canvas.restore()
                     drawContent()
                 }
-            } else Modifier))
+            } else Modifier).testTag("lock_clock"))
         }
     }
 }
