@@ -14,6 +14,8 @@ import android.content.ComponentName
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
@@ -42,6 +44,12 @@ class MainActivity : ComponentActivity() {
     private var visible = false
     private val keyguard get() = getSystemService(KeyguardManager::class.java)
     private val screenPower get() = getSystemService(PowerManager::class.java)
+    private val homeMotionHandler = Handler(Looper.getMainLooper())
+    private var homeRestoreScheduledAt: Long? = null
+    private val restoreHomeIcons = Runnable {
+        homeRestoreScheduledAt = null
+        model.homeUnlock.restoreIfOverdue(SystemClock.uptimeMillis())
+    }
     private val revealBeforeDraw = ViewTreeObserver.OnPreDrawListener {
         revealAfterUnlock(beforeDraw = true)
         true
@@ -55,7 +63,10 @@ class MainActivity : ComponentActivity() {
                     if (visible && defaultHome && !leftForApp && !screenPower.isInteractive)
                         model.homeUnlock.sleep(keyguard.isKeyguardLocked)
                 }
-                Intent.ACTION_SCREEN_ON -> model.homeUnlock.wake(keyguard.isKeyguardLocked)
+                Intent.ACTION_SCREEN_ON -> {
+                    model.homeUnlock.wake(keyguard.isKeyguardLocked)
+                    revealAfterUnlock()
+                }
                 Intent.ACTION_USER_PRESENT -> {
                     model.homeUnlock.userPresent(SystemClock.uptimeMillis())
                     revealAfterUnlock()
@@ -66,6 +77,7 @@ class MainActivity : ComponentActivity() {
     private val widgetConfigurations = WidgetConfigurationRequests()
     private val roleRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         defaultHome = isDefaultHome()
+        if (!defaultHome) model.homeUnlock.leaveHome()
         model.homeRole(defaultHome)
     }
 
@@ -108,13 +120,15 @@ class MainActivity : ComponentActivity() {
     }
     override fun onStop() {
         // Keyguard can stop Home before the queued SCREEN_OFF broadcast arrives.
-        if (defaultHome && !leftForApp && (!screenPower.isInteractive || keyguard.isKeyguardLocked)) {
+        val stillPreparing = model.homeUnlock.pending && keyguard.isKeyguardLocked
+        if (defaultHome && !leftForApp && (!screenPower.isInteractive || stillPreparing)) {
             model.homeUnlock.sleep(keyguard.isKeyguardLocked, stopped = true)
         } else if (!isChangingConfigurations) model.homeUnlock.leaveHome()
         visible = false
         super.onStop()
     }
     override fun onDestroy() {
+        homeMotionHandler.removeCallbacks(restoreHomeIcons)
         window.decorView.viewTreeObserver.removeOnPreDrawListener(revealBeforeDraw)
         unregisterReceiver(screenReceiver)
         super.onDestroy()
@@ -128,13 +142,22 @@ class MainActivity : ComponentActivity() {
     }
     private fun revealAfterUnlock(beforeDraw: Boolean = false) {
         val motion = model.homeUnlock
-        if (!motion.pending || !defaultHome || !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) ||
-            !screenPower.isInteractive) return
+        if (!motion.holdingIcons || !defaultHome || !visible || !screenPower.isInteractive) return
+        val now = SystemClock.uptimeMillis()
+        motion.restoreIfOverdue(now)
         // Android can resume and draw the stopped Home behind its outgoing lock
         // surface well before keyguard reports hidden. Home is not showWhenLocked.
-        val drawingResumedHome = beforeDraw && visible && motion.stoppedForSleep
-        if (drawingResumedHome || !keyguard.isKeyguardLocked)
-            motion.showUnlockedHome(SystemClock.uptimeMillis())
+        if (motion.pending && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) &&
+            (beforeDraw && motion.stoppedForSleep || !keyguard.isKeyguardLocked)) motion.showUnlockedHome(now)
+        if (beforeDraw || hasWindowFocus()) motion.visibleFrame(now)
+
+        // A main-loop timeout also works when Compose's animation clock is idle.
+        val restoreAt = motion.restoreAt ?: return
+        if (homeRestoreScheduledAt != restoreAt) {
+            homeMotionHandler.removeCallbacks(restoreHomeIcons)
+            homeRestoreScheduledAt = restoreAt
+            homeMotionHandler.postAtTime(restoreHomeIcons, restoreAt)
+        }
     }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)

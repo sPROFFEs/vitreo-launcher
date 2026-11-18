@@ -274,5 +274,22 @@ class LockScreenDeviceTest {
         compose.waitForIdle()
         assertEquals("HOME after an unlock must not replay the entrance", before + 1,
             home.fetchSemanticsNode().config[HomeRevealSerialKey])
+
+        instrumentation.runOnMainSync {
+            val resumed = ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED)
+                .filterIsInstance<MainActivity>().single()
+            assertSame(motion, ViewModelProvider(resumed)[LauncherViewModel::class.java].homeUnlock)
+            // Reproduce a reveal whose animation stopped before supplying a frame.
+            motion.sleep(keyguardLocked = true)
+            motion.showUnlockedHome(SystemClock.uptimeMillis())
+            assertTrue(motion.consumeReveal())
+            resumed.window.decorView.invalidate()
+        }
+        await("visible Home restores the icons even when no animation frames arrive") {
+            var settled = false
+            instrumentation.runOnMainSync { settled = motion.frameProgress(before + 2, 0f) == 1f }
+            settled
+        }
+        home.assertIsDisplayed()
     }
 }

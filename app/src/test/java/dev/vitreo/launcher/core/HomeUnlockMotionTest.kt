@@ -61,4 +61,26 @@ class HomeUnlockMotionTest {
         assertFalse(motion.stoppedForSleep)
         assertEquals(1f, motion.frameProgress(0, 0f), 0f)
     }
+
+    @Test fun aVisibleWorkspaceRecoversEvenIfTheUnlockSignalNeverArrives() {
+        val motion = HomeUnlockMotion()
+        motion.sleep(keyguardLocked = true)
+        motion.visibleFrame(100)
+        motion.visibleFrame(230) // Subsequent frames cannot extend the wait.
+        motion.restoreIfOverdue(261)
+        assertEquals(1f, motion.frameProgress(0, 0f), 0f)
+        motion.showUnlockedHome(500)
+        assertEquals(0, motion.serial)
+    }
+
+    @Test fun aRevealWithNoAnimationFramesStillRestoresTheIcons() {
+        val motion = HomeUnlockMotion()
+        motion.sleep(keyguardLocked = true)
+        motion.showUnlockedHome(100)
+        assertTrue(motion.consumeReveal())
+        assertEquals(0f, motion.frameProgress(1, 0f), 0f)
+        motion.restoreIfOverdue(701)
+        assertEquals(1f, motion.frameProgress(1, 0f), 0f)
+        assertFalse(motion.holdingIcons)
+    }
 }

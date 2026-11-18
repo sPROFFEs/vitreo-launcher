@@ -59,6 +59,8 @@ Battery Saver, Reduce Motion or disabled HUD Effects.
 Home prepares the incoming icon positions while the display is asleep.
 The radial reveal starts once Android uncovers Home and keeps those prepared
 positions until the first animation frame, even if window focus arrives later.
+The visible workspace settles if Android misses the handoff or stops delivering
+animation frames. A late signal cannot rewind icons that are already visible.
 Closing an app launched from the workspace brings the workspace forward
 slightly, and the source icon settles when its tile is visible. Android receives
 the launch bounds and owns the closing app window and Recents transition.

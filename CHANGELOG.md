@@ -1,5 +1,12 @@
 # Cambios
 
+## 0.10.18
+
+- Corrige el escritorio vacío después de desbloquear directamente a Home.
+  Si Android no completa el inicio de la transición o deja de enviar
+  fotogramas, los iconos recuperan su posición sin salir de Home. Las señales
+  que llegan después de la recuperación no reinician la entrada.
+
 ## 0.10.17
 
 - Home prepara la entrada de los iconos con la pantalla apagada. Al desbloquear,

@@ -15,10 +15,14 @@ internal class HomeUnlockMotion {
     private var unlockAt: Long? = null
     private var consumed = 0
     val pending get() = phase == Phase.Prepared
+    val holdingIcons get() = phase != Phase.Settled
     var stoppedForSleep = false
+        private set
+    var restoreAt: Long? = null
         private set
 
     fun sleep(keyguardLocked: Boolean, stopped: Boolean = false) {
+        if (!pending) restoreAt = null
         lockedOverHome = keyguardLocked || (pending && lockedOverHome)
         stoppedForSleep = stopped || (pending && stoppedForSleep)
         unlockAt = null
@@ -38,12 +42,25 @@ internal class HomeUnlockMotion {
         lockedOverHome = false
         stoppedForSleep = false
         unlockAt = null
+        restoreAt = null
+    }
+
+    fun visibleFrame(now: Long) {
+        // Window focus and keyguard notifications can arrive after Android
+        // draws Home. Allow a short handoff, then show the settled workspace.
+        if (pending && restoreAt == null) restoreAt = now + 160L
+    }
+
+    fun restoreIfOverdue(now: Long) {
+        if (restoreAt?.let { now >= it } == true) leaveHome()
     }
 
     fun showUnlockedHome(now: Long) {
+        restoreIfOverdue(now)
         if (!pending) return
         val reveal = lockedOverHome && (unlockAt?.let { now - it <= 1_500L } ?: true)
         if (reveal) {
+            restoreAt = now + 600L
             serial++
             phase = Phase.Revealing
         } else leaveHome()
