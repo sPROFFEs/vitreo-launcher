@@ -7,6 +7,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelProvider
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -250,8 +251,19 @@ class LockScreenDeviceTest {
         val home = compose.onNodeWithTag("launcher_root")
         home.assertIsDisplayed()
         val before = home.fetchSemanticsNode().config[HomeRevealSerialKey]
+        lateinit var main: MainActivity
+        instrumentation.runOnMainSync {
+            main = ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED)
+                .filterIsInstance<MainActivity>().single()
+        }
+        val motion = ViewModelProvider(main)[LauncherViewModel::class.java].homeUnlock
         shell("input keyevent KEYCODE_SLEEP")
         await("native keyguard locks over Home") { keyguard.isDeviceLocked }
+        await("the incoming workspace is prepared while the display is off") {
+            var progress = 1f
+            instrumentation.runOnMainSync { progress = motion.frameProgress(before, 1f) }
+            progress == 0f
+        }
         shell("input keyevent KEYCODE_WAKEUP")
         shell("wm dismiss-keyguard")
         enterPin()

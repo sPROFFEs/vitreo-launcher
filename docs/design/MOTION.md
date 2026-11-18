@@ -56,7 +56,9 @@ Battery Saver, Reduce Motion or disabled HUD Effects.
 
 ## App return and overlays
 
-The radial reveal is consumed once when Android unlocks directly into Home.
+Home prepares the incoming icon positions while the display is asleep.
+The radial reveal starts once Android uncovers Home and keeps those prepared
+positions until the first animation frame, even if window focus arrives later.
 Closing an app launched from the workspace brings the workspace forward
 slightly, and the source icon settles when its tile is visible. Android receives
 the launch bounds and owns the closing app window and Recents transition.

@@ -2,26 +2,28 @@ package dev.vitreo.launcher.core
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
 /** Retained with Home's ViewModel because keyguard can relaunch the activity on unlock. */
 internal class HomeUnlockMotion {
     var serial by mutableIntStateOf(0)
         private set
-    private var sleptOverHome = false
+    private enum class Phase { Settled, Prepared, Revealing }
+    private var phase by mutableStateOf(Phase.Settled)
     private var lockedOverHome = false
     private var unlockAt: Long? = null
     private var consumed = 0
-    val pending get() = sleptOverHome
+    val pending get() = phase == Phase.Prepared
 
     fun sleep(keyguardLocked: Boolean) {
-        sleptOverHome = true
-        lockedOverHome = lockedOverHome || keyguardLocked
+        lockedOverHome = keyguardLocked || (pending && lockedOverHome)
         unlockAt = null
+        phase = Phase.Prepared
     }
 
     fun wake(keyguardLocked: Boolean) {
-        if (sleptOverHome && keyguardLocked) lockedOverHome = true
+        if (pending && keyguardLocked) lockedOverHome = true
     }
 
     fun userPresent(now: Long) {
@@ -29,20 +31,34 @@ internal class HomeUnlockMotion {
     }
 
     fun leaveHome() {
-        sleptOverHome = false
+        phase = Phase.Settled
         lockedOverHome = false
         unlockAt = null
     }
 
-    fun focusUnlockedHome(now: Long) {
+    fun showUnlockedHome(now: Long) {
+        if (!pending) return
         val reveal = lockedOverHome && (unlockAt?.let { now - it <= 1_500L } ?: true)
-        leaveHome()
-        if (reveal) serial++
+        if (reveal) {
+            serial++
+            phase = Phase.Revealing
+        } else leaveHome()
     }
 
     fun consumeReveal(): Boolean {
-        if (serial == consumed) return false
+        if (phase != Phase.Revealing || serial == consumed) return false
         consumed = serial
         return true
+    }
+
+    fun finishReveal(animationSerial: Int) {
+        if (phase == Phase.Revealing && serial == animationSerial) leaveHome()
+    }
+
+    /** Draw layers must stay prepared until the matching animation has been installed. */
+    fun frameProgress(animationSerial: Int, progress: Float): Float = when (phase) {
+        Phase.Settled -> 1f
+        Phase.Prepared -> 0f
+        Phase.Revealing -> if (animationSerial == serial) progress else 0f
     }
 }

@@ -141,7 +141,6 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     var launching by remember { mutableStateOf(false) }
     var launchOrigin by remember { mutableStateOf<String?>(null) }
     val departure = remember { Animatable(0f) }
-    val arrival = remember { Animatable(1f) }
     val panelOpeningProgress = remember { mutableStateOf<Float?>(null) }
     var panelBackdrop by remember { mutableStateOf(false) }
     val surfaceProgress = remember { mutableFloatStateOf(0f) }
@@ -232,14 +231,20 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     }
     val onHomePage = pager.currentPage in 1..homePages
     val animateWorkspace = onHomePage && !modalPresent && !editing && !appearance.reducedEffects
-    val homeRevealSerial = model.homeUnlock.serial
+    val homeUnlock = model.homeUnlock
+    val homeRevealSerial = homeUnlock.serial
+    val arrival = remember(homeRevealSerial) { Animatable(0f) }
+    val arrivalProgress = remember(homeUnlock, arrival) {
+        derivedStateOf { homeUnlock.frameProgress(homeRevealSerial, arrival.value) }
+    }
     LaunchedEffect(homeRevealSerial, homeResumed, animateWorkspace) {
-        if (homeResumed && model.homeUnlock.consumeReveal()) {
-            if (animateWorkspace) {
-                arrival.snapTo(0f)
+        if (!homeResumed || !homeUnlock.consumeReveal()) return@LaunchedEffect
+        try {
+            if (animateWorkspace && ui.ready)
                 arrival.animateTo(1f, spring(dampingRatio = .94f, stiffness = 360f))
-            } else arrival.snapTo(1f)
-        } else arrival.snapTo(1f)
+        } finally {
+            homeUnlock.finishReveal(homeRevealSerial)
+        }
     }
     val dockHeight = if (appearance.themePreset == 1) maxOf(91f, geometry.iconSize + 28f) else IosDesign.dockHeight(geometry.iconSize)
     val footerHeight = (dockHeight + if (appearance.themePreset == 1) 51f else 54f).dp
@@ -760,8 +765,8 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val palette = CyberColors.forFaction(appearance.cyberFaction)
     val wallpaperText = if (appearance.themePreset == 1) palette.text else if (lightWallpaper) Color(0xff151518) else Color.White
     val cyberPhase = cyberAmbientPhase(appearance, sheet == null && !launching && !editing)
-    val glassMotion = remember(pager) { derivedStateOf {
-        listOf(pager.currentPage + pager.currentPageOffsetFraction, dockVisibility.value, departure.value, arrival.value)
+    val glassMotion = remember(pager, arrivalProgress) { derivedStateOf {
+        listOf(pager.currentPage + pager.currentPageOffsetFraction, dockVisibility.value, departure.value, arrivalProgress.value)
     } }
     // Panels sit over an already shaded backdrop. Keep their samples in that
     // exposure family instead of showing the undimmed wallpaper through them.
@@ -771,7 +776,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     CompositionLocalProvider(LocalCyberPhase provides cyberPhase, LocalGlass provides GlassEnvironment(frame, viewport, appearance, glassMotion),
         LocalCyberPalette provides palette, LocalHomeClock provides now,
         LocalGlassContentColor provides wallpaperText, LocalIconPacks provides PackEnvironment(model.iconPacks, ui.iconRevision),
-        LocalHomeArrival provides HomeArrivalEnvironment(arrival.asState(), viewport.width, viewport.height,
+        LocalHomeArrival provides HomeArrivalEnvironment(arrivalProgress, viewport.width, viewport.height,
             animateWorkspace, departure.asState(), launchOrigin)) {
         Box(Modifier.fillMaxSize().testTag("launcher_root").semantics {
             this[LauncherReadyKey] = ui.ready && frame != null && background != null

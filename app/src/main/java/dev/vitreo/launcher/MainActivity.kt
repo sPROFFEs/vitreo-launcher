@@ -17,6 +17,7 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
+import android.view.ViewTreeObserver
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -41,11 +42,18 @@ class MainActivity : ComponentActivity() {
     private var visible = false
     private val keyguard get() = getSystemService(KeyguardManager::class.java)
     private val screenPower get() = getSystemService(PowerManager::class.java)
+    private val revealBeforeDraw = ViewTreeObserver.OnPreDrawListener {
+        revealAfterUnlock()
+        true
+    }
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 Intent.ACTION_SCREEN_OFF -> {
-                    if (visible && defaultHome && !leftForApp) model.homeUnlock.sleep(keyguard.isKeyguardLocked)
+                    // Some devices queue SCREEN_OFF until the display is already back.
+                    // Preparing at that point would move an already visible workspace.
+                    if (visible && defaultHome && !leftForApp && !screenPower.isInteractive)
+                        model.homeUnlock.sleep(keyguard.isKeyguardLocked)
                 }
                 Intent.ACTION_SCREEN_ON -> model.homeUnlock.wake(keyguard.isKeyguardLocked)
                 Intent.ACTION_USER_PRESENT -> {
@@ -70,6 +78,7 @@ class MainActivity : ComponentActivity() {
         }, ContextCompat.RECEIVER_NOT_EXPORTED)
         enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT))
+        window.decorView.viewTreeObserver.addOnPreDrawListener(revealBeforeDraw)
         setContent {
             val ui by model.ui.collectAsStateWithLifecycle()
             VitreoTheme(ui.layout.appearance.interfaceStyle, ui.layout.appearance.themePreset, ui.layout.appearance) {
@@ -92,6 +101,11 @@ class MainActivity : ComponentActivity() {
         model.homeRole(defaultHome)
         model.refreshIfStale()
     }
+    override fun onPause() {
+        if (defaultHome && !leftForApp && !screenPower.isInteractive)
+            model.homeUnlock.sleep(keyguard.isKeyguardLocked)
+        super.onPause()
+    }
     override fun onStop() {
         // Keyguard can stop Home before the queued SCREEN_OFF broadcast arrives.
         if (defaultHome && !leftForApp && (!screenPower.isInteractive || keyguard.isKeyguardLocked)) {
@@ -100,7 +114,11 @@ class MainActivity : ComponentActivity() {
         visible = false
         super.onStop()
     }
-    override fun onDestroy() { unregisterReceiver(screenReceiver); super.onDestroy() }
+    override fun onDestroy() {
+        window.decorView.viewTreeObserver.removeOnPreDrawListener(revealBeforeDraw)
+        unregisterReceiver(screenReceiver)
+        super.onDestroy()
+    }
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) revealAfterUnlock()
@@ -110,8 +128,9 @@ class MainActivity : ComponentActivity() {
     }
     private fun revealAfterUnlock() {
         if (!model.homeUnlock.pending || !defaultHome || !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) ||
-            !hasWindowFocus() || !screenPower.isInteractive || keyguard.isKeyguardLocked) return
-        model.homeUnlock.focusUnlockedHome(SystemClock.uptimeMillis())
+            !screenPower.isInteractive || keyguard.isKeyguardLocked) return
+        // Outgoing keyguard can uncover Home before the window gets input focus.
+        model.homeUnlock.showUnlockedHome(SystemClock.uptimeMillis())
     }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)

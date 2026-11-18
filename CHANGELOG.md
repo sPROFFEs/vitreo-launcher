@@ -1,5 +1,12 @@
 # Cambios
 
+## 0.10.17
+
+- Home prepara la entrada de los iconos con la pantalla apagada. Al desbloquear,
+  los iconos empiezan en su posición de entrada y ya no aparecen colocados antes
+  de animarse. Una señal de apagado que llega después de encender la pantalla no
+  mueve un escritorio que ya está visible.
+
 ## 0.10.16
 
 - El reloj moderno de la pantalla de bloqueo vuelve a tener un tirador de
