@@ -1,5 +1,12 @@
 # Cambios
 
+## 0.10.19
+
+- Recupera la entrada radial al desbloquear directamente en Home. Los iconos
+  exteriores inician el movimiento y cada icono vuelve a su celda. La animación
+  empieza cuando Home está listo y vuelve a recibir el foco, y una transición
+  interrumpida sigue recuperando los iconos automáticamente.
+
 ## 0.10.18
 
 - Corrige el escritorio vacío después de desbloquear directamente a Home.

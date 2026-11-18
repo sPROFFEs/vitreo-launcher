@@ -233,18 +233,9 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     val animateWorkspace = onHomePage && !modalPresent && !editing && !appearance.reducedEffects
     val homeUnlock = model.homeUnlock
     val homeRevealSerial = homeUnlock.serial
-    val arrival = remember(homeRevealSerial) { Animatable(0f) }
-    val arrivalProgress = remember(homeUnlock, arrival) {
-        derivedStateOf { homeUnlock.frameProgress(homeRevealSerial, arrival.value) }
-    }
-    LaunchedEffect(homeRevealSerial, homeResumed, animateWorkspace) {
-        if (!homeResumed || !homeUnlock.consumeReveal()) return@LaunchedEffect
-        try {
-            if (animateWorkspace && ui.ready)
-                arrival.animateTo(1f, spring(dampingRatio = .94f, stiffness = 360f))
-        } finally {
-            homeUnlock.finishReveal(homeRevealSerial)
-        }
+    val arrivalProgress = homeUnlock.progress
+    SideEffect {
+        homeUnlock.sceneReady = animateWorkspace && ui.ready && viewport.width > 1f && viewport.height > 1f
     }
     val dockHeight = if (appearance.themePreset == 1) maxOf(91f, geometry.iconSize + 28f) else IosDesign.dockHeight(geometry.iconSize)
     val footerHeight = (dockHeight + if (appearance.themePreset == 1) 51f else 54f).dp

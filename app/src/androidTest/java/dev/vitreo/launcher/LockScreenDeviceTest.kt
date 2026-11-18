@@ -17,6 +17,7 @@ import dev.vitreo.launcher.core.Appearance
 import dev.vitreo.launcher.lock.LockScreenActivity
 import dev.vitreo.launcher.lock.LockScreenRuntime
 import dev.vitreo.launcher.ui.HomeRevealSerialKey
+import dev.vitreo.launcher.ui.LauncherReadyKey
 import org.junit.*
 import org.junit.Assert.*
 import org.junit.rules.ExternalResource
@@ -250,6 +251,7 @@ class LockScreenDeviceTest {
         shell("input keyevent KEYCODE_HOME")
         val home = compose.onNodeWithTag("launcher_root")
         home.assertIsDisplayed()
+        compose.waitUntil(15_000) { home.fetchSemanticsNode().config[LauncherReadyKey] }
         val before = home.fetchSemanticsNode().config[HomeRevealSerialKey]
         lateinit var main: MainActivity
         instrumentation.runOnMainSync {
@@ -257,18 +259,32 @@ class LockScreenDeviceTest {
                 .filterIsInstance<MainActivity>().single()
         }
         val motion = ViewModelProvider(main)[LauncherViewModel::class.java].homeUnlock
-        shell("input keyevent KEYCODE_SLEEP")
-        await("native keyguard locks over Home") { keyguard.isDeviceLocked }
-        await("the incoming workspace is prepared while the display is off") {
-            var progress = 1f
-            instrumentation.runOnMainSync { progress = motion.frameProgress(before, 1f) }
-            progress == 0f
-        }
-        shell("input keyevent KEYCODE_WAKEUP")
-        shell("wm dismiss-keyguard")
-        enterPin()
-        compose.waitUntil(15_000) {
-            runCatching { home.fetchSemanticsNode().config[HomeRevealSerialKey] == before + 1 }.getOrDefault(false)
+        val originalScale = shell("settings get global animator_duration_scale").trim()
+        shell("settings put global animator_duration_scale 1")
+        try {
+            await("system animator enabled") { android.animation.ValueAnimator.areAnimatorsEnabled() }
+            shell("input keyevent KEYCODE_SLEEP")
+            await("native keyguard locks over Home") { keyguard.isDeviceLocked }
+            await("the incoming workspace is prepared while the display is off") { motion.progress.value == 0f }
+            shell("input keyevent KEYCODE_WAKEUP")
+            shell("wm dismiss-keyguard")
+            enterPin()
+            await("an intermediate radial frame runs in focused Home after Android unlocks") {
+                var moving = false
+                instrumentation.runOnMainSync {
+                    moving = motion.serial == before + 1 && motion.progress.value in 0.01f..0.95f &&
+                        ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED)
+                            .filterIsInstance<MainActivity>().any { it.hasWindowFocus() }
+                }
+                moving
+            }
+            await("radial reveal settles on Home") { motion.progress.value == 1f }
+        } finally {
+            if (originalScale == "null") shell("settings delete global animator_duration_scale")
+            else {
+                check(originalScale.matches(Regex("[0-9.]+")))
+                shell("settings put global animator_duration_scale $originalScale")
+            }
         }
         shell("input keyevent KEYCODE_HOME")
         compose.waitForIdle()
@@ -281,13 +297,12 @@ class LockScreenDeviceTest {
             assertSame(motion, ViewModelProvider(resumed)[LauncherViewModel::class.java].homeUnlock)
             // Reproduce a reveal whose animation stopped before supplying a frame.
             motion.sleep(keyguardLocked = true)
-            motion.showUnlockedHome(SystemClock.uptimeMillis())
-            assertTrue(motion.consumeReveal())
+            assertEquals(before + 2, motion.beginReveal(SystemClock.uptimeMillis()))
             resumed.window.decorView.invalidate()
         }
         await("visible Home restores the icons even when no animation frames arrive") {
             var settled = false
-            instrumentation.runOnMainSync { settled = motion.frameProgress(before + 2, 0f) == 1f }
+            instrumentation.runOnMainSync { settled = motion.progress.value == 1f }
             settled
         }
         home.assertIsDisplayed()

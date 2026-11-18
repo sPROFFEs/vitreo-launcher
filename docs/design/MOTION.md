@@ -56,11 +56,11 @@ Battery Saver, Reduce Motion or disabled HUD Effects.
 
 ## App return and overlays
 
-Home prepares the incoming icon positions while the display is asleep.
-The radial reveal starts once Android uncovers Home and keeps those prepared
-positions until the first animation frame, even if window focus arrives later.
-The visible workspace settles if Android misses the handoff or stops delivering
-animation frames. A late signal cannot rewind icons that are already visible.
+Home prepares incoming positions while the display is asleep. A laid-out Home
+workspace starts the radial reveal when keyguard is gone and the window has input
+focus. One Android animator drives the outer-to-inner timing in the icon
+drawing layers. The visible workspace settles if the handoff or animator stalls.
+A late signal cannot rewind icons that are already visible.
 Closing an app launched from the workspace brings the workspace forward
 slightly, and the source icon settles when its tile is visible. Android receives
 the launch bounds and owns the closing app window and Recents transition.
@@ -94,6 +94,8 @@ animation-frame task. Android owns authentication and its fingerprint UI.
 - [Designing Fluid Interfaces, WWDC18](https://developer.apple.com/videos/play/wwdc2018/803/)
 - [Enhance your UI animations and transitions, WWDC24](https://developer.apple.com/videos/play/wwdc2024/10145/)
 - [Android Launcher3 closing-window transitions](https://android.googlesource.com/platform/packages/apps/Launcher3/+/f9ab0b5aa6aff1c9d63c3ac359aa59a9d9746d34/quickstep/src/com/android/launcher3/QuickstepTransitionManager.java)
+- [AOSP keyguard unlock controller](https://android.googlesource.com/platform/frameworks/base.git/+/ee9db8e964d68a9305c78b51d370ba71fd9f92c7/packages/SystemUI/src/com/android/systemui/keyguard/KeyguardUnlockAnimationController.kt)
+- [Launcher animation port kit](https://github.com/IvanChanPing/launcher-animations-portkit)
 - [UIViewPropertyAnimator](https://developer.apple.com/documentation/uikit/uiviewpropertyanimator)
 - [Apple design system, WWDC25](https://developer.apple.com/videos/play/wwdc2025/356/)
 - [Compose performance guidance](https://developer.android.com/develop/ui/compose/performance/bestpractices)

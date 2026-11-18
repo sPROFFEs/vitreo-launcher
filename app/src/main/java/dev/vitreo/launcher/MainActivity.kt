@@ -1,5 +1,6 @@
 package dev.vitreo.launcher
 
+import android.animation.ValueAnimator
 import android.app.role.RoleManager
 import android.app.ActivityOptions
 import android.app.KeyguardManager
@@ -20,6 +21,8 @@ import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
 import android.view.ViewTreeObserver
+import android.view.animation.LinearInterpolator
+import androidx.core.animation.doOnEnd
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -45,13 +48,15 @@ class MainActivity : ComponentActivity() {
     private val keyguard get() = getSystemService(KeyguardManager::class.java)
     private val screenPower get() = getSystemService(PowerManager::class.java)
     private val homeMotionHandler = Handler(Looper.getMainLooper())
+    private var homeArrivalAnimator: ValueAnimator? = null
     private var homeRestoreScheduledAt: Long? = null
+    private var lastHomeMotionTrace = ""
     private val restoreHomeIcons = Runnable {
         homeRestoreScheduledAt = null
         model.homeUnlock.restoreIfOverdue(SystemClock.uptimeMillis())
     }
     private val revealBeforeDraw = ViewTreeObserver.OnPreDrawListener {
-        revealAfterUnlock(beforeDraw = true)
+        revealAfterUnlock(drawing = true)
         true
     }
     private val screenReceiver = object : BroadcastReceiver() {
@@ -87,10 +92,12 @@ class MainActivity : ComponentActivity() {
             addAction(Intent.ACTION_SCREEN_OFF)
             addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_USER_PRESENT)
-        }, ContextCompat.RECEIVER_NOT_EXPORTED)
+        // All three actions in this filter are protected system broadcasts.
+        }, ContextCompat.RECEIVER_EXPORTED)
         enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT))
         window.decorView.viewTreeObserver.addOnPreDrawListener(revealBeforeDraw)
+        model.homeUnlock.sceneReady = false
         setContent {
             val ui by model.ui.collectAsStateWithLifecycle()
             VitreoTheme(ui.layout.appearance.interfaceStyle, ui.layout.appearance.themePreset, ui.layout.appearance) {
@@ -120,44 +127,80 @@ class MainActivity : ComponentActivity() {
     }
     override fun onStop() {
         // Keyguard can stop Home before the queued SCREEN_OFF broadcast arrives.
-        val stillPreparing = model.homeUnlock.pending && keyguard.isKeyguardLocked
-        if (defaultHome && !leftForApp && (!screenPower.isInteractive || stillPreparing)) {
-            model.homeUnlock.sleep(keyguard.isKeyguardLocked, stopped = true)
+        val locked = keyguard.isKeyguardLocked
+        if (defaultHome && !leftForApp && (!screenPower.isInteractive || locked)) {
+            model.homeUnlock.sleep(locked)
         } else if (!isChangingConfigurations) model.homeUnlock.leaveHome()
+        homeArrivalAnimator?.cancel()
         visible = false
         super.onStop()
     }
     override fun onDestroy() {
         homeMotionHandler.removeCallbacks(restoreHomeIcons)
+        homeArrivalAnimator?.cancel()
         window.decorView.viewTreeObserver.removeOnPreDrawListener(revealBeforeDraw)
         unregisterReceiver(screenReceiver)
         super.onDestroy()
     }
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) revealAfterUnlock()
+        if (hasFocus) revealAfterUnlock(focusGained = true)
         if (hasFocus && defaultHome && model.systemBackgroundVisible.value) runCatching {
             android.app.WallpaperManager.getInstance(this).setWallpaperOffsets(window.decorView.windowToken, .5f, .5f)
         }
     }
-    private fun revealAfterUnlock(beforeDraw: Boolean = false) {
+    private fun revealAfterUnlock(drawing: Boolean = false, focusGained: Boolean = false) {
         val motion = model.homeUnlock
         if (!motion.holdingIcons || !defaultHome || !visible || !screenPower.isInteractive) return
         val now = SystemClock.uptimeMillis()
         motion.restoreIfOverdue(now)
-        // Android can resume and draw the stopped Home behind its outgoing lock
-        // surface well before keyguard reports hidden. Home is not showWhenLocked.
-        if (motion.pending && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) &&
-            (beforeDraw && motion.stoppedForSleep || !keyguard.isKeyguardLocked)) motion.showUnlockedHome(now)
-        if (beforeDraw || hasWindowFocus()) motion.visibleFrame(now)
+        if (motion.pending) {
+            val locked = keyguard.isKeyguardLocked
+            motion.wake(locked)
+            // A pre-draw under keyguard is preparation. Start with a laid-out
+            // workspace only after Android returns the foreground to Home.
+            val focused = hasWindowFocus()
+            if (BuildConfig.DEBUG) {
+                val trace = "locked=$locked focus=$focused resumed=${lifecycle.currentState} ready=${motion.sceneReady}"
+                if (trace != lastHomeMotionTrace || focusGained) {
+                    lastHomeMotionTrace = trace
+                    android.util.Log.d("VitreoHomeMotion", "$trace focusGained=$focusGained drawing=$drawing")
+                }
+            }
+            if ((!locked && (drawing || focused)) || focusGained) {
+                if (!locked && focused && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && motion.sceneReady) {
+                    if (ValueAnimator.areAnimatorsEnabled()) motion.beginReveal(now)?.let(::animateHomeArrival)
+                    else motion.leaveHome()
+                }
+                motion.visibleFrame(now)
+            }
+        }
 
         // A main-loop timeout also works when Compose's animation clock is idle.
         val restoreAt = motion.restoreAt ?: return
+        // The next frame may be the only signal that keyguard has uncovered a
+        // ready Home. Keep sampling during the bounded window, even if static.
+        if (motion.pending) window.decorView.postInvalidateOnAnimation()
         if (homeRestoreScheduledAt != restoreAt) {
             homeMotionHandler.removeCallbacks(restoreHomeIcons)
             homeRestoreScheduledAt = restoreAt
             homeMotionHandler.postAtTime(restoreHomeIcons, restoreAt)
         }
+    }
+    private fun animateHomeArrival(serial: Int) {
+        if (BuildConfig.DEBUG) android.util.Log.d("VitreoHomeMotion", "begin reveal $serial")
+        val motion = model.homeUnlock
+        homeArrivalAnimator?.cancel()
+        homeArrivalAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 440
+            interpolator = LinearInterpolator()
+            addUpdateListener { motion.renderFrame(serial, it.animatedFraction) }
+            doOnEnd {
+                motion.finishReveal(serial)
+                homeArrivalAnimator = null
+            }
+        }
+        homeArrivalAnimator?.start()
     }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
