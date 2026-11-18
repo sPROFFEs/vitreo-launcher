@@ -15,7 +15,9 @@ lock screen**. A preview never enables the feature or authenticates the device.
 - Follow Home, iOS or Cyberpunk independently of the Home theme.
 - Choose six clock fonts, size and color, date, Glass / Solid and vertical height.
   The clock follows Android's 12/24-hour preference and fits the available width.
-  Tap its outline to edit font, size and color, or drag the lower-right resize handle. The visible height fits the available screen space. iOS 16 retains
+  Tap the clock to edit font, size and color. Drag the lower-right corner down
+  to stretch it or up to shorten it. The height range fits the available screen
+  space, and the clock panel provides the same adjustment. iOS 16 retains
   a solid clock at its original proportions while preserving modern preferences.
 - Follow Home's photo/crop, or choose **Separate wallpaper from Home** and a
   collection image, with independent dimming.

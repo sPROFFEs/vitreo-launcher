@@ -2,6 +2,10 @@ package dev.vitreo.launcher
 
 import android.app.role.RoleManager
 import android.app.ActivityOptions
+import android.app.KeyguardManager
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
 import android.content.pm.LauncherApps
 import android.content.pm.ShortcutInfo
 import android.os.Process
@@ -10,6 +14,8 @@ import android.content.ComponentName
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.PowerManager
+import android.os.SystemClock
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -19,6 +25,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.*
 import androidx.compose.ui.geometry.Rect
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vitreo.launcher.ui.LauncherScreen
 import dev.vitreo.launcher.ui.VitreoTheme
@@ -30,15 +38,29 @@ class MainActivity : ComponentActivity() {
     private var appReturnSerial by mutableIntStateOf(0)
     private var leftForApp = false
     private var defaultHome by mutableStateOf(false)
-    private var pendingHomeReveal = false
-    private var homeFocusedOnce = false
     private var homeRevealSerial by mutableIntStateOf(0)
-    private val overviewReceiver = object : android.content.BroadcastReceiver() {
-        override fun onReceive(context: android.content.Context, intent: Intent) {
-            // Quickstep on Android 12 can keep HOME resumed underneath Overview.
-            // Focus alone cannot distinguish it from Aoede, keyboards or dialogs.
-            if (intent.action == Intent.ACTION_CLOSE_SYSTEM_DIALOGS &&
-                intent.getStringExtra("reason") == "recentapps") pendingHomeReveal = true
+    private var visible = false
+    private var sleptOverHome = false
+    private var lockedOverHome = false
+    private var unlockAt = 0L
+    private val keyguard get() = getSystemService(KeyguardManager::class.java)
+    private val screenPower get() = getSystemService(PowerManager::class.java)
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                Intent.ACTION_SCREEN_OFF -> {
+                    if (visible && defaultHome && !leftForApp) rememberHomeSleep()
+                }
+                Intent.ACTION_SCREEN_ON -> {
+                    lockedOverHome = lockedOverHome || (sleptOverHome && keyguard.isKeyguardLocked)
+                }
+                Intent.ACTION_USER_PRESENT -> {
+                    if (lockedOverHome) {
+                        unlockAt = SystemClock.uptimeMillis()
+                        revealAfterUnlock()
+                    }
+                }
+            }
         }
     }
     private val widgetConfigurations = WidgetConfigurationRequests()
@@ -49,11 +71,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        homeRevealSerial = savedInstanceState?.getInt("homeRevealSerial") ?: 0
-        pendingHomeReveal = savedInstanceState != null
-        androidx.core.content.ContextCompat.registerReceiver(this, overviewReceiver,
-            android.content.IntentFilter(Intent.ACTION_CLOSE_SYSTEM_DIALOGS),
-            androidx.core.content.ContextCompat.RECEIVER_EXPORTED)
+        ContextCompat.registerReceiver(this, screenReceiver, IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_USER_PRESENT)
+        }, ContextCompat.RECEIVER_NOT_EXPORTED)
         enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT))
         setContent {
@@ -63,45 +85,58 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    override fun onStart() {
+        super.onStart()
+        visible = true
+    }
+
     override fun onResume() {
         super.onResume()
         dev.vitreo.launcher.update.AppUpdates.onForeground()
         dev.vitreo.launcher.island.NotificationIsland.refresh()
         if (leftForApp) { leftForApp = false; appReturnSerial++ }
-        revealHome()
         defaultHome = isDefaultHome()
+        revealAfterUnlock()
         model.homeRole(defaultHome)
         model.refreshIfStale()
     }
-    override fun onStop() { pendingHomeReveal = true; super.onStop() }
-    override fun onDestroy() { unregisterReceiver(overviewReceiver); super.onDestroy() }
-    override fun onSaveInstanceState(outState: Bundle) {
-        outState.putInt("homeRevealSerial", homeRevealSerial)
-        super.onSaveInstanceState(outState)
+    override fun onStop() {
+        // Keyguard can stop Home before the queued SCREEN_OFF broadcast arrives.
+        if (defaultHome && !leftForApp && (!screenPower.isInteractive || keyguard.isKeyguardLocked)) rememberHomeSleep()
+        else clearHomeSleep()
+        visible = false
+        super.onStop()
     }
+    override fun onDestroy() { unregisterReceiver(screenReceiver); super.onDestroy() }
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) {
-            revealHome()
-            homeFocusedOnce = true
-        }
+        if (hasFocus) revealAfterUnlock()
         if (hasFocus && defaultHome && model.systemBackgroundVisible.value) runCatching {
             android.app.WallpaperManager.getInstance(this).setWallpaperOffsets(window.decorView.windowToken, .5f, .5f)
         }
     }
-    private fun revealHome() {
-        if (pendingHomeReveal && lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
-            pendingHomeReveal = false
-            homeRevealSerial++
-        }
+    private fun rememberHomeSleep() {
+        sleptOverHome = true
+        lockedOverHome = lockedOverHome || keyguard.isKeyguardLocked
+        unlockAt = 0L
+    }
+    private fun clearHomeSleep() {
+        sleptOverHome = false
+        lockedOverHome = false
+        unlockAt = 0L
+    }
+    private fun revealAfterUnlock() {
+        if (!sleptOverHome || !defaultHome || !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) ||
+            !hasWindowFocus() || !screenPower.isInteractive || keyguard.isKeyguardLocked) return
+        // Consume before publishing. Focus, resume and USER_PRESENT may all
+        // report the same unlock. A later return from another app is too late.
+        val reveal = lockedOverHome && (unlockAt == 0L || SystemClock.uptimeMillis() - unlockAt <= 650L)
+        clearHomeSleep()
+        if (reveal) homeRevealSerial++
     }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (homeFocusedOnce && intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_HOME)) {
-            pendingHomeReveal = true
-            revealHome()
-        }
         // The first HOME after an app restores the place it was opened from.
         // A further HOME closes that folder/search and returns to the first page.
         if (!leftForApp) homeSerial++

@@ -19,7 +19,8 @@ opacity and backdrop values remain bounded; hidden activities settle their surfa
 | Panels and folders | Keep the originating anchor and outgoing content until the last frame |
 | Control Center | Fixed gesture region, shared reveal and bounded slider resistance |
 | Dock and page dots | Read fractional pager progress in drawing layers; reserve footer geometry |
-| Home app return | Radial foreground arrival into unchanged cells; wallpaper stays on Android's surface |
+| Unlock to Home | One radial icon reveal after Android dismisses keyguard over Home |
+| Home app return | Short workspace scale recovery and source icon settle |
 | Settings / menu navigation | Direction follows page history; a new modal session cannot resurrect an old category |
 | Today editing | Stable keys, drag handles and accessible order arrows |
 
@@ -55,11 +56,12 @@ Battery Saver, Reduce Motion or disabled HUD Effects.
 
 ## App return and overlays
 
-Focus loss alone does not arm Home's arrival: Aoede or another focusable overlay
-can leave Home resumed underneath. An actual activity stop, relevant HOME intent
-or Android Overview handoff arms the transition. Returning icons animate in
-layers, without repacking cells or scaling the system wallpaper. Android retains
-ownership of task/Recents animations.
+The radial reveal is consumed once when Android unlocks directly into Home.
+Closing an app launched from the workspace brings the workspace forward
+slightly, and the source icon settles when its tile is visible. Android receives
+the launch bounds and owns the closing app window and Recents transition.
+Dismissal of Recents or a floating overlay leaves the unlock motion idle.
+Neither workspace effect transforms the wallpaper.
 
 ## Island windows
 
@@ -86,6 +88,8 @@ animation-frame task. Android owns authentication and its fingerprint UI.
 
 - [Apple HIG Motion](https://developer.apple.com/design/human-interface-guidelines/motion)
 - [Designing Fluid Interfaces, WWDC18](https://developer.apple.com/videos/play/wwdc2018/803/)
+- [Enhance your UI animations and transitions, WWDC24](https://developer.apple.com/videos/play/wwdc2024/10145/)
+- [Android Launcher3 closing-window transitions](https://android.googlesource.com/platform/packages/apps/Launcher3/+/f9ab0b5aa6aff1c9d63c3ac359aa59a9d9746d34/quickstep/src/com/android/launcher3/QuickstepTransitionManager.java)
 - [UIViewPropertyAnimator](https://developer.apple.com/documentation/uikit/uiviewpropertyanimator)
 - [Apple design system, WWDC25](https://developer.apple.com/videos/play/wwdc2025/356/)
 - [Compose performance guidance](https://developer.android.com/develop/ui/compose/performance/bestpractices)

@@ -15,6 +15,7 @@ import androidx.test.runner.lifecycle.Stage
 import dev.vitreo.launcher.core.Appearance
 import dev.vitreo.launcher.lock.LockScreenActivity
 import dev.vitreo.launcher.lock.LockScreenRuntime
+import dev.vitreo.launcher.ui.HomeRevealSerialKey
 import org.junit.*
 import org.junit.Assert.*
 import org.junit.rules.ExternalResource
@@ -245,5 +246,21 @@ class LockScreenDeviceTest {
         shell("wm dismiss-keyguard")
         enterPin()
         await("native unlock still works") { !keyguard.isDeviceLocked }
+        shell("input keyevent KEYCODE_HOME")
+        val home = compose.onNodeWithTag("launcher_root")
+        home.assertIsDisplayed()
+        val before = home.fetchSemanticsNode().config[HomeRevealSerialKey]
+        shell("input keyevent KEYCODE_SLEEP")
+        await("native keyguard locks over Home") { keyguard.isDeviceLocked }
+        shell("input keyevent KEYCODE_WAKEUP")
+        shell("wm dismiss-keyguard")
+        enterPin()
+        compose.waitUntil(15_000) {
+            runCatching { home.fetchSemanticsNode().config[HomeRevealSerialKey] == before + 1 }.getOrDefault(false)
+        }
+        shell("input keyevent KEYCODE_HOME")
+        compose.waitForIdle()
+        assertEquals("HOME after an unlock must not replay the entrance", before + 1,
+            home.fetchSemanticsNode().config[HomeRevealSerialKey])
     }
 }

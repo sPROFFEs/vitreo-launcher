@@ -130,6 +130,7 @@ class HomeIntegrationTest {
         automation.serviceInfo = service
         compose.onNodeWithTag("library_button").performClick()
         compose.onNodeWithTag("search_field").performTextInput(app.label)
+        val unlocks = compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[HomeRevealSerialKey]
         repeat(2) { attempt ->
             val previous = compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[AppReturnSerialKey]
             compose.onNodeWithTag("search_entry:${app.id}").performClick()
@@ -147,6 +148,9 @@ class HomeIntegrationTest {
                     it[AppReturnSerialKey] > previous && !it[AppOpeningKey]
                 }
             }
+            val root = compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config
+            assertEquals("Each app return is consumed once", previous + 1, root[AppReturnSerialKey])
+            assertEquals("App returns must not run unlock motion", unlocks, root[HomeRevealSerialKey])
             assertSame("System HOME must reuse its activity", main, activity())
             assertSame(model, ViewModelProvider(activity())[LauncherViewModel::class.java])
             compose.onNodeWithTag("search_field").assertTextEquals(app.label)
@@ -194,7 +198,7 @@ class HomeIntegrationTest {
         } finally { shell("appops set dev.vitreo.fixture.uninstall SYSTEM_ALERT_WINDOW $oldMode") }
     }
 
-    @Test fun recentsReturnUsesSharedSystemWallpaperAndRevealsHomeWithoutChangingItsLayout() {
+    @Test fun recentsReturnKeepsWallpaperAndLayoutWithoutReplayingUnlock() {
         awaitReady()
         val model = ViewModelProvider(activity())[LauncherViewModel::class.java]
         val original = model.ui.value.layout.appearance
@@ -258,9 +262,8 @@ class HomeIntegrationTest {
                 assertTrue("Overview task actions must be visible", overviewVisible())
                 shell("input keyevent KEYCODE_HOME")
                 awaitReady()
-                compose.waitUntil(10_000) {
-                    compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[HomeRevealSerialKey] > before
-                }
+                assertEquals("Overview dismissal must not run unlock motion", before,
+                    compose.onNodeWithTag("launcher_root").fetchSemanticsNode().config[HomeRevealSerialKey])
                 assertSame("Wallpaper color changes retain the ViewModel", model,
                     ViewModelProvider(activity())[LauncherViewModel::class.java])
                 assertEquals(placed, model.ui.value.layout.placedApps())

@@ -17,6 +17,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -138,6 +139,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     var choiceSheet by remember { mutableStateOf<Sheet?>(null) }
     var actionReturn by remember { mutableStateOf<AppActionTarget?>(null) }
     var launching by remember { mutableStateOf(false) }
+    var launchOrigin by remember { mutableStateOf<String?>(null) }
     val departure = remember { Animatable(0f) }
     val arrival = remember { Animatable(1f) }
     val panelOpeningProgress = remember { mutableStateOf<Float?>(null) }
@@ -188,14 +190,6 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }
     }
-    LaunchedEffect(homeRevealSerial, appearance.reducedEffects, homeResumed) {
-        if (!homeResumed) arrival.snapTo(0f)
-        else if (appearance.reducedEffects || homeRevealSerial == 0) arrival.snapTo(1f)
-        else {
-            if (arrival.value >= .999f) arrival.snapTo(0f)
-            arrival.animateTo(1f, spring(dampingRatio = 1f, stiffness = 550f))
-        }
-    }
     DisposableEffect(widgets, lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_START) { widgets.refresh(); widgets.host.startListening() }
@@ -237,6 +231,17 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         }
     }
     val onHomePage = pager.currentPage in 1..homePages
+    val animateWorkspace = onHomePage && !modalPresent && !editing && !appearance.reducedEffects
+    var handledUnlock by remember { mutableIntStateOf(0) }
+    LaunchedEffect(homeRevealSerial, homeResumed, animateWorkspace) {
+        if (homeResumed && homeRevealSerial != handledUnlock) {
+            handledUnlock = homeRevealSerial
+            if (animateWorkspace) {
+                arrival.snapTo(0f)
+                arrival.animateTo(1f, spring(dampingRatio = .94f, stiffness = 360f))
+            } else arrival.snapTo(1f)
+        } else arrival.snapTo(1f)
+    }
     val dockHeight = if (appearance.themePreset == 1) maxOf(91f, geometry.iconSize + 28f) else IosDesign.dockHeight(geometry.iconSize)
     val footerHeight = (dockHeight + if (appearance.themePreset == 1) 51f else 54f).dp
     val dockVisibility = remember { Animatable(1f) }
@@ -285,7 +290,10 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         focusManager.clearFocus(); keyboard?.hide()
         if (onLaunch(id, source)) {
             launching = true; actionTarget = null; editing = false
-            scope.launch { departure.animateTo(1f, if (appearance.reducedEffects) tween(0) else tween(240)) }
+            if (onHomePage && sheet == null && !appearance.reducedEffects) {
+                launchOrigin = id.takeIf { source != null }
+                scope.launch { departure.animateTo(1f, tween(180, easing = LinearOutSlowInEasing)) }
+            }
         }
     }
     fun utility(kind: String) {
@@ -335,14 +343,21 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         }
     }
     LaunchedEffect(appReturnSerial, homeResumed) {
-        if (homeResumed) { launching = false; departure.snapTo(0f) }
+        if (homeResumed) {
+            launching = false
+            if (animateWorkspace) departure.animateTo(0f, spring(dampingRatio = 1f, stiffness = 550f))
+            else departure.snapTo(0f)
+            launchOrigin = null
+        }
     }
     LaunchedEffect(launching) {
         if (launching) {
             delay(1_500)
             // Recover if an OEM refused the task switch without throwing an exception.
             if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-                launching = false; departure.animateTo(0f, LauncherMotion.close())
+                launching = false
+                departure.animateTo(0f, LauncherMotion.close())
+                launchOrigin = null
             }
         }
     }
@@ -758,7 +773,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
         LocalCyberPalette provides palette, LocalHomeClock provides now,
         LocalGlassContentColor provides wallpaperText, LocalIconPacks provides PackEnvironment(model.iconPacks, ui.iconRevision),
         LocalHomeArrival provides HomeArrivalEnvironment(arrival.asState(), viewport.width, viewport.height,
-            onHomePage && sheet == null && !editing && !appearance.reducedEffects)) {
+            animateWorkspace, departure.asState(), launchOrigin)) {
         Box(Modifier.fillMaxSize().testTag("launcher_root").semantics {
             this[LauncherReadyKey] = ui.ready && frame != null && background != null
             this[HomeRowsKey] = geometry.rows
@@ -787,8 +802,11 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                 .padding(top = (if (integratedBar) customBarHeight else 0.dp) + if (editing) 42.dp else 9.dp)
                 .then(if (modalPresent) Modifier.clearAndSetSemantics {} else Modifier)
                 .graphicsLayer {
-                    if (!appearance.reducedEffects) {
-                        scaleX = 1f - departure.value * .025f; scaleY = scaleX
+                    if (animateWorkspace) {
+                        val depth = departure.value
+                        scaleX = 1f - depth * .022f
+                        scaleY = scaleX
+                        translationY = depth * 3.dp.toPx()
                     }
                     // Read the animation in the drawing phase. Rebuilding the entire
                     // workspace for every blur frame causes avoidable layout/recomposition.
@@ -887,7 +905,7 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
                                             LauncherTile(HomeEntry.App(id), apps, geometry.iconSize.dp, false,
                                                 Modifier.weight(1f).fillMaxHeight().then(homeArrival(
                                                     Offset(dockBounds.left + dockBounds.width * (slot + .5f) / DOCK_SLOTS, dockBounds.center.y),
-                                                    with(density) { geometry.iconSize.dp.toPx() })), editing, (drag?.entry?.id ?: landing?.entry?.id) == id,
+                                                    with(density) { geometry.iconSize.dp.toPx() }, id)), editing, (drag?.entry?.id ?: landing?.entry?.id) == id,
                                                 onClick = { openEntry(HomeEntry.App(id), it) }, onActions = { actions(id, it) },
                                                 onBounds = { recordBounds(id, it, 0) }, onRemove = { model.addHome(id) })
                                             DisposableEffect(id) { onDispose { recordBounds(id, null, 0) } }
@@ -1058,8 +1076,12 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
             AppContextMenu(actionTarget, ui.layout, apps, { actionTarget = null }, ::launch,
                 { shortcut, bounds ->
                     if (!launching && onShortcut(shortcut, bounds)) {
+                        launchOrigin = actionTarget?.entry?.id
                         launching = true; actionTarget = null
-                        scope.launch { departure.animateTo(1f, if (appearance.reducedEffects) tween(0) else tween(240)) }
+                        scope.launch {
+                            if (onHomePage && sheet == null && !appearance.reducedEffects)
+                                departure.animateTo(1f, tween(180, easing = LinearOutSlowInEasing))
+                        }
                     }
                 },
                 { model.addHome(it); actionTarget = null }, { model.pinDock(it); actionTarget = null },
@@ -1168,7 +1190,7 @@ private fun CyberQuickhackDock(
                                     false,
                                     Modifier.fillMaxSize().then(homeArrival(
                                         Offset(dockBounds.left + dockBounds.width * (slot + .5f) / DOCK_SLOTS, dockBounds.center.y),
-                                        with(density) { iconSize.dp.toPx() }
+                                        with(density) { iconSize.dp.toPx() }, id
                                     )),
                                     editing,
                                     dragEntryId == id,

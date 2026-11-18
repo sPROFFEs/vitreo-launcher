@@ -1,5 +1,15 @@
 # Cambios
 
+## 0.10.16
+
+- El reloj moderno de la pantalla de bloqueo vuelve a tener un tirador de
+  esquina para alargarlo o encogerlo. El rango se adapta al espacio de la
+  vista previa y el panel de reloj mantiene un ajuste de altura accesible.
+- Home reúne los iconos una sola vez tras desbloquear sobre el escritorio.
+  Al regresar desde una app abierta en Home, el escritorio recupera su escala
+  con un movimiento corto y el icono de origen se asienta en su sitio.
+  Recientes y las ventanas flotantes no reproducen la entrada de desbloqueo.
+
 ## 0.10.15
 
 - Rendimiento: Home reutiliza el catálogo en regresos rápidos; los cambios de

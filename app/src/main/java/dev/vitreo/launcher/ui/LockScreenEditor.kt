@@ -72,7 +72,8 @@ internal fun LockScreenEditor(appearance: Appearance, onCancel: () -> Unit, onSa
         }
         VitreoTheme(style = 2, preset = if (cyber) 1 else 0, appearance = appearance) {
             val palette = LocalCyberPalette.current
-            Box(Modifier.fillMaxSize().testTag("lock_editor")) {
+            BoxWithConstraints(Modifier.fillMaxSize().testTag("lock_editor")) {
+                val panelHeight = minOf(380.dp, maxHeight * .42f)
                 LockScreenSurface(appearance.copy(lockScreen = draft), preview = true, busy = false, message = null,
                     onUnlock = {}, onSystemLock = onCancel, onCamera = {}, onEmergency = {},
                     onEditClock = { panel = 1 }, onClockHeight = { draft = draft.copy(clockHeight = it) },
@@ -96,7 +97,7 @@ internal fun LockScreenEditor(appearance: Appearance, onCancel: () -> Unit, onSa
                     AnimatedVisibility(panel != 0, enter = fadeIn(tween(duration)) + slideInVertically(tween(duration)) { it / 5 },
                         exit = fadeOut(tween(duration)) + slideOutVertically(tween(duration)) { it / 5 }) {
                         Surface(Modifier.animateContentSize(tween(duration)), shape = RoundedCornerShape(24.dp), color = if (cyber) palette.panel else Color(0xff1c1c1e), contentColor = Color.White) {
-                            Column(Modifier.fillMaxWidth().heightIn(max = 390.dp).verticalScroll(rememberScrollState()).padding(16.dp)) {
+                            Column(Modifier.fillMaxWidth().heightIn(max = panelHeight).verticalScroll(rememberScrollState()).padding(16.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(when (shownPanel) { 2 -> "Wallpaper"; 3 -> "Widgets"; else -> "Font & Color" }, Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
                                     TextButton(onClick = { panel = 0 }) { Text("Close") }
@@ -104,6 +105,12 @@ internal fun LockScreenEditor(appearance: Appearance, onCancel: () -> Unit, onSa
                                 when (shownPanel) {
                                     1 -> {
                                         LockClockStylePicker(draft, cyber) { draft = it }
+                                        if (!cyber && !classic) {
+                                            Text("Clock height · ${(draft.clockHeight * 100).roundToInt()}%",
+                                                Modifier.padding(top = 14.dp), fontSize = 13.sp)
+                                            IosSlider(draft.clockHeight, { draft = draft.copy(clockHeight = it) },
+                                                Modifier.testTag("lock_editor_height"), valueRange = 1f..2.4f)
+                                        }
                                         Text("Clock size", Modifier.padding(top = 12.dp), fontSize = 13.sp)
                                         IosSlider(draft.clockSize, { draft = draft.copy(clockSize = it) },
                                             Modifier.testTag("lock_editor_size"), valueRange = 72f..132f)
@@ -117,9 +124,6 @@ internal fun LockScreenEditor(appearance: Appearance, onCancel: () -> Unit, onSa
                                         }
                                         if (!cyber && !classic) {
                                             IosSegmented(listOf("Glass", "Solid"), if (draft.glassClock) 0 else 1) { draft = draft.copy(glassClock = it == 0) }
-                                            Text("Clock height", Modifier.padding(top = 14.dp), fontSize = 13.sp)
-                                            IosSlider(draft.clockHeight, { draft = draft.copy(clockHeight = it) }, Modifier.testTag("lock_editor_height"), valueRange = 1f..2.4f)
-                                            Text("${(draft.clockHeight * 100).roundToInt()}% · or drag the clock's lower-right handle", fontSize = 12.sp, color = Color.White.copy(alpha = .65f))
                                         }
                                         IosToggleRow("Show date", draft.showDate) { draft = draft.copy(showDate = it) }
                                     }

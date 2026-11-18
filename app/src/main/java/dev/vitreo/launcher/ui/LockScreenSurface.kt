@@ -95,8 +95,6 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
         onDispose { context.unregisterReceiver(receiver); lifecycle.removeObserver(observer) }
     }
     val options = home.lockScreen.presentation(home)
-    val currentClockHeight by rememberUpdatedState(options.clockHeight)
-    val changeClockHeight by rememberUpdatedState(onClockHeight)
     val appearance = options.appearance(home).copy(reducedEffects = home.reducedEffects || saving || !interactive || !resumed)
     val cyber = appearance.themePreset == 1
     val active = resumed && interactive
@@ -113,7 +111,7 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
     val ambient = cyberAmbientPhase(appearance, active)
     val background by produceState<android.graphics.Bitmap?>(null, frame, appearance.wallpaperDim, cyber, options.immersive, viewport.width, viewport.height) {
         val current = frame
-        if (value != null) delay(100) // Coalesce editor dim/resize gestures; keep the previous frame visible.
+        if (value != null) delay(100) // Coalesce editor dim changes; keep the previous frame visible.
         if (current != null && viewport.width > 1 && viewport.height > 1)
             value = withContext(Dispatchers.Default) { HomeBackground.render(current, appearance, viewport.width.toInt(), viewport.height.toInt(), metrics.density) }
     }
@@ -226,25 +224,22 @@ fun LockScreenSurface(home: Appearance, preview: Boolean, busy: Boolean, message
                         if (options.showDate) Text(SimpleDateFormat(if (cyber) "EEEE, MMMM d" else "EEE MMM d", Locale.ENGLISH).format(Date(now)),
                             color = Color(options.clockColor), fontSize = 19.sp, fontWeight = FontWeight.Medium,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                        Box(Modifier.fillMaxWidth().then(if (onEditClock != null) Modifier
-                            .border(1.dp, Color.White.copy(alpha = .5f), RoundedCornerShape(18.dp))
-                            .clickable(onClickLabel = "Edit clock font and color", onClick = onEditClock).testTag("lock_edit_clock") else Modifier)) {
+                        val canStretch = onClockHeight != null && !cyber && !appearance.iosClassic
+                        val outline = RoundedCornerShape(16.dp)
+                        Box(Modifier.fillMaxWidth().then(if (onEditClock != null)
+                            Modifier.border(1.dp, Color.White.copy(alpha = .56f), outline) else Modifier)) {
                             LockClock(now, appearance, Modifier.fillMaxWidth()
-                                .heightIn(max = (lockContentHeight - 56.dp).coerceAtLeast(72.dp))
+                                .then(if (onEditClock != null) Modifier
+                                    .clickable(onClickLabel = "Edit clock font and color", onClick = onEditClock)
+                                    .testTag("lock_edit_clock") else Modifier)
+                                .padding(bottom = if (canStretch) 12.dp else 0.dp)
+                                .heightIn(max = (lockContentHeight - 56.dp).coerceAtLeast(92.dp))
                                 .padding(vertical = 2.dp).onGloballyPositioned {
                                 depthClock = it
                                 depthRoot?.takeIf { root -> root.isAttached }?.let { root -> clockRestBounds = root.localBoundingBoxOf(it, clipBounds = false) }
                             })
-                            if (onClockHeight != null && !cyber && !appearance.iosClassic) Box(Modifier.align(Alignment.BottomEnd).size(44.dp)
-                                .pointerInput(Unit) {
-                                    var value = options.clockHeight
-                                    detectVerticalDragGestures(onDragStart = { value = currentClockHeight }, onVerticalDrag = { change, delta ->
-                                        change.consume()
-                                        value = (value + delta / (104f * metrics.density)).coerceIn(1f, 2.4f)
-                                        changeClockHeight?.invoke(value)
-                                    })
-                                }.testTag("lock_clock_resize"), contentAlignment = Alignment.Center) {
-                                Icon(Icons.Outlined.OpenInFull, "Drag to change clock height", tint = Color.White, modifier = Modifier.size(21.dp))
+                            if (canStretch) {
+                                ClockResizeHandle(options.clockHeight, checkNotNull(onClockHeight), Modifier.align(Alignment.BottomEnd))
                             }
                         }
                        }
@@ -355,6 +350,40 @@ internal fun lockClockFont(cyber: Boolean, style: Int): FontFamily = remember(cy
 }
 
 @Composable
+private fun ClockResizeHandle(height: Float, onHeight: (Float) -> Unit, modifier: Modifier) {
+    val currentHeight by rememberUpdatedState(height)
+    val changeHeight by rememberUpdatedState(onHeight)
+    val travel = with(LocalDensity.current) { 115.dp.toPx() }
+    Canvas(modifier.size(48.dp).testTag("lock_clock_resize").semantics {
+        contentDescription = "Clock height"
+        progressBarRangeInfo = ProgressBarRangeInfo(height, 1f..2.4f)
+        setProgress { changeHeight(it.coerceIn(1f, 2.4f)); true }
+    }.pointerInput(travel) {
+        var stretch = 1f
+        detectVerticalDragGestures(
+            onDragStart = { stretch = currentHeight },
+            onVerticalDrag = { change, delta ->
+                change.consume()
+                stretch = (stretch + delta / travel).coerceIn(1f, 2.4f)
+                changeHeight(stretch)
+            },
+        )
+    }) {
+        val right = size.width - 5.dp.toPx()
+        val bottom = size.height - 5.dp.toPx()
+        val radius = 9.dp.toPx()
+        val corner = Path().apply {
+            moveTo(right, bottom - 21.dp.toPx())
+            lineTo(right, bottom - radius)
+            quadraticTo(right, bottom, right - radius, bottom)
+            lineTo(right - 21.dp.toPx(), bottom)
+        }
+        drawPath(corner, Color.Black.copy(alpha = .35f), style = Stroke(6.dp.toPx(), cap = StrokeCap.Round))
+        drawPath(corner, Color.White, style = Stroke(3.dp.toPx(), cap = StrokeCap.Round))
+    }
+}
+
+@Composable
 internal fun LockClock(now: Long, a: Appearance, modifier: Modifier) {
     val options = a.lockScreen.presentation(a)
     val cyber = a.themePreset == 1
@@ -393,10 +422,14 @@ internal fun LockClock(now: Long, a: Appearance, modifier: Modifier) {
             .layout { measurable, constraints ->
                 val child = measurable.measure(constraints)
                 val stretch = if (cyber) 1f else options.clockHeight
-                val height = constraints.constrainHeight((child.height * stretch).roundToInt())
+                val maxHeight = constraints.constrainHeight((child.height * 2.4f).roundToInt())
+                // Allocate the whole drag range to the height that actually fits.
+                // A capped preview must still respond when shrinking from maximum.
+                val fraction = (stretch - 1f) / 1.4f
+                val height = (child.height + (maxHeight - child.height) * fraction).roundToInt()
                 val fittedStretch = if (child.height > 0) height.toFloat() / child.height else 1f
                 layout(child.width, height) { child.placeRelativeWithLayer(0, (height - child.height) / 2) { scaleY = fittedStretch } }
-            }) {
+            }.testTag("lock_clock")) {
           BasicText(time, style = style, maxLines = 1, softWrap = false, modifier = Modifier.fillMaxWidth()
             .then(if (glass) Modifier.drawWithCache {
                 val outline = measurer.measure(time, typography(size), maxLines = 1, softWrap = false,
@@ -414,7 +447,7 @@ internal fun LockClock(now: Long, a: Appearance, modifier: Modifier) {
                     canvas.restore()
                     drawContent()
                 }
-            } else Modifier).testTag("lock_clock"))
+            } else Modifier))
         }
     }
 }

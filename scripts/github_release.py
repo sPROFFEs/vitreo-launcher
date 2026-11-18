@@ -55,6 +55,10 @@ class GitHub:
 
 def release_body(info: dict) -> str:
     preview = info["buildType"] == "preview"
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    version = re.escape(info["versionName"])
+    section = re.search(rf"^## {version}(?:[ \t]+[^\n]*)?\n(.*?)(?=^## |\Z)", changelog, re.M | re.S)
+    changes = section[1].strip() if section else "See CHANGELOG.md for version history."
     signing = ("**PREVIEW: signed with an ephemeral CI test key, not a production signing identity. "
         "A later Preview build can require export, uninstall and reinstall. Use private signing secrets for stable updates.**"
         if preview else "Signed with your repository's private release key. Keep that key backed up for future updates.")
@@ -70,10 +74,7 @@ def release_body(info: dict) -> str:
 - Signer SHA-256: `{info['signingCertificateSha256']}`.
 
 ## New in this release
-GitHub update checks now fall back to verified release files over HTTPS if the API is unavailable or rate limited. Server API retry deadlines are retained; APK checksum, package, version and signing-certificate checks remain mandatory.
-Home icon preferences now reach 100 dp. Opened folders use the actual Home icon size. App Library follows Home by default or uses its own size; expanded grids adapt their columns and previews fit their cards.
-Hold and drag an app over another app or folder, wait for the ready outline, then release to group them. A stationary hold keeps the context menu. Edit Home also includes Create Folder with multiple app selection.
-iOS 16 Classic is a separate optional appearance with uniform frosted surfaces, quieter shadows and original colored icons. iOS 26 retains Liquid Glass and its saved settings. Remove the synthetic internal glass rim and smooth the lens transition without disabling refraction.
+{changes}
 
 ## Scope and verification
 iOS-inspired Home and optional Cyberpunk HUD theme, four-column grid, Dock, paged folders, Spotlight, categorized App Library, Home/Today widgets and layout backups.
@@ -81,7 +82,7 @@ Themes & Icons supports installed ADW/Nova static icon packs and per-app icon se
 The Dock follows page gestures continuously without repacking Home. Today cards can be reordered, removed, restored or moved to Home.
 Optional Control Center opens from all launcher pages, with editable shortcuts, actual media volume, window-only Home brightness and torch support. Network, Focus and device shortcuts open Android panels; enable/disable it in Settings → Control Center.
 Optional Home status bar, Notification Center and connected-player integration default to off. Authorize notification access in Android Settings for real alerts and active MediaSession metadata/actions; content stays in memory. The custom status bar applies inside Home only. Panel gesture zones can be adjusted/tested in Settings. Control Center uses original iOS 26-inspired symbols, a diffuse wallpaper backdrop and finger-driven opening/cancellation.
-Home icons arrive inward from screen edges after Recents. Wallpaper sync (enabled by default when Vitreo is the default launcher, configurable in Wallpaper) shares the composed background with Android Home using SET_WALLPAPER.
+Home icons arrive inward from screen edges when unlocking directly to Home. Returning from an app opened on Home uses a subtle workspace settle. Wallpaper sync (enabled by default when Vitreo is the default launcher, configurable in Wallpaper) shares the composed background with Android Home using SET_WALLPAPER.
 Glass samples this launcher's wallpaper only. Native Android widgets are hosted on Home pages and in Today with system authorization. Android retains its keyboard, notifications, Recents and lock screen.
 JVM tests, Android lint, build and APK signature/identity/permission checks ran in this workflow.
 Publication is gated on Android API 31 and 35 instrumentation plus optimized Preview launch tests at this commit.

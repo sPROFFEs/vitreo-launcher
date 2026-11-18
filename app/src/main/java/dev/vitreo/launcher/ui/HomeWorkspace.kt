@@ -93,7 +93,7 @@ internal fun HomeWorkspace(page: HomeGridPage, rows: Int, rowHeight: Float, icon
                 LauncherTile(cell.entry, apps, iconSize.dp, showLabels,
                     position(cell.column, cell.row).width(cellWidth).height(rowHeight.dp)
                         .then(homeArrival(origin + with(density) { Offset((cellWidth * (cell.column + .5f)).toPx(), (rowHeight.dp * cell.row + iconSize.dp / 2).toPx()) },
-                            with(density) { iconSize.dp.toPx() })).testTag("home_entry:${cell.entry.id}"),
+                            with(density) { iconSize.dp.toPx() }, cell.entry.id)).testTag("home_entry:${cell.entry.id}"),
                     editing, draggedApp == cell.entry.id, onClick = { onOpen(cell.entry, it) },
                     onActions = { onActions(cell.entry, it) }, onBounds = { onBounds(cell.entry.id, it) },
                     onRemove = { onRemove(cell.entry) }, groupingHover = groupingHover == cell.entry.id, groupingTarget = groupingTarget == cell.entry.id)
