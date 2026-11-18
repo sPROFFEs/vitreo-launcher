@@ -21,7 +21,38 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 
 data class AppRecord(val id: String, val label: String, val packageName: String, val icon: Bitmap?,
-    val category: Int = -1, val glyph: Bitmap? = null)
+    val category: Int = -1, val monochromeIcon: Bitmap? = null)
+
+/** The adaptive foreground may be an opaque color plate. Only use the optional
+ * Android monochrome layer for effects that tint the entire alpha mask. */
+internal fun rasterizeAppIcon(drawable: Drawable): Pair<Bitmap, Bitmap?> {
+    val size = 128
+    if (drawable !is AdaptiveIconDrawable) return drawable.toBitmap(size, size, Bitmap.Config.ARGB_8888) to null
+    val icon = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(icon)
+    drawable.background?.apply { setBounds(0, 0, size, size); draw(canvas) }
+    drawable.foreground?.apply { setBounds(-32, -32, 160, 160); draw(canvas) }
+    val monochrome = if (Build.VERSION.SDK_INT >= 33) runCatching {
+        drawable.monochrome?.let { layer ->
+            val glyph = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            layer.setBounds(-32, -32, 160, 160)
+            layer.draw(Canvas(glyph))
+            glyph.takeIf(::hasIconSilhouette)
+        }
+    }.getOrNull() else null
+    return icon to monochrome
+}
+
+private fun hasIconSilhouette(bitmap: Bitmap): Boolean {
+    val row = IntArray(bitmap.width)
+    var ink = 0
+    for (y in 4 until bitmap.height step 8) {
+        bitmap.getPixels(row, 0, row.size, 0, y, row.size, 1)
+        for (x in 4 until row.size step 8) if (row[x].ushr(24) >= 32) ink++
+    }
+    // Reject empty and nearly full-bleed masks, which produce a blank square.
+    return ink in 3..240
+}
 
 /** Launchable activities in this Android user. Adaptive artwork is rendered before applying our mask. */
 class AppCatalog(private val context: Context) {
@@ -107,19 +138,9 @@ class AppCatalog(private val context: Context) {
         work.forEachIndexed { index, (id, item) ->
             checkActive()
             val (info, updated) = item
-            val images = runCatching {
-                val drawable = info.icon()
-                if (drawable is AdaptiveIconDrawable) {
-                    val icon = Bitmap.createBitmap(128, 128, Bitmap.Config.ARGB_8888)
-                    drawable.background?.apply { setBounds(0, 0, 128, 128); draw(Canvas(icon)) }
-                    val glyph = Bitmap.createBitmap(128, 128, Bitmap.Config.ARGB_8888)
-                    drawable.foreground?.apply { setBounds(-32, -32, 160, 160); draw(Canvas(glyph)) }
-                    Canvas(icon).drawBitmap(glyph, 0f, 0f, null)
-                    icon to glyph
-                } else drawable.toBitmap(128, 128, Bitmap.Config.ARGB_8888) to null
-            }.getOrNull()
+            val images = runCatching { rasterizeAppIcon(info.icon()) }.getOrNull()
             val position = positions.getValue(id)
-            val record = records[position].copy(icon = images?.first, glyph = images?.second)
+            val record = records[position].copy(icon = images?.first, monochromeIcon = images?.second)
             records[position] = record
             artwork[id] = Artwork(updated, info.activity.iconResource, info.activity.labelRes, record.label, record)
             if (onProgress != null && (index + 1 == priorityCount || (index + 1) % 32 == 0))

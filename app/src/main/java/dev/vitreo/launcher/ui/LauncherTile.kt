@@ -103,20 +103,19 @@ fun EntryIcon(entry: HomeEntry, apps: Map<String, AppRecord>, size: Dp, modifier
                 IosAppIcon(kind, style, Color(appearance.tintColor), Modifier.fillMaxSize()
                     .then(if (themeKind != null) Modifier.testTag("theme_icon:${entry.id}:$themeKind") else Modifier))
             } else {
-            if (style == 3) GlassPanel(Modifier.fillMaxSize(), radius = size.value * .25f, tint = .08f) {}
-            else Box(Modifier.fillMaxSize().background(if (style == 1 || style == 2) Color(0xff1e2229) else Color.White))
-            val image = if (style != 0) app?.glyph ?: app?.icon else app?.icon
-            if (image != null) Image(image.asImageBitmap(), null, Modifier.fillMaxSize(),
-                colorFilter = when {
-                    style == 2 && app?.glyph != null -> ColorFilter.tint(Color(appearance.tintColor))
-                    style == 3 && app?.glyph != null -> ColorFilter.tint(Color.White)
-                    style > 1 -> ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
-                    else -> null
-                })
-            else Icon(Icons.Outlined.Android, null, Modifier.size(size * .58f).align(Alignment.Center),
-                tint = if (style == 0) Color(0xff7c8999) else Color(appearance.tintColor))
-            if (style > 0) Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
-                listOf(Color.White.copy(alpha = .12f), Color.Transparent, Color.Black.copy(alpha = .07f)))))
+                val monochrome = app?.monochromeIcon?.takeIf { style != 0 }
+                if (monochrome != null) {
+                    if (style == 3) GlassPanel(Modifier.fillMaxSize(), radius = size.value * .25f, tint = .08f) {}
+                    else Box(Modifier.fillMaxSize().background(Color(0xff1e2229)))
+                    val ink = if (style == 2) Color(appearance.tintColor) else Color.White
+                    Image(monochrome.asImageBitmap(), null, Modifier.fillMaxSize(), colorFilter = ColorFilter.tint(ink))
+                } else {
+                    Box(Modifier.fillMaxSize().background(Color.White))
+                    val original = app?.icon
+                    if (original != null) Image(original.asImageBitmap(), null, Modifier.fillMaxSize())
+                    else Icon(Icons.Outlined.Android, null, Modifier.size(size * .58f).align(Alignment.Center),
+                        tint = Color(0xff7c8999))
+                }
             }
         }
         if (cyber && dev.vitreo.launcher.core.CYBER_EFFECT_TIER_PIPS in appearance.cyberNightEffects && entry is HomeEntry.App) {

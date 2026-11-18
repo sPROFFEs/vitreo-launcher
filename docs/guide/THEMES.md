@@ -55,6 +55,8 @@ Choose an installed ADW/Nova-compatible pack in **Themes & Icons**. Hold an app
 and open **More → Change Icon** to choose **Current theme**, an installed pack or
 **Use Default**. This lets a third-party gallery use the theme's Photos artwork.
 Overrides follow the selected iOS/Cyberpunk theme and survive layout backups.
+The iOS icon modes keep the original app artwork when there is no usable
+monochrome layer. Bundled artwork and selected icon packs supply their own icons.
 
 The bundled Cyberpunk set has 23 app-family glyphs and 13 control glyphs. Apps
 without matching artwork retain their native icon. A missing pack or drawable

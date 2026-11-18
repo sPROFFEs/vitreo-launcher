@@ -6,6 +6,8 @@
   exteriores inician el movimiento y cada icono vuelve a su celda. La animación
   empieza cuando Home está listo y vuelve a recibir el foco, y una transición
   interrumpida sigue recuperando los iconos automáticamente.
+- Los modos de iconos de iOS conservan el icono original a color cuando una app
+  no ofrece una silueta monocroma válida. Clear ya no tiñe una capa opaca entera.
 
 ## 0.10.18
 

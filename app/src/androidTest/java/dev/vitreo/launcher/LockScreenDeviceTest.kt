@@ -3,6 +3,7 @@ package dev.vitreo.launcher
 import android.app.KeyguardManager
 import android.content.Context
 import android.os.SystemClock
+import android.view.ViewTreeObserver
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
@@ -12,6 +13,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
+import androidx.test.runner.lifecycle.ActivityLifecycleCallback
 import androidx.test.runner.lifecycle.Stage
 import dev.vitreo.launcher.core.Appearance
 import dev.vitreo.launcher.lock.LockScreenActivity
@@ -22,6 +24,7 @@ import org.junit.*
 import org.junit.Assert.*
 import org.junit.rules.ExternalResource
 import org.junit.runner.RunWith
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** Last, isolated phase only: changes emulator-wide HOME and secure credentials, restores both. */
 @RunWith(AndroidJUnit4::class)
@@ -259,8 +262,26 @@ class LockScreenDeviceTest {
                 .filterIsInstance<MainActivity>().single()
         }
         val motion = ViewModelProvider(main)[LauncherViewModel::class.java].homeUnlock
+        val frameSeen = AtomicBoolean(false)
+        val listeners = mutableMapOf<MainActivity, ViewTreeObserver.OnPreDrawListener>()
+        val lifecycleMonitor = ActivityLifecycleMonitorRegistry.getInstance()
+        val observeHome = ActivityLifecycleCallback { activity, stage ->
+            if (activity is MainActivity && stage == Stage.RESUMED && activity !in listeners) {
+                val listener = ViewTreeObserver.OnPreDrawListener {
+                    if (activity.hasWindowFocus() && motion.serial == before + 1 &&
+                        motion.progress.value in 0.01f..0.95f) frameSeen.set(true)
+                    true
+                }
+                activity.window.decorView.viewTreeObserver.addOnPreDrawListener(listener)
+                listeners[activity] = listener
+            }
+        }
         val originalScale = shell("settings get global animator_duration_scale").trim()
         shell("settings put global animator_duration_scale 1")
+        instrumentation.runOnMainSync {
+            lifecycleMonitor.addLifecycleCallback(observeHome)
+            observeHome.onActivityLifecycleChanged(main, Stage.RESUMED)
+        }
         try {
             await("system animator enabled") { android.animation.ValueAnimator.areAnimatorsEnabled() }
             shell("input keyevent KEYCODE_SLEEP")
@@ -269,17 +290,15 @@ class LockScreenDeviceTest {
             shell("input keyevent KEYCODE_WAKEUP")
             shell("wm dismiss-keyguard")
             enterPin()
-            await("an intermediate radial frame runs in focused Home after Android unlocks") {
-                var moving = false
-                instrumentation.runOnMainSync {
-                    moving = motion.serial == before + 1 && motion.progress.value in 0.01f..0.95f &&
-                        ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED)
-                            .filterIsInstance<MainActivity>().any { it.hasWindowFocus() }
-                }
-                moving
-            }
+            await("an intermediate radial frame draws in focused Home after Android unlocks") { frameSeen.get() }
             await("radial reveal settles on Home") { motion.progress.value == 1f }
         } finally {
+            instrumentation.runOnMainSync {
+                lifecycleMonitor.removeLifecycleCallback(observeHome)
+                listeners.forEach { (activity, listener) ->
+                    activity.window.decorView.viewTreeObserver.removeOnPreDrawListener(listener)
+                }
+            }
             if (originalScale == "null") shell("settings delete global animator_duration_scale")
             else {
                 check(originalScale.matches(Regex("[0-9.]+")))
