@@ -4,8 +4,8 @@
 
 - Recupera la entrada radial al desbloquear directamente en Home. Los iconos
   exteriores inician el movimiento y cada icono vuelve a su celda. La animación
-  empieza cuando Home está listo y vuelve a recibir el foco, y una transición
-  interrumpida sigue recuperando los iconos automáticamente.
+  empieza cuando Android descubre Home y el escritorio está listo. Si se
+  interrumpe, Home recupera los iconos automáticamente.
 - Los modos de iconos de iOS conservan el icono original a color cuando una app
   no ofrece una silueta monocroma válida. Clear ya no tiñe una capa opaca entera.
 

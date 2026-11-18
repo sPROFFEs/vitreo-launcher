@@ -20,6 +20,7 @@ import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
+import android.view.View
 import android.view.ViewTreeObserver
 import android.view.animation.LinearInterpolator
 import androidx.core.animation.doOnEnd
@@ -157,9 +158,10 @@ class MainActivity : ComponentActivity() {
         if (motion.pending) {
             val locked = keyguard.isKeyguardLocked
             motion.wake(locked)
-            // A pre-draw under keyguard is preparation. Start with a laid-out
-            // workspace only after Android returns the foreground to Home.
+            // Android can uncover and draw Home before it returns input focus.
+            // A pre-draw while keyguard still covers the window only prepares it.
             val focused = hasWindowFocus()
+            val drawingVisibleHome = drawing && window.decorView.windowVisibility == View.VISIBLE
             if (BuildConfig.DEBUG) {
                 val trace = "locked=$locked focus=$focused resumed=${lifecycle.currentState} ready=${motion.sceneReady}"
                 if (trace != lastHomeMotionTrace || focusGained) {
@@ -167,8 +169,11 @@ class MainActivity : ComponentActivity() {
                     android.util.Log.d("VitreoHomeMotion", "$trace focusGained=$focusGained drawing=$drawing")
                 }
             }
-            if ((!locked && (drawing || focused)) || focusGained) {
-                if (!locked && focused && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && motion.sceneReady) {
+            val uncovered = !locked && (drawingVisibleHome || focused)
+            if (!locked && !uncovered && window.decorView.windowVisibility == View.VISIBLE)
+                window.decorView.postInvalidateOnAnimation()
+            if (uncovered || focusGained) {
+                if (uncovered && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && motion.sceneReady) {
                     if (ValueAnimator.areAnimatorsEnabled()) motion.beginReveal(now)?.let(::animateHomeArrival)
                     else motion.leaveHome()
                 }
@@ -193,6 +198,7 @@ class MainActivity : ComponentActivity() {
         homeArrivalAnimator?.cancel()
         homeArrivalAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 440
+            startDelay = 32
             interpolator = LinearInterpolator()
             addUpdateListener { motion.renderFrame(serial, it.animatedFraction) }
             doOnEnd {

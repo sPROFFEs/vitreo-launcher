@@ -57,9 +57,10 @@ Battery Saver, Reduce Motion or disabled HUD Effects.
 ## App return and overlays
 
 Home prepares incoming positions while the display is asleep. A laid-out Home
-workspace starts the radial reveal when keyguard is gone and the window has input
-focus. One Android animator drives the outer-to-inner timing in the icon
-drawing layers. The visible workspace settles if the handoff or animator stalls.
+workspace starts the radial reveal when Android uncovers the window. A visible
+draw can start it before input focus arrives. One Android animator drives timing
+from the outer cells inward. The visible workspace settles if the handoff or
+animator stalls.
 A late signal cannot rewind icons that are already visible.
 Closing an app launched from the workspace brings the workspace forward
 slightly, and the source icon settles when its tile is visible. Android receives

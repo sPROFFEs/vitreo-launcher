@@ -3,6 +3,7 @@ package dev.vitreo.launcher
 import android.app.KeyguardManager
 import android.content.Context
 import android.os.SystemClock
+import android.view.View
 import android.view.ViewTreeObserver
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.*
@@ -268,16 +269,19 @@ class LockScreenDeviceTest {
         val observeHome = ActivityLifecycleCallback { activity, stage ->
             if (activity is MainActivity && stage == Stage.RESUMED && activity !in listeners) {
                 val listener = ViewTreeObserver.OnPreDrawListener {
-                    if (activity.hasWindowFocus() && motion.serial == before + 1 &&
-                        motion.progress.value in 0.01f..0.95f) frameSeen.set(true)
+                    if (!frameSeen.get() && motion.serial == before + 1 &&
+                        motion.progress.value in 0.01f..0.95f &&
+                        activity.window.decorView.windowVisibility == View.VISIBLE &&
+                        !keyguard.isKeyguardLocked) frameSeen.set(true)
                     true
                 }
                 activity.window.decorView.viewTreeObserver.addOnPreDrawListener(listener)
                 listeners[activity] = listener
             }
         }
-        val originalScale = shell("settings get global animator_duration_scale").trim()
-        shell("settings put global animator_duration_scale 1")
+        val originalScales = listOf("window_animation_scale", "transition_animation_scale", "animator_duration_scale")
+            .associateWith { shell("settings get global $it").trim() }
+        originalScales.keys.forEach { shell("settings put global $it 1") }
         instrumentation.runOnMainSync {
             lifecycleMonitor.addLifecycleCallback(observeHome)
             observeHome.onActivityLifecycleChanged(main, Stage.RESUMED)
@@ -290,7 +294,7 @@ class LockScreenDeviceTest {
             shell("input keyevent KEYCODE_WAKEUP")
             shell("wm dismiss-keyguard")
             enterPin()
-            await("an intermediate radial frame draws in focused Home after Android unlocks") { frameSeen.get() }
+            await("an intermediate radial frame draws in uncovered Home after Android unlocks") { frameSeen.get() }
             await("radial reveal settles on Home") { motion.progress.value == 1f }
         } finally {
             instrumentation.runOnMainSync {
@@ -299,10 +303,12 @@ class LockScreenDeviceTest {
                     activity.window.decorView.viewTreeObserver.removeOnPreDrawListener(listener)
                 }
             }
-            if (originalScale == "null") shell("settings delete global animator_duration_scale")
-            else {
-                check(originalScale.matches(Regex("[0-9.]+")))
-                shell("settings put global animator_duration_scale $originalScale")
+            originalScales.forEach { (setting, scale) ->
+                if (scale == "null") shell("settings delete global $setting")
+                else {
+                    check(scale.matches(Regex("[0-9.]+")))
+                    shell("settings put global $setting $scale")
+                }
             }
         }
         shell("input keyevent KEYCODE_HOME")
