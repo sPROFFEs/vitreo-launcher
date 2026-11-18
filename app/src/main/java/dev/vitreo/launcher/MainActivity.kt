@@ -43,7 +43,7 @@ class MainActivity : ComponentActivity() {
     private val keyguard get() = getSystemService(KeyguardManager::class.java)
     private val screenPower get() = getSystemService(PowerManager::class.java)
     private val revealBeforeDraw = ViewTreeObserver.OnPreDrawListener {
-        revealAfterUnlock()
+        revealAfterUnlock(beforeDraw = true)
         true
     }
     private val screenReceiver = object : BroadcastReceiver() {
@@ -109,7 +109,7 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         // Keyguard can stop Home before the queued SCREEN_OFF broadcast arrives.
         if (defaultHome && !leftForApp && (!screenPower.isInteractive || keyguard.isKeyguardLocked)) {
-            model.homeUnlock.sleep(keyguard.isKeyguardLocked)
+            model.homeUnlock.sleep(keyguard.isKeyguardLocked, stopped = true)
         } else if (!isChangingConfigurations) model.homeUnlock.leaveHome()
         visible = false
         super.onStop()
@@ -126,11 +126,15 @@ class MainActivity : ComponentActivity() {
             android.app.WallpaperManager.getInstance(this).setWallpaperOffsets(window.decorView.windowToken, .5f, .5f)
         }
     }
-    private fun revealAfterUnlock() {
-        if (!model.homeUnlock.pending || !defaultHome || !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) ||
-            !screenPower.isInteractive || keyguard.isKeyguardLocked) return
-        // Outgoing keyguard can uncover Home before the window gets input focus.
-        model.homeUnlock.showUnlockedHome(SystemClock.uptimeMillis())
+    private fun revealAfterUnlock(beforeDraw: Boolean = false) {
+        val motion = model.homeUnlock
+        if (!motion.pending || !defaultHome || !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) ||
+            !screenPower.isInteractive) return
+        // Android can resume and draw the stopped Home behind its outgoing lock
+        // surface well before keyguard reports hidden. Home is not showWhenLocked.
+        val drawingResumedHome = beforeDraw && visible && motion.stoppedForSleep
+        if (drawingResumedHome || !keyguard.isKeyguardLocked)
+            motion.showUnlockedHome(SystemClock.uptimeMillis())
     }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)

@@ -15,9 +15,12 @@ internal class HomeUnlockMotion {
     private var unlockAt: Long? = null
     private var consumed = 0
     val pending get() = phase == Phase.Prepared
+    var stoppedForSleep = false
+        private set
 
-    fun sleep(keyguardLocked: Boolean) {
+    fun sleep(keyguardLocked: Boolean, stopped: Boolean = false) {
         lockedOverHome = keyguardLocked || (pending && lockedOverHome)
+        stoppedForSleep = stopped || (pending && stoppedForSleep)
         unlockAt = null
         phase = Phase.Prepared
     }
@@ -33,6 +36,7 @@ internal class HomeUnlockMotion {
     fun leaveHome() {
         phase = Phase.Settled
         lockedOverHome = false
+        stoppedForSleep = false
         unlockAt = null
     }
 

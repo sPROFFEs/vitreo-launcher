@@ -49,4 +49,16 @@ class HomeUnlockMotionTest {
         assertFalse(motion.consumeReveal())
         assertEquals(1f, motion.frameProgress(1, .3f), 0f)
     }
+
+    @Test fun onlyAHomeStoppedForSleepKeepsTheEarlyDrawSignal() {
+        val motion = HomeUnlockMotion()
+        motion.sleep(keyguardLocked = true)
+        assertFalse(motion.stoppedForSleep)
+        motion.sleep(keyguardLocked = true, stopped = true)
+        motion.sleep(keyguardLocked = true)
+        assertTrue(motion.stoppedForSleep)
+        motion.leaveHome()
+        assertFalse(motion.stoppedForSleep)
+        assertEquals(1f, motion.frameProgress(0, 0f), 0f)
+    }
 }
