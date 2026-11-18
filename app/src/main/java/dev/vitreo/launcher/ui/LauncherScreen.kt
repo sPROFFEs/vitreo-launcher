@@ -117,7 +117,7 @@ private data class WidgetDragSession(val placement: HomeWidgetPlacement, val pos
 @Composable
 fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: Int, defaultHome: Boolean,
     onSetHome: () -> Unit, onLaunch: (String, Rect?) -> Boolean, onShortcut: (ShortcutInfo, Rect?) -> Boolean, onAppInfo: (String) -> Unit,
-    onConfigureWidget: (AppWidgetHost, Int, (Boolean) -> Unit) -> Unit, homeRevealSerial: Int = 0) {
+    onConfigureWidget: (AppWidgetHost, Int, (Boolean) -> Unit) -> Unit) {
     val ui by model.ui.collectAsStateWithLifecycle()
     val frame by model.wallpaper.collectAsStateWithLifecycle()
     val background by model.background.collectAsStateWithLifecycle()
@@ -232,10 +232,9 @@ fun LauncherScreen(model: LauncherViewModel, homeSerial: Int, appReturnSerial: I
     }
     val onHomePage = pager.currentPage in 1..homePages
     val animateWorkspace = onHomePage && !modalPresent && !editing && !appearance.reducedEffects
-    var handledUnlock by remember { mutableIntStateOf(0) }
+    val homeRevealSerial = model.homeUnlock.serial
     LaunchedEffect(homeRevealSerial, homeResumed, animateWorkspace) {
-        if (homeResumed && homeRevealSerial != handledUnlock) {
-            handledUnlock = homeRevealSerial
+        if (homeResumed && model.homeUnlock.consumeReveal()) {
             if (animateWorkspace) {
                 arrival.snapTo(0f)
                 arrival.animateTo(1f, spring(dampingRatio = .94f, stiffness = 360f))

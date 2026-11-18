@@ -38,27 +38,19 @@ class MainActivity : ComponentActivity() {
     private var appReturnSerial by mutableIntStateOf(0)
     private var leftForApp = false
     private var defaultHome by mutableStateOf(false)
-    private var homeRevealSerial by mutableIntStateOf(0)
     private var visible = false
-    private var sleptOverHome = false
-    private var lockedOverHome = false
-    private var unlockAt = 0L
     private val keyguard get() = getSystemService(KeyguardManager::class.java)
     private val screenPower get() = getSystemService(PowerManager::class.java)
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 Intent.ACTION_SCREEN_OFF -> {
-                    if (visible && defaultHome && !leftForApp) rememberHomeSleep()
+                    if (visible && defaultHome && !leftForApp) model.homeUnlock.sleep(keyguard.isKeyguardLocked)
                 }
-                Intent.ACTION_SCREEN_ON -> {
-                    lockedOverHome = lockedOverHome || (sleptOverHome && keyguard.isKeyguardLocked)
-                }
+                Intent.ACTION_SCREEN_ON -> model.homeUnlock.wake(keyguard.isKeyguardLocked)
                 Intent.ACTION_USER_PRESENT -> {
-                    if (lockedOverHome) {
-                        unlockAt = SystemClock.uptimeMillis()
-                        revealAfterUnlock()
-                    }
+                    model.homeUnlock.userPresent(SystemClock.uptimeMillis())
+                    revealAfterUnlock()
                 }
             }
         }
@@ -81,7 +73,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val ui by model.ui.collectAsStateWithLifecycle()
             VitreoTheme(ui.layout.appearance.interfaceStyle, ui.layout.appearance.themePreset, ui.layout.appearance) {
-                LauncherScreen(model, homeSerial, appReturnSerial, defaultHome, ::chooseHome, ::launchApp, ::launchShortcut, ::appInfo, ::configureWidget, homeRevealSerial)
+                LauncherScreen(model, homeSerial, appReturnSerial, defaultHome, ::chooseHome, ::launchApp, ::launchShortcut, ::appInfo, ::configureWidget)
             }
         }
     }
@@ -102,8 +94,9 @@ class MainActivity : ComponentActivity() {
     }
     override fun onStop() {
         // Keyguard can stop Home before the queued SCREEN_OFF broadcast arrives.
-        if (defaultHome && !leftForApp && (!screenPower.isInteractive || keyguard.isKeyguardLocked)) rememberHomeSleep()
-        else clearHomeSleep()
+        if (defaultHome && !leftForApp && (!screenPower.isInteractive || keyguard.isKeyguardLocked)) {
+            model.homeUnlock.sleep(keyguard.isKeyguardLocked)
+        } else if (!isChangingConfigurations) model.homeUnlock.leaveHome()
         visible = false
         super.onStop()
     }
@@ -115,24 +108,10 @@ class MainActivity : ComponentActivity() {
             android.app.WallpaperManager.getInstance(this).setWallpaperOffsets(window.decorView.windowToken, .5f, .5f)
         }
     }
-    private fun rememberHomeSleep() {
-        sleptOverHome = true
-        lockedOverHome = lockedOverHome || keyguard.isKeyguardLocked
-        unlockAt = 0L
-    }
-    private fun clearHomeSleep() {
-        sleptOverHome = false
-        lockedOverHome = false
-        unlockAt = 0L
-    }
     private fun revealAfterUnlock() {
-        if (!sleptOverHome || !defaultHome || !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) ||
+        if (!model.homeUnlock.pending || !defaultHome || !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) ||
             !hasWindowFocus() || !screenPower.isInteractive || keyguard.isKeyguardLocked) return
-        // Consume before publishing. Focus, resume and USER_PRESENT may all
-        // report the same unlock. A later return from another app is too late.
-        val reveal = lockedOverHome && (unlockAt == 0L || SystemClock.uptimeMillis() - unlockAt <= 650L)
-        clearHomeSleep()
-        if (reveal) homeRevealSerial++
+        model.homeUnlock.focusUnlockedHome(SystemClock.uptimeMillis())
     }
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -170,6 +149,7 @@ class MainActivity : ComponentActivity() {
             // Use Android's launcher contract, with BOTH animation and screen-space source bounds.
             getSystemService(LauncherApps::class.java).startMainActivity(component, Process.myUserHandle(), screenBounds, options?.toBundle())
             leftForApp = true
+            model.homeUnlock.leaveHome()
             model.recordLaunch(id)
             true
         }
@@ -184,6 +164,7 @@ class MainActivity : ComponentActivity() {
                     it.width.toInt().coerceAtLeast(1), it.height.toInt().coerceAtLeast(1)) }
             getSystemService(LauncherApps::class.java).startShortcut(shortcut, null, options?.toBundle())
             leftForApp = true
+            model.homeUnlock.leaveHome()
             model.ui.value.apps.firstOrNull { it.packageName == shortcut.`package` }?.let { model.recordLaunch(it.id) }
             true
         } catch (_: Exception) { model.message("This shortcut is no longer available."); false }

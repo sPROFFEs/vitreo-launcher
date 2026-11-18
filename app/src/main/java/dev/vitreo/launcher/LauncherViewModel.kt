@@ -29,6 +29,7 @@ import java.io.File
 import java.util.UUID
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
+    internal val homeUnlock = HomeUnlockMotion()
     data class UiState(
         val layout: LauncherState = LauncherState(),
         val apps: List<AppRecord> = emptyList(),
